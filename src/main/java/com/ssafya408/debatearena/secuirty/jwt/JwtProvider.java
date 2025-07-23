@@ -1,4 +1,4 @@
-package com.ssafya408.debatearena.common.security.oAuth;
+package com.ssafya408.debatearena.secuirty.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;

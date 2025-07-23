@@ -1,4 +1,4 @@
-package com.ssafya408.debatearena.db;
+package com.ssafya408.debatearena.secuirty.db;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.*;
