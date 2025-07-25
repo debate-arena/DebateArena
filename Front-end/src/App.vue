@@ -27,6 +27,8 @@ import { Button } from '@/components/ui/button'
           <Button variant="secondary" class="flex-1">참여하기</Button>
         </div>
       </div>
+      <!-- 라우터 뷰 추가: 실제 페이지(Home 등) 렌더링 -->
+      <router-view />
     </main>
 
     <!-- 푸터 -->
