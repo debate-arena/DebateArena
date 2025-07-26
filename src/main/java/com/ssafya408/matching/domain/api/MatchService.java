@@ -76,10 +76,7 @@ public class MatchService {
       }
     }
 
-    template.convertAndSend("/sub/match/status",MatchStatusMessageResponse
-        .builder()
-        .matchStatusDtos(matchStatusDtos)
-        .build());
+    template.convertAndSend("/sub/match/status",matchStatusDtos);
   }
 
   public void processMatchQueue(String user,MatchRequestMessage message) {

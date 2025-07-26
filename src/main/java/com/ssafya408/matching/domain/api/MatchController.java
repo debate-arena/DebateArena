@@ -5,22 +5,21 @@ import com.ssafya408.matching.domain.api.dto.MatchRequestMessage;
 import java.security.Principal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Controller;
 
 @Controller
 @RequiredArgsConstructor
 @Slf4j
 public class MatchController {
-
   private final MatchService matchService;
 
   //
-  @MessageMapping("/match/main")
-  public void sendMatchingInfo(Principal principal) {
-
+  @Scheduled(fixedRateString = "${match.status_interval}")
+  public void sendMatchingInfo() {
     log.info("main");
-    log.info(principal.getName());
     //매칭 큐 정보 전송
      matchService.sendMatchStatus();
   }
