@@ -9,6 +9,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MatchRequestMessage {
-  private String sender;
   private List<ChoiceDto> choiceDtos;
 }

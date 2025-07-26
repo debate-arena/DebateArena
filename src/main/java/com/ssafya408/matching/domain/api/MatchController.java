@@ -1,36 +1,38 @@
 package com.ssafya408.matching.domain.api;
 
+import com.ssafya408.matching.domain.api.dto.ChoiceDto;
 import com.ssafya408.matching.domain.api.dto.MatchAcceptMessage;
-import com.ssafya408.matching.domain.api.dto.MatchRequestMessage;
-import java.security.Principal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Controller;
+
+import java.security.Principal;
+import java.util.List;
 
 @Controller
 @RequiredArgsConstructor
 @Slf4j
 public class MatchController {
-  private final MatchService matchService;
+    private final MatchService matchService;
 
-  //
-  @Scheduled(fixedRateString = "${match.status_interval}")
-  public void sendMatchingInfo() {
-    log.info("main");
     //매칭 큐 정보 전송
-     matchService.sendMatchStatus();
-  }
+    @Scheduled(fixedRateString = "${match.status_interval}")
+    public void sendMatchingInfo() {
+        log.info("main");
+        matchService.sendMatchStatus();
+    }
 
-  @MessageMapping("/match/request")
-  public void receiveMatchingRequest(Principal principal, MatchRequestMessage message) {
-    matchService.processMatchQueue(principal.getName(),message);
-  }
+    @MessageMapping("/match/request")
+    public void receiveMatchingRequest(Principal principal, List<ChoiceDto> choiceDtos) {
+        matchService.processMatchQueue(principal.getName(), choiceDtos);
+    }
 
-  @MessageMapping("/match/acceptance")
-  public void receiveMatchAcceptMessage(MatchAcceptMessage message, Principal principal)  {
-    matchService.receiveMatchAccept(message, principal.getName());
-  }
+    //참여 응답 확인
+    @MessageMapping("/match/acceptance")
+    public void receiveMatchAcceptMessage(MatchAcceptMessage message, Principal principal) {
+        matchService.receiveMatchAccept(message, principal.getName());
+    }
+
 }
