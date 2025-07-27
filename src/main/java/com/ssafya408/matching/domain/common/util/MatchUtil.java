@@ -1,9 +1,6 @@
 package com.ssafya408.matching.domain.common.util;
 
-import com.ssafya408.matching.domain.api.dto.ApiResponse;
-import com.ssafya408.matching.domain.api.dto.ChoiceDto;
-import com.ssafya408.matching.domain.api.dto.MatchApplyRequest;
-import com.ssafya408.matching.domain.api.dto.WaitingUser;
+import com.ssafya408.matching.domain.api.dto.*;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,11 +32,9 @@ public class MatchUtil {
     private Set<String> alreadyMatched;
 
     public void setMatchUtil(
-            List<List<List<ConcurrentNavigableMap<Long, String>>>> matchQueue
-            , Map<String, Map<WaitingUser, MatchApplyRequest>> matchCandidates
-            , Map<String, Map<String, Boolean>> matchResponses
-            , Set<String> alreadyMatched
-    ) {
+            List<List<List<ConcurrentNavigableMap<Long, String>>>> matchQueue,
+            Map<String, Map<WaitingUser, MatchApplyRequest>> matchCandidates,
+            Map<String, Map<String, Boolean>> matchResponses, Set<String> alreadyMatched) {
         this.matchQueue = matchQueue;
         this.matchCandidates = matchCandidates;
         this.matchResponses = matchResponses;
@@ -85,9 +80,7 @@ public class MatchUtil {
         }
     }
 
-    private void startMatching(String matchId
-            , List<List<WaitingUser>> candidates
-    ) {
+    private void startMatching(String matchId, List<List<WaitingUser>> candidates) {
         // matchResponses 초기화
         matchResponses.put(matchId, new ConcurrentHashMap<>());
         int total = candidates.size() * candidates.getFirst().size();
@@ -185,8 +178,7 @@ public class MatchUtil {
         return candidates;
     }
 
-    private void evaluateResponse(String matchId, List<List<WaitingUser>> userList
-            , int total) {
+    private void evaluateResponse(String matchId, List<List<WaitingUser>> userList, int total) {
         Map<String, Boolean> userResponses = matchResponses.remove(matchId);
         Map<WaitingUser, MatchApplyRequest> candidates = matchCandidates.remove(matchId);
 
@@ -213,7 +205,7 @@ public class MatchUtil {
             ApiResponse<Map<String, Object>> response = ApiResponse.success(matchResult);
 
             for (Map.Entry<WaitingUser, MatchApplyRequest> e : candidates.entrySet()) {
-                template.convertAndSendToUser(e.getKey().getUser(), "/queue/match/result", response);
+                template.convertAndSendToUser(e.getKey().getUser(), "/queue/match/acceptance", response);
             }
 
             requestRoomGenerate();
@@ -231,7 +223,7 @@ public class MatchUtil {
                 MatchApplyRequest choice = e.getValue();
 
                 // 매칭 실패 알림 전송
-                template.convertAndSendToUser(userInfo.getUser(), "/queue/match/result", response);
+                template.convertAndSendToUser(userInfo.getUser(), "/queue/match/acceptance", response);
 
                 // 매칭을 수락하지 않았으면 패널티 부여
                 if (!userResponses.get(userInfo.getUser())) {
@@ -272,9 +264,20 @@ public class MatchUtil {
         }
     }
 
-
     private void requestRoomGenerate() {
 
     }
 
+    public void sendAcceptantInfo(MatchAcceptRequest message, String user) {
+        Map<WaitingUser, MatchApplyRequest> candidates = matchCandidates.get(message.getMatchId());
+        for (WaitingUser userInfo : candidates.keySet()) {
+            ApiResponse<AcceptanceStatusDto> response = ApiResponse.success(AcceptanceStatusDto.builder()
+                    .user(user)
+                    .accept(message.getAccept())
+                    .build());
+            template.convertAndSendToUser(userInfo.getUser(), "/queue/match/acceptance/status", response);
+
+        }
+
+    }
 }

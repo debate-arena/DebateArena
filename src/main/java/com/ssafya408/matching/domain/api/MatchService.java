@@ -112,6 +112,7 @@ public class MatchService {
         matchResponses.get(matchId).put(user, answer);
 
         // 매칭 참여자들에게 실시간 수락 정보를 보낸다
+        matchUtil.sendAcceptantInfo(message, user);
     }
 
 }
