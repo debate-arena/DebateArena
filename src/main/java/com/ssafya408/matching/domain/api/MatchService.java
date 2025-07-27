@@ -1,11 +1,11 @@
 package com.ssafya408.matching.domain.api;
 
-import com.ssafya408.matching.domain.api.dto.ChoiceDto;
 import com.ssafya408.matching.domain.api.dto.MatchAcceptMessage;
+import com.ssafya408.matching.domain.api.dto.MatchApplyRequest;
 import com.ssafya408.matching.domain.api.dto.MatchStatusDto;
+import com.ssafya408.matching.domain.api.dto.WaitingUser;
+import com.ssafya408.matching.domain.common.util.MatchUtil;
 import jakarta.annotation.PostConstruct;
-import lombok.Builder;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -22,9 +22,15 @@ public class MatchService {
     private final Integer TYPE = 2, TITLE = 5, CHOICE = 3;
     private final Integer TIMEWAIT = 30; //매칭 초대 수락 대기시간
     private final Integer ACCEPT = 0, REFUSE = 1;
+    private final MatchUtil matchUtil;
     private final SimpMessagingTemplate template;
     private List<List<List<ConcurrentNavigableMap<Long, String>>>> matchQueue; //매치 큐
     private Map<String, Map<String, Boolean>> matchResponses;
+
+    // 매칭 별 후보자 모음
+    // 만약 매칭이 취소되면 matchCandidates 에 있는 정보를 불러와서 다시 큐에 넣어준다
+    private Map<String, Map<WaitingUser, MatchApplyRequest>> matchCandidates;
+
     private Set<String> alreadyMatched, canceled;
 
     @PostConstruct
@@ -69,57 +75,60 @@ public class MatchService {
         template.convertAndSend("/sub/match/status", matchStatusDtos);
     }
 
-    public void processMatchQueue(String user, List<ChoiceDto> choiceDtos) {
+    public void processMatchQueue(String user, MatchApplyRequest req) {
         // 1. 사용자가 선택한 데이터를 기반으로 큐에 추가
-        for (ChoiceDto choiceDto : choiceDtos) {
-            Integer matchType = choiceDto.getMatchType();
-            Integer matchTitle = choiceDto.getMatchTitle();
-            Integer choice = choiceDto.getChoice();
+        matchUtil.addMatchApplyRequestToQueue(req, matchQueue, user, System.nanoTime());
 
-            //1. 사용자 선택을 기반으로 해당하는 큐에 추가
-            matchQueue.get(matchType).get(matchTitle).get(choice)
-                    .put(System.nanoTime(), user);
+        String matchId = UUID.randomUUID().toString();
 
-            //2. 현재 큐를 판단해서 매칭이 가능하다면
-            List<WaitingUser> users = selectMatchUsers(matchType, matchTitle);
-            if (!users.isEmpty()) {
-                //매칭 참가 초대를 보낸다
-                startMatching(users);
-                // 큐에서 참가자들의 매칭 요청을 제거한다
-                removeParticipant(users);
-                break;
+        // 2. 현재 큐를 판단해서 매칭이 가능하다면, [1번,2번] 진영의 토론 후보들을 추출한다(상관없음 포함)
+        List<List<WaitingUser>> candidates = matchUtil.selectMatchCandidates(matchQueue);
+
+        if (!candidates.isEmpty()) {
+            //매칭 참가 초대를 보낸다
+            Map<WaitingUser, MatchApplyRequest> userMatchInfo = new HashMap<>();
+            for (List<WaitingUser> debateTeam : candidates) {
+                for (WaitingUser candidate : debateTeam) {
+                    // 큐에서 참가자들의 매칭 요청을 poll 해서 매칭 시작 전까지 matchCandidates 에 저장해놓는다
+                    // 만약 매칭이 취소되면 matchCandidates 에 있는 정보를 불러와서 다시 큐에 넣어준다
+                    MatchApplyRequest matchApplyRequest = matchUtil
+                            .popUserWaitingInfosAtQueue(candidate.getTimestamp(), matchQueue);
+                    userMatchInfo.put(candidate, matchApplyRequest);
+                }
             }
+            matchCandidates.put(matchId, userMatchInfo);
+
+            startMatching(matchId, candidates);
         }
 
     }
 
-
-    private List<WaitingUser> selectMatchUsers(Integer matchType, Integer matchTitle) {
+    private List<WaitingUser> selectMatchCandidates() {
         return null;
     }
 
-    private void startMatching(List<WaitingUser> users) {
-        String matchId = UUID.randomUUID().toString();
-
-        matchResponses.put(matchId, new ConcurrentHashMap<>());
-        for (WaitingUser user : users) {
-            template.convertAndSendToUser(
-                    user.user, "/user/match/acceptance",
-                    Map.of("matchId", matchId)
-            );
+    private void startMatching(String matchId, List<List<WaitingUser>> candidates) {
+        for (List<WaitingUser> team : candidates) {
+            for (WaitingUser user : team) {
+                template.convertAndSendToUser(
+                        user.getUser(), "/user/match/acceptance",
+                        Map.of("matchId", matchId)
+                );
+            }
         }
 
+
         Executors.newSingleThreadScheduledExecutor().schedule(() -> {
-            evaluateResponse(matchId, users);
+            evaluateResponse(matchId, candidates);
         }, TIMEWAIT, TimeUnit.SECONDS);
 
     }
 
-    private void evaluateResponse(String matchId, List<WaitingUser> userList) {
+    private void evaluateResponse(String matchId, List<List<WaitingUser>> userList) {
         Map<String, Boolean> userResponses = matchResponses.get(matchId);
-        int accept = 0, refuse = 0, matchCount = userList.size();
+        int accept = 0, refuse = 0, matchCount = userList.size() * userList.getFirst().size();
         for (Map.Entry<String, Boolean> e : userResponses.entrySet()) {
-            if (e.getValue().equals(ACCEPT))
+            if (e.getValue()) // accept==true
                 accept++;
             else
                 refuse++;
@@ -127,12 +136,8 @@ public class MatchService {
         if (accept == matchCount) { //모두 참여하기를 눌렀을 경우 debate 서버에 전송
             requestRoomGenerate();
         } else { // 매칭이 불발 된 경우
-
             for (Map.Entry<String, Boolean> e : userResponses.entrySet()) {
-                if (e.getValue().equals(ACCEPT))
-                    accept++;
-                else
-                    refuse++;
+                /// //구현 필요
             }
         }
     }
@@ -143,7 +148,7 @@ public class MatchService {
             for (List<ConcurrentNavigableMap<Long, String>> titleList : typeList) { //주제
                 for (ConcurrentNavigableMap<Long, String> queue : titleList) { //주제에 찬,반, 상관 없음 큐 순회
                     for (WaitingUser user : users)
-                        queue.remove(user.timestamp);
+                        queue.remove(user.getTimestamp());
                 }
             }
         }
@@ -167,9 +172,3 @@ public class MatchService {
     }
 }
 
-@Data
-@Builder
-class WaitingUser {
-    Long timestamp; //나노초 단위의 큐 진입시각을 key 값으로 사용
-    String user; //사용자 이메일
-}

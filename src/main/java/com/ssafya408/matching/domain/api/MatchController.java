@@ -1,7 +1,7 @@
 package com.ssafya408.matching.domain.api;
 
-import com.ssafya408.matching.domain.api.dto.ChoiceDto;
 import com.ssafya408.matching.domain.api.dto.MatchAcceptMessage;
+import com.ssafya408.matching.domain.api.dto.MatchApplyRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -9,7 +9,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
-import java.util.List;
 
 @Controller
 @RequiredArgsConstructor
@@ -25,8 +24,8 @@ public class MatchController {
     }
 
     @MessageMapping("/match/request")
-    public void receiveMatchingRequest(Principal principal, List<ChoiceDto> choiceDtos) {
-        matchService.processMatchQueue(principal.getName(), choiceDtos);
+    public void receiveMatchingRequest(Principal principal, MatchApplyRequest message) {
+        matchService.processMatchQueue(principal.getName(), message);
     }
 
     //참여 응답 확인

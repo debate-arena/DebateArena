@@ -1,13 +1,16 @@
 package com.ssafya408.matching.domain.api.dto;
 
-import java.util.List;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MatchRequestMessage {
-  private List<ChoiceDto> choiceDtos;
+public class MatchApplyRequest {
+    private List<ChoiceDto> choices;
 }
