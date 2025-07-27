@@ -41,15 +41,16 @@ export const useTopicSetStore = defineStore('topicSet', {
       try {
         // mock 데이터 (epoch ms)
         const now = Date.now();
-        // 오늘 날짜의 오후 4시, 5시, 6시 타임스탬프 계산
+        // 오늘 날짜의 0시, 12시 타임스탬프 계산
         const today = new Date();
         today.setSeconds(0, 0);
         const year = today.getFullYear();
         const month = today.getMonth();
         const date = today.getDate();
-        const start4 = new Date(year, month, date, 16, 0, 0, 0).getTime(); // 16:00
-        const end5 = new Date(year, month, date, 16, 38, 0, 0).getTime();   // 16:38
-        const end6 = new Date(year, month, date, 18, 0, 0, 0).getTime();   // 18:00
+        const start0 = new Date(year, month, date, 0, 0, 0, 0).getTime();   // 00:00
+        const end12 = new Date(year, month, date, 12, 0, 0, 0).getTime();   // 12:00
+        const end24 = new Date(year, month, date + 1, 0, 0, 0, 0).getTime(); // 다음날 00:00
+        const futureEnd = now + 3600 * 1000; // 현재 시각 기준 1시간 뒤
         const mockResponse = {
           currentSet: {
             topics: [
@@ -59,8 +60,8 @@ export const useTopicSetStore = defineStore('topicSet', {
               { id: 4, title: 'SNS 실명제 도입', option1: '도입', option2: '미도입' },
               { id: 5, title: '로봇이 인간 일자리 대체', option1: '대체한다', option2: '대체하지 않는다' },
             ],
-            startAtMs: start4, // 오늘 16:00
-            endAtMs: end5,     // 오늘 16:38
+            startAtMs: start0, // 오늘 00:00
+            endAtMs: futureEnd,    // 현재 시각 기준 1시간 뒤
           },
           nextSet: {
             topics: [
@@ -70,8 +71,8 @@ export const useTopicSetStore = defineStore('topicSet', {
               { id: 9, title: '최저임금 인상', option1: '인상', option2: '동결' },
               { id: 10, title: '자율주행차 보급', option1: '필요', option2: '불필요' },
             ],
-            startAtMs: end5, // 오늘 17:00
-            endAtMs: end6,   // 오늘 18:00
+            startAtMs: end12,  // 오늘 12:00
+            endAtMs: end24,    // 다음날 00:00
           },
           serverTimeMs: now,
         };

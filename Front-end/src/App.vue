@@ -1,40 +1,55 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge'
+
+const onlineUsers = ref(42)
+const activeRooms = ref(8)
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 flex flex-col">
-    <!-- 상단 네비게이션 -->
-    <header class="w-full h-16 flex items-center justify-between px-8 bg-white/80 shadow-sm sticky top-0 z-10">
-      <div class="flex items-center gap-2">
-        <img src="/vite.svg" alt="Logo" class="h-8 w-8" />
-        <span class="font-bold text-xl tracking-tight text-slate-800">Debate Arena</span>
+  <div class="min-h-screen bg-background min-w-[1200px]">
+    <!-- 헤더 -->
+    <header class="border-b bg-card">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <div class="flex items-center gap-4">
+            <img src="/vite.svg" alt="Logo" class="h-8 w-8" />
+            <span class="text-lg sm:text-xl lg:text-2xl font-semibold text-foreground">Debate Arena</span>
+            <Badge variant="secondary" class="text-sm">{{ onlineUsers }}명 온라인</Badge>
+          </div>
+          <nav class="flex gap-2">
+            <Button variant="ghost" size="sm">홈</Button>
+            <Button variant="ghost" size="sm" @click="$router.push('/matching')">
+              매칭
+            </Button>
+            <Button variant="ghost" size="sm">
+              토론방
+              <Badge variant="destructive" class="ml-2">{{ activeRooms }}</Badge>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="sm">마이페이지</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem>프로필 설정</DropdownMenuItem>
+                <DropdownMenuItem>토론 기록</DropdownMenuItem>
+                <DropdownMenuItem>설정</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </nav>
+        </div>
       </div>
-      <nav class="flex gap-4">
-        <Button variant="ghost">홈</Button>
-        <Button variant="ghost">토론방</Button>
-        <Button variant="ghost">마이페이지</Button>
-      </nav>
     </header>
 
     <!-- 메인 컨텐츠 -->
-    <main class="flex-1 flex flex-col items-center justify-center py-16">
-      <div class="bg-white rounded-2xl shadow-xl p-10 w-full max-w-md flex flex-col items-center gap-6">
-        <h1 class="text-3xl font-bold text-slate-800 mb-2">온라인 음성 토론에 오신 것을 환영합니다!</h1>
-        <p class="text-slate-600 text-center mb-4">실시간 음성 토론방을 만들고, 다양한 주제로 자유롭게 토론해보세요.</p>
-        <div class="flex gap-4 w-full">
-          <Button class="flex-1">토론방 만들기</Button>
-          <Button variant="secondary" class="flex-1">참여하기</Button>
-        </div>
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <div class="px-4 py-6 sm:px-0">
+        <!-- 라우터 뷰 -->
+        <router-view />
       </div>
-      <!-- 라우터 뷰 추가: 실제 페이지(Home 등) 렌더링 -->
-      <router-view />
     </main>
-
-    <!-- 푸터 -->
-    <footer class="h-16 flex items-center justify-center text-slate-400 text-sm bg-transparent">
-      © 2024 Debate Arena. Powered by Vue, shadcn-vue, TailwindCSS.
-    </footer>
   </div>
 </template>
 

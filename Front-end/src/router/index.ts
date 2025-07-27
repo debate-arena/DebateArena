@@ -7,6 +7,11 @@ const routes: RouteRecordRaw[] = [
     name: 'Home',
     component: () => import('@/pages/Home.vue'),
   },
+  {
+    path: '/matching',
+    name: 'Matching',
+    component: () => import('@/pages/Matching.vue'),
+  },
 ]
 
 const router = createRouter({
