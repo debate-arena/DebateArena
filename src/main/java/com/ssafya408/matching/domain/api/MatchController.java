@@ -1,6 +1,6 @@
 package com.ssafya408.matching.domain.api;
 
-import com.ssafya408.matching.domain.api.dto.MatchAcceptMessage;
+import com.ssafya408.matching.domain.api.dto.MatchAcceptRequest;
 import com.ssafya408.matching.domain.api.dto.MatchApplyRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +30,7 @@ public class MatchController {
 
     //참여 응답 확인
     @MessageMapping("/match/acceptance")
-    public void receiveMatchAcceptMessage(MatchAcceptMessage message, Principal principal) {
+    public void receiveMatchAcceptRequest(MatchAcceptRequest message, Principal principal) {
         matchService.receiveMatchAccept(message, principal.getName());
     }
 

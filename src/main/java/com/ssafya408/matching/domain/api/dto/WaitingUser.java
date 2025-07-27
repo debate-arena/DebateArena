@@ -25,4 +25,8 @@ public class WaitingUser {
     public int hashCode() {
         return Objects.hash(this.timestamp, user);
     }
+
+    public void givePenalty(Long penalty) {
+        this.timestamp += penalty;
+    }
 }

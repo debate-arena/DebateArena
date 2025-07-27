@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class MatchAcceptMessage {
-  private String matchId;
-  private Boolean accept;
+public class MatchAcceptRequest {
+    private String matchId;
+    private Boolean accept;
 }
