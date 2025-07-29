@@ -1,4 +1,4 @@
-package com.ssafya408.matching.security.jwt;
+package com.ssafya408.matching.common.secuirty.jwt;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,4 +1,4 @@
-package com.ssafya408.matching.security.jwt;
+package com.ssafya408.matching.common.secuirty.jwt;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

@@ -1,6 +1,11 @@
-package com.ssafya408.matching.domain.common.util;
+package com.ssafya408.matching.util;
 
-import com.ssafya408.matching.domain.api.dto.*;
+import com.ssafya408.matching.api.dto.AcceptanceStatusDto;
+import com.ssafya408.matching.api.dto.ApiResponse;
+import com.ssafya408.matching.api.dto.ChoiceDto;
+import com.ssafya408.matching.api.dto.MatchAcceptRequest;
+import com.ssafya408.matching.api.dto.MatchApplyRequest;
+import com.ssafya408.matching.api.dto.WaitingUser;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

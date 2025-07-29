@@ -1,4 +1,4 @@
-package com.ssafya408.matching.domain.api.dto;
+package com.ssafya408.matching.api.dto;
 
 import java.util.List;
 import lombok.Builder;

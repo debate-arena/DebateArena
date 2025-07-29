@@ -1,4 +1,4 @@
-package com.ssafya408.matching.security.jwt;
+package com.ssafya408.matching.common.secuirty.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -29,7 +29,6 @@ public class JwtProvider {
 
     return Jwts.builder()
         .subject(email)
-//        .claims("role", role); //역할 추가
         .issuedAt(now)
         .expiration(expiredDate)
         .signWith(key, SIG.HS256)

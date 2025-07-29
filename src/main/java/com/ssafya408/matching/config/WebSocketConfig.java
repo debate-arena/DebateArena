@@ -1,4 +1,4 @@
-package com.ssafya408.matching.domain.common.config;
+package com.ssafya408.matching.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;

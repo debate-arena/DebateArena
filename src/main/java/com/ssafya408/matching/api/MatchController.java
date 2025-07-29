@@ -1,7 +1,7 @@
-package com.ssafya408.matching.domain.api;
+package com.ssafya408.matching.api;
 
-import com.ssafya408.matching.domain.api.dto.MatchAcceptRequest;
-import com.ssafya408.matching.domain.api.dto.MatchApplyRequest;
+import com.ssafya408.matching.api.dto.MatchAcceptRequest;
+import com.ssafya408.matching.api.dto.MatchApplyRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;

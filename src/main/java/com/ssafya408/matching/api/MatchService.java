@@ -1,7 +1,11 @@
-package com.ssafya408.matching.domain.api;
+package com.ssafya408.matching.api;
 
-import com.ssafya408.matching.domain.api.dto.*;
-import com.ssafya408.matching.domain.common.util.MatchUtil;
+import com.ssafya408.matching.api.dto.ApiResponse;
+import com.ssafya408.matching.api.dto.MatchAcceptRequest;
+import com.ssafya408.matching.api.dto.MatchApplyRequest;
+import com.ssafya408.matching.api.dto.MatchStatusDto;
+import com.ssafya408.matching.api.dto.WaitingUser;
+import com.ssafya408.matching.util.MatchUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
