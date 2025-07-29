@@ -12,6 +12,11 @@ const routes: RouteRecordRaw[] = [
     name: 'Matching',
     component: () => import('@/pages/Matching.vue'),
   },
+  {
+    path: '/debate/:id',
+    name: 'DebateRoom',
+    component: () => import('@/pages/DebateRoom.vue'),
+  },
 ]
 
 const router = createRouter({
