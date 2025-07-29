@@ -13,6 +13,10 @@ function Login() {
       </a>
       <br /><br />
       <button onClick={() => navigate("/match-main-test")}>매칭 메인 테스트로 이동</button>
+      <br /><br />
+      <button onClick={() => navigate("/auth-test")}>JWT 인증 테스트로 이동</button>
+      <br /><br />
+      <button onClick={() => navigate("/user-profile-test")}>사용자 프로필 테스트로 이동</button>
     </div>
   );
 }
