@@ -1,11 +1,10 @@
-package com.ssafya408.debatearena.secuirty.config;
+package com.ssafya408.debatearena.common.secuirty.config;
 
-import com.ssafya408.debatearena.secuirty.oAuth.CustomOAuth2SuccessHandler;
-import com.ssafya408.debatearena.secuirty.jwt.JwtAuthenticationFilter;
+import com.ssafya408.debatearena.common.secuirty.oAuth.CustomOAuth2SuccessHandler;
+import com.ssafya408.debatearena.common.secuirty.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;

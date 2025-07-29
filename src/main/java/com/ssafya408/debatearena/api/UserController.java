@@ -2,8 +2,8 @@ package com.ssafya408.debatearena.api;
 
 import com.ssafya408.debatearena.api.dto.NicknameUpdateRequest;
 import com.ssafya408.debatearena.common.dto.ApiResponse;
-import com.ssafya408.debatearena.secuirty.db.User;
-import com.ssafya408.debatearena.secuirty.db.UserRepository;
+import com.ssafya408.debatearena.common.secuirty.db.User;
+import com.ssafya408.debatearena.common.secuirty.db.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

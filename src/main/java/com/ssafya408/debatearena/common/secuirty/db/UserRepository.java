@@ -1,4 +1,4 @@
-package com.ssafya408.debatearena.secuirty.db;
+package com.ssafya408.debatearena.common.secuirty.db;
 
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;

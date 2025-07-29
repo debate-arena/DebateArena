@@ -1,6 +1,6 @@
-package com.ssafya408.debatearena.secuirty.oAuth;
+package com.ssafya408.debatearena.common.secuirty.oAuth;
 
-import com.ssafya408.debatearena.secuirty.jwt.JwtProvider;
+import com.ssafya408.debatearena.common.secuirty.jwt.JwtProvider;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;

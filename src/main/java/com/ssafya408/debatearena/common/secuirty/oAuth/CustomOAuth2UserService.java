@@ -1,7 +1,7 @@
-package com.ssafya408.debatearena.secuirty.oAuth;
+package com.ssafya408.debatearena.common.secuirty.oAuth;
 
-import com.ssafya408.debatearena.secuirty.db.User;
-import com.ssafya408.debatearena.secuirty.db.UserRepository;
+import com.ssafya408.debatearena.common.secuirty.db.User;
+import com.ssafya408.debatearena.common.secuirty.db.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;

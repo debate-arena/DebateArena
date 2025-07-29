@@ -1,4 +1,4 @@
-package com.ssafya408.debatearena.secuirty.jwt;
+package com.ssafya408.debatearena.common.secuirty.jwt;
 
 import lombok.Getter;
 import lombok.Setter;
