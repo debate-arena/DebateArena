@@ -13,6 +13,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/Matching.vue'),
   },
   {
+    path: '/login/success',
+    name: 'LoginSuccess',
+    component: () => import('@/pages/LoginSuccess.vue'),
+  },
+  {
     path: '/debate/:id',
     name: 'DebateRoom',
     component: () => import('@/pages/DebateRoom.vue'),
