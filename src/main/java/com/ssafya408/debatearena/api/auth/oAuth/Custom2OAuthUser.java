@@ -1,4 +1,4 @@
-package com.ssafya408.debatearena.common.secuirty.oAuth;
+package com.ssafya408.debatearena.api.auth.oAuth;
 
 import java.util.Collection;
 import java.util.Collections;
