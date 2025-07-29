@@ -1,6 +1,8 @@
 package com.ssafya408.debatearena.api;
 
 import com.ssafya408.debatearena.common.dto.ApiResponse;
+import com.ssafya408.debatearena.secuirty.db.User;
+import com.ssafya408.debatearena.secuirty.db.UserRepository;
 import com.ssafya408.debatearena.secuirty.jwt.JwtProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,6 +32,7 @@ import java.util.Map;
 public class AuthController {
 
     private final JwtProvider jwtProvider;
+    private final UserRepository userRepository;
 
     /**
      * 쿠키의 JWT 토큰을 확인하여 로그인 상태를 검증하는 API
@@ -54,6 +57,7 @@ public class AuthController {
                           "data": {
                             "authenticated": true,
                             "email": "user@example.com",
+                            "nickname": "사용자닉네임",
                             "message": "로그인 상태입니다."
                           }
                         }
@@ -106,12 +110,17 @@ public class AuthController {
             // SecurityContext에서 현재 인증 정보 확인
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             
+            // 사용자 정보에서 닉네임 조회
+            User user = userRepository.findByEmail(email).orElse(null);
+            String nickname = user != null ? user.getNickname() : null;
+            
             responseData.put("authenticated", true);
             responseData.put("email", email);
+            responseData.put("nickname", nickname);
 //            responseData.put("role", role);
             responseData.put("message", "로그인 상태입니다.");
             
-            log.info("토큰 검증 성공: {}", email);
+            log.info("토큰 검증 성공: {} (닉네임: {})", email, nickname);
             
             return ResponseEntity.ok(ApiResponse.success(responseData));
             
@@ -218,6 +227,7 @@ public class AuthController {
                           "data": {
                             "authenticated": true,
                             "email": "user@example.com",
+                            "nickname": "사용자닉네임",
                             "authorities": ["ROLE_USER"],
                             "message": "현재 로그인된 사용자 정보입니다."
                           }
@@ -257,8 +267,13 @@ public class AuthController {
 
             String email = authentication.getName();
             
+            // 사용자 정보에서 닉네임 조회
+            User user = userRepository.findByEmail(email).orElse(null);
+            String nickname = user != null ? user.getNickname() : null;
+            
             responseData.put("authenticated", true);
             responseData.put("email", email);
+            responseData.put("nickname", nickname);
             responseData.put("authorities", authentication.getAuthorities());
             responseData.put("message", "현재 로그인된 사용자 정보입니다.");
             

@@ -29,7 +29,6 @@ public class JwtProvider {
 
     return Jwts.builder()
         .subject(email)
-//        .claims("role", role); //역할 추가
         .issuedAt(now)
         .expiration(expiredDate)
         .signWith(key, SIG.HS256)
