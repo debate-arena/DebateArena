@@ -1,15 +1,13 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
-
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Noto Sans KR', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: rgba(0, 0, 0, 0.87);
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -63,4 +61,44 @@
   --border: 0 0% 14.9%;
   --input: 0 0% 14.9%;
   --ring: 0 0% 83.1%;
+}
+
+/* 토론방 커스텀 색상 클래스 */
+.bg-debate-left {
+  background-color: #FACC15;
+}
+
+.bg-debate-right {
+  background-color: #B22222;
+}
+
+.text-debate-left {
+  color: #FACC15;
+}
+
+.text-debate-right {
+  color: #B22222;
+}
+
+.border-debate-left {
+  border-color: #FACC15;
+}
+
+.border-debate-right {
+  border-color: #B22222;
+}
+
+/* 말풍선 꼬리용 border 색상 */
+.border-r-debate-left {
+  border-right-color: #FACC15;
+}
+
+.border-l-debate-right {
+  border-left-color: #B22222;
+}
+
+/* 수직 텍스트 스타일 */
+.writing-mode-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
 }

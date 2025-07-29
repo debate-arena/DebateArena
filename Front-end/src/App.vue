@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
@@ -8,11 +9,21 @@ import LoginModal from '@/components/auth/LoginModal.vue'
 import NicknameModal from '@/components/auth/NicknameModal.vue'
 import { useAuthStore } from '@/store/auth'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const onlineUsers = ref(42)
 const activeRooms = ref(8)
 const isLoginModalOpen = ref(false)
 const isNicknameModalOpen = ref(false)
+
+const isDark = ref(false)
+
+const toggleDarkMode = () => {
+  isDark.value = !isDark.value
+}
+
+// DebateRoom 페이지인지 확인
+const isDebateRoom = computed(() => route.name === 'DebateRoom')
 
 const openLoginModal = () => {
   isLoginModalOpen.value = true
@@ -69,22 +80,21 @@ const handleNicknameModalChange = (isOpen: boolean) => {
     }, 200)
   }
 }
-
-
 </script>
 
 <template>
-  <div class="min-h-screen bg-background min-w-[1200px]">
+  <div class="min-h-screen bg-background min-w-[1200px]" :class="{ 'dark': isDark }">
     <!-- 헤더 -->
     <header class="border-b bg-card">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center gap-4">
-            <img src="/vite.svg" alt="Logo" class="h-8 w-8" />
+            <img src="/src/assets/images/icons/colosseum_icon.png" alt="Logo" class="h-8 w-8" />
             <span class="text-lg sm:text-xl lg:text-2xl font-semibold text-foreground">Debate Arena</span>
             <Badge variant="secondary" class="text-sm">{{ onlineUsers }}명 온라인</Badge>
           </div>
           <nav class="flex gap-2">
+            <Button variant="ghost" size="sm" @click="toggleDarkMode">테마 변경</Button>
             <Button variant="ghost" size="sm">홈</Button>
             <Button variant="ghost" size="sm" @click="$router.push('/matching')">
               매칭
@@ -101,7 +111,7 @@ const handleNicknameModalChange = (isOpen: boolean) => {
                 <DropdownMenuTrigger as-child>
                   <Button variant="ghost" size="sm" class="flex items-center gap-2">
                     <Avatar class="h-6 w-6">
-                      <AvatarImage />
+                      <AvatarImage src="" />
                       <AvatarFallback>{{ authStore.userNickname.charAt(0) || 'U' }}</AvatarFallback>
                     </Avatar>
                     <span class="hidden sm:inline">{{ authStore.userNickname || '사용자' }}</span>
@@ -135,8 +145,8 @@ const handleNicknameModalChange = (isOpen: boolean) => {
     </header>
 
     <!-- 메인 컨텐츠 -->
-    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <div class="px-4 py-6 sm:px-0">
+    <main class="">
+      <div :class="isDebateRoom ? '' : 'px-4 py-6 sm:px-0'">
         <!-- 라우터 뷰 -->
         <router-view />
       </div>

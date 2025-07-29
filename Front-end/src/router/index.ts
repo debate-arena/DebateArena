@@ -17,13 +17,16 @@ const routes: RouteRecordRaw[] = [
     name: 'LoginSuccess',
     component: () => import('@/pages/LoginSuccess.vue'),
   },
+  {
+    path: '/debate/:id',
+    name: 'DebateRoom',
+    component: () => import('@/pages/DebateRoom.vue'),
+  },
 ]
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 })
-
-
 
 export default router 
