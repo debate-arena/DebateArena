@@ -18,7 +18,7 @@ public class User {
   @Column(nullable = false, unique = true)
   private String email;
 
-  private String name;
+  private String nickname;
 
   private String provider; // 예: google, kakao 등
 

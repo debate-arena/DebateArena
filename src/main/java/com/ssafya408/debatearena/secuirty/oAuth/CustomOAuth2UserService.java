@@ -27,7 +27,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         .orElseGet(()->{
           User user=User.builder()
               .email(email)
-              .name(name)
               .provider(customUser.getProvider())
               .build();
 
