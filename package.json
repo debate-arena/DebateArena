@@ -1,0 +1,30 @@
+{
+  "name": "mediasoup-webrtc-server",
+  "version": "1.0.0",
+  "description": "WebRTC 미디어 송수신 서버 (mediaSoup 기반)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "webrtc",
+    "mediasoup",
+    "streaming",
+    "video",
+    "audio"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "mediasoup": "^3.16.7",
+    "redis": "^4.6.7",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
