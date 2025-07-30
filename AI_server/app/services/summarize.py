@@ -127,11 +127,11 @@ async def summarize_result_text(input_data: LastInput):
     }
     
     for key, val in entire.items():
-        position = val.position
-        text = val.text
+        position = val["position"]
+        text = val["text"]
     
         prompt = f"""
-        당신은 전문적인 토론 분석가입니다. 아래는 {topic}에 대해 {position}을 주장하는 한 명 이상의 인물들이 참여한 토론 내용입니다.
+        당신은 전문적인 토론 분석가입니다. 아래는 {topic}에 대해 {position}을 주장하는 한 명 이상의 인물들이 참여한 토론의 주장 요약입니다.
 
         이 토론을 다음 기준에 따라 정리해 주세요:
 
@@ -143,7 +143,7 @@ async def summarize_result_text(input_data: LastInput):
         형식:
         **{topic}에 대한 요약을 해드리겠습니다.**
         - `참여자 및 입장:`  
-        - `입장별 주요 주장:`  
+        - `주요 주장:`  
         - `결론/종합 요약:`  
 
         불필요한 잡담, 반복, 감정 표현은 제거하고 핵심 주장과 논리적 구조 중심으로 작성해 주세요.
@@ -161,7 +161,8 @@ async def summarize_result_text(input_data: LastInput):
             "temperature": 0.3
         }
         
-        async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
+        async with httpx.AsyncClient(verify=False, timeout=20.0) as client:
+            print("summarize쪽에서 에러터진거 아님!!!!!!!!!!!!!!!!!!!!!!!!")
             response = await client.post(SUMMARIZE_API_URL, headers=headers, json=payload)
             response.raise_for_status()  # 에러 발생 시 예외 던짐
             result = response.json()     # JSON 파싱

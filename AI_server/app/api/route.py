@@ -29,6 +29,6 @@ async def last(input_data: LastInput):
     summary_texts = await summarize_result_text(input_data)
     
     # 2. judge.py의 judging 함수 호출하여 최종 판정
-    result = await judging(input_data, summary_texts)
+    result = await judging(summary_texts)
     
     return {"result": result, "full_summarize": summary_texts}

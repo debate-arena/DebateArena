@@ -1,3 +1,4 @@
+from chromadb import PersistentClient
 import pandas as pd
 import os
 import requests
@@ -7,10 +8,10 @@ from langchain_community.embeddings import FakeEmbeddings
 from dotenv import load_dotenv
 load_dotenv()
 
-df = pd.read_csv("./ai_jurors.csv")
+df = pd.read_csv("ai_jurors.csv")
 GMS_API_KEY = os.getenv("GMS_API_KEY")
 EMBEDDING_API_URL = os.getenv("EMBEDDING_API_URL")
-chroma_path = "./chroma_jurors" # Chroma 저장 공간
+chroma_path = "chroma_jurors" # Chroma 저장 공간
 
 # 헷갈려서 class로 묶어버림. 이건 청중의 성향을 자연어로 바꾸는 함수 모음.
 class process_csv:
@@ -106,8 +107,33 @@ chroma_db = Chroma.from_documents(
     embedding = fake_embeddings, 
     persist_directory=chroma_path)
 
-# 저장 - 로컬에선 생성했으니 안쓰려고 주석처리. 다른 곳에선 현재 코드 주석 풀고 진행하면 됨.
-# chroma_db.persist()
+# 실제 임베딩으로 업데이트
+client = PersistentClient(path=chroma_path)
+collection = client.get_or_create_collection("audience")
+
+# 기존 데이터 삭제 - 모든 데이터를 삭제하기 위해 where 조건 사용
+try:
+    # 모든 데이터를 삭제하기 위해 임의의 조건 사용
+    collection.delete(where={"index": {"$gte": 0}})
+except:
+    # 조건이 실패하면 컬렉션을 다시 생성
+    client.delete_collection("audience")
+    collection = client.create_collection("audience")
+
+# 실제 임베딩과 메타데이터 추가
+for i, (desc, embedding) in enumerate(zip(description, description_list)):
+    collection.add(
+        ids=[f"juror_{i}"],
+        embeddings=[embedding],
+        documents=[desc],
+        metadatas=[{
+            "age": int(df.iloc[i]["Age"]),
+            "gender": "남성" if df.iloc[i]["Gender"] == 0 else "여성",
+            "index": i
+        }]
+    )
+
+print(f"총 {len(description_list)}개의 청중 임베딩이 저장되었습니다.")
 
 results = chroma_db.similarity_search("논리적인 설명을 선호해요", k=3)
 for r in results:

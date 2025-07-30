@@ -1,6 +1,4 @@
 from transformers import pipeline
-from app.models.schemas import LastInput, EmbeddingInput, RequestInput
-from app.services.summarize import summarize_result_text
 from dotenv import load_dotenv
 load_dotenv()
 import os
@@ -34,7 +32,7 @@ async def result_embedding(input_data: dict):
         "input": text,
     }
     
-    async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
+    async with httpx.AsyncClient(verify=False, timeout=60.0) as client:
         response = await client.post(EMBEDDING_API_URL, headers=headers, json=payload)
         response.raise_for_status()
         result = response.json()
@@ -44,7 +42,11 @@ async def result_embedding(input_data: dict):
 
 
 async def load_audience_embeddings():
-    client = PersistentClient(path="data/chroma_jurors")
+    # 현재 파일의 위치를 기준으로 상대 경로 계산
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    chroma_path = os.path.join(current_dir, "..", "..", "data", "chroma_jurors")
+    
+    client = PersistentClient(path=chroma_path)
     collection = client.get_or_create_collection("audience")
     audience = collection.get(include=["embeddings", "metadatas"])
     
@@ -54,7 +56,7 @@ async def load_audience_embeddings():
     return embeddings, metadata
     
 #토론이 끝나면 summarize쪽에서 전체 요약을 받고 판정을 내릴 함수.
-async def judging(input_data: LastInput, summary_texts: dict):
+async def judging(summary_texts: dict):
     num1_text = summary_texts.get("num1", "")
     num2_text = summary_texts.get("num2", "")
     
@@ -64,6 +66,11 @@ async def judging(input_data: LastInput, summary_texts: dict):
     
     # 3. 청중 임베딩 불러오기
     audience_embeddings, audience_metadata = await load_audience_embeddings()
+    
+    # 청중 임베딩이 비어있는 경우 에러 처리
+    if audience_embeddings is None or len(audience_embeddings) == 0:
+        raise ValueError("청중 임베딩 데이터가 없습니다. process.py를 실행하여 데이터를 준비해주세요.")
+    
     audience_embeddings = np.array(audience_embeddings)
 
     # 4. 유사도 계산
@@ -96,3 +103,4 @@ async def judging(input_data: LastInput, summary_texts: dict):
         "votes": votes,
         "details": voted_details  # 선택적으로 리턴
     }
+    

@@ -1,5 +1,8 @@
 ## 실행 방법
-uvicorn main:app --reload 입력
+cd data
+python process.py
+cd ..
+uvicorn main:app --reload
 
 # 폴더 내용
 ## app
