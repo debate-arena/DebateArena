@@ -1,4 +1,4 @@
-package com.ssafya408.debate.security.jwt;
+package com.ssafya408.debate.domain.common.security.jwt;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
