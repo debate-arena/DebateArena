@@ -3,6 +3,10 @@ const mediasoup = require('mediasoup');
 const redis = require('redis');
 const { v4: uuidv4 } = require('uuid');
 
+// .env.production 파일 로드
+require('dotenv').config({ path: '.env.production' });
+console.log('🔧 Environment variables loaded from .env.production');
+
 // Redis clients
 let redisClient;
 let redisSubscriber;
@@ -41,21 +45,21 @@ async function initializeRedis() {
         // Main Redis client
         redisClient = redis.createClient({
             host: process.env.REDIS_HOST || 'localhost',
-            port: process.env.REDIS_PORT || 6379,
+            port: parseInt(process.env.REDIS_PORT) || 6379,
             password: process.env.REDIS_PASSWORD || undefined,
         });
 
         // Subscriber client
         redisSubscriber = redis.createClient({
             host: process.env.REDIS_HOST || 'localhost',
-            port: process.env.REDIS_PORT || 6379,
+            port: parseInt(process.env.REDIS_PORT) || 6379,
             password: process.env.REDIS_PASSWORD || undefined,
         });
 
         // Publisher client
         redisPublisher = redis.createClient({
             host: process.env.REDIS_HOST || 'localhost',
-            port: process.env.REDIS_PORT || 6379,
+            port: parseInt(process.env.REDIS_PORT) || 6379,
             password: process.env.REDIS_PASSWORD || undefined,
         });
 
@@ -85,7 +89,7 @@ async function initializeRedis() {
 // MediaSoup worker 초기화
 async function initializeWorker() {
     worker = await mediasoup.createWorker({
-        logLevel: 'debug',
+        logLevel: process.env.MEDIASOUP_LOG_LEVEL || 'debug',
         logTags: ['info', 'ice', 'dtls', 'rtp', 'srtp', 'rtcp'],
     });
 
@@ -184,16 +188,16 @@ async function createTransport(payload) {
     const transport = await router.createWebRtcTransport({
         listenIps: [
             {
-                ip: '0.0.0.0',
-                announcedIp: '70.12.246.177',
+                ip: process.env.MEDIASOUP_LISTEN_IP || '0.0.0.0',
+                announcedIp: process.env.MEDIASOUP_ANNOUNCED_IP || '127.0.0.1',
             }
         ],
         enableUdp: true,
         enableTcp: true,
         preferUdp: true,
         portRange: {
-            min: 40000,
-            max: 40100
+            min: parseInt(process.env.MEDIASOUP_PORT_RANGE_MIN) || 40000,
+            max: parseInt(process.env.MEDIASOUP_PORT_RANGE_MAX) || 40100
         },
         // iceTransportPolicy: 'relay',
         // iceServers: [
@@ -510,6 +514,14 @@ async function startServer() {
         console.log('📨 Listening on channel: mediasoup:request');
         console.log('📤 Publishing on channel: mediasoup:response');
         console.log('🔧 Server running in pure Node.js mode (no HTTP server)');
+        
+        console.log('\n=== 📋 Configuration ===');
+        console.log(`📍 Announced IP: ${process.env.MEDIASOUP_ANNOUNCED_IP || '127.0.0.1'}`);
+        console.log(`🎯 Listen IP: ${process.env.MEDIASOUP_LISTEN_IP || '0.0.0.0'}`);
+        console.log(`🔌 Port Range: ${process.env.MEDIASOUP_PORT_RANGE_MIN || 40000}-${process.env.MEDIASOUP_PORT_RANGE_MAX || 40100}`);
+        console.log(`📊 Log Level: ${process.env.MEDIASOUP_LOG_LEVEL || 'debug'}`);
+        console.log(`🔗 Redis: ${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`);
+        console.log('=======================\n');
         
         // 5분마다 시스템 상태 로깅
         // setInterval(logSystemStatus, 5 * 60 * 1000);
