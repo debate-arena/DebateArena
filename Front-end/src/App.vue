@@ -89,7 +89,12 @@ const handleNicknameModalChange = (isOpen: boolean) => {
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center gap-4">
-            <img src="/src/assets/images/icons/colosseum_icon.png" alt="Logo" class="h-8 w-8" />
+            <img 
+              src="/src/assets/images/icons/colosseum_icon.png" 
+              alt="Logo" 
+              class="h-8 w-8 transition-all duration-300"
+              :class="{ 'brightness-0 invert': isDark }"
+            />
             <span class="text-lg sm:text-xl lg:text-2xl font-semibold text-foreground">Debate Arena</span>
             <Badge variant="secondary" class="text-sm">{{ onlineUsers }}명 온라인</Badge>
           </div>
