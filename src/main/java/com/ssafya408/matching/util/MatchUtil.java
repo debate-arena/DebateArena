@@ -6,21 +6,32 @@ import com.ssafya408.matching.api.dto.ChoiceDto;
 import com.ssafya408.matching.api.dto.MatchAcceptRequest;
 import com.ssafya408.matching.api.dto.MatchApplyRequest;
 import com.ssafya408.matching.api.dto.WaitingUser;
-import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Component;
-
-import java.util.*;
+import com.ssafya408.matching.common.dto.DebateParticipantRequest;
+import com.ssafya408.matching.common.dto.MatchType;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 
 @Component
 @RequiredArgsConstructor
 public class MatchUtil {
+    private final WebClient webClient;
+    @Value("${debate.server.url}")
+    private String debateServerUrl;
     private static final Logger log = LoggerFactory.getLogger(MatchUtil.class);
     private final SimpMessagingTemplate template;
     private final Integer TYPE = 2, TITLE = 5, CHOICE = 3;
@@ -203,18 +214,17 @@ public class MatchUtil {
             log.info("[매칭 성사] 매칭ID: {} | 참여자: {}", matchId, candidates.keySet());
 
             // 매칭 성사 알림을 공통 포맷으로 전송
-            Map<String, Object> matchResult = Map.of(
-                    "matchId", matchId,
-                    "participants", candidates.keySet(),
-                    "message", "매칭이 성사되었습니다!");
-            ApiResponse<Map<String, Object>> response = ApiResponse.success(matchResult);
+            broadcastAcceptanceToDebaters(matchId, candidates);
 
-            for (Map.Entry<WaitingUser, MatchApplyRequest> e : candidates.entrySet()) {
-                template.convertAndSendToUser(e.getKey().getUser(), "/queue/match/acceptance", response);
-            }
-
-            requestRoomGenerate();
-        } else { // 매칭이 불발 된 경우
+            Long topicId = 1L; // 수정 필요
+            // 매칭 타입 결정 (userList의 크기로 판단)
+            MatchType matchType = userList.size() == 1 ? MatchType.ONE_ON_ONE : MatchType.TWO_ON_TWO;
+            
+            requestRoomGenerate(webClient, matchId, topicId, matchType,
+                userList.getFirst().stream().map(WaitingUser::getUser).toList(),
+                userList.getLast().stream().map(WaitingUser::getUser).toList());
+        }
+        else { // 매칭이 불발 된 경우
             log.info("[매칭 실패] 매칭ID: {} | 일부 거절 또는 미응답", matchId);
 
             // 매칭 실패 알림을 공통 포맷으로 전송
@@ -244,6 +254,51 @@ public class MatchUtil {
         }
     }
 
+    private void broadcastAcceptanceToDebaters(String matchId, Map<WaitingUser, MatchApplyRequest> candidates) {
+        Map<String, Object> matchResult = Map.of(
+                "matchId", matchId,
+                "participants", candidates.keySet(),
+                "message", "매칭이 성사되었습니다!");
+        ApiResponse<Map<String, Object>> response = ApiResponse.success(matchResult);
+
+        for (Map.Entry<WaitingUser, MatchApplyRequest> e : candidates.entrySet()) {
+            template.convertAndSendToUser(e.getKey().getUser(), "/queue/match/acceptance", response);
+        }
+    }
+
+    private void requestRoomGenerate(WebClient webClient, String matchId, Long topicId,
+            MatchType matchType, List<String> firstTeam, List<String> secondTeam
+        ) {
+        log.info("[토론방 생성 요청] 매칭ID: {}, 토픽ID: {}, 매칭타입: {}", matchId, topicId, matchType);
+        log.info("[토론방 생성 요청] 첫 번째 팀: {}, 두 번째 팀: {}", firstTeam, secondTeam);
+        
+        DebateParticipantRequest req = DebateParticipantRequest.builder()
+            .matchId(matchId)
+            .topicId(topicId)
+            .matchType(matchType)
+            .firstTeam(firstTeam)
+            .secondTeam(secondTeam)
+            .build();
+        
+        // Debate 서버로 데이터 전송
+        webClient.post()
+            .uri(debateServerUrl + "/rooms")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(req)
+            .retrieve()
+            .bodyToMono(DebateParticipantRequest.class) // 응답을 String으로 받아서 로깅
+            .subscribe(
+                result -> {
+                    log.info("[토론방 생성 성공] 매칭ID: {} | 응답: {}", matchId, result.getMatchId());
+                },
+                error -> {
+                    log.error("[토론방 생성 실패] 매칭ID: {} | 오류: {}", matchId, error.getMessage(), error);
+                }
+            );
+        
+    }
+
+
     private void removeParticipant(List<WaitingUser> users) {
         for (List<List<ConcurrentNavigableMap<Long, String>>> typeList : matchQueue) { // 타입 (일대일)
             for (List<ConcurrentNavigableMap<Long, String>> titleList : typeList) { // 주제
@@ -269,9 +324,6 @@ public class MatchUtil {
         }
     }
 
-    private void requestRoomGenerate() {
-
-    }
 
     public void sendAcceptantInfo(MatchAcceptRequest message, String user) {
         Map<WaitingUser, MatchApplyRequest> candidates = matchCandidates.get(message.getMatchId());
