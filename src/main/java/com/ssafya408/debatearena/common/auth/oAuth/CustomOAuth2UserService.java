@@ -1,4 +1,4 @@
-package com.ssafya408.debatearena.api.auth.oAuth;
+package com.ssafya408.debatearena.common.auth.oAuth;
 
 import com.ssafya408.debatearena.common.secuirty.db.User;
 import com.ssafya408.debatearena.common.secuirty.db.UserRepository;
