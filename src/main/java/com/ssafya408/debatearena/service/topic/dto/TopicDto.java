@@ -1,5 +1,6 @@
-package com.ssafya408.debatearena.api.dto;
+package com.ssafya408.debatearena.service.topic.dto;
 
+import com.ssafya408.debatearena.service.topic.db.Topic;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,7 +19,7 @@ public class TopicDto {
     private String secondOption;
     
     // Entity에서 DTO로 변환하는 정적 메서드
-    public static TopicDto fromEntity(com.ssafya408.debatearena.db.Topic topic) {
+    public static TopicDto fromEntity(Topic topic) {
         return TopicDto.builder()
                 .id(topic.getId())
                 .topicText(topic.getTopicText())

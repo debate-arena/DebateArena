@@ -1,4 +1,4 @@
-package com.ssafya408.debatearena.common.auth.oAuth;
+package com.ssafya408.debatearena.service.auth.oAuth;
 
 import com.ssafya408.debatearena.common.secuirty.jwt.JwtProvider;
 import jakarta.servlet.ServletException;

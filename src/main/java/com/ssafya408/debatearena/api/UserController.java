@@ -1,6 +1,6 @@
 package com.ssafya408.debatearena.api;
 
-import com.ssafya408.debatearena.api.dto.NicknameUpdateRequest;
+import com.ssafya408.debatearena.service.auth.dto.NicknameUpdateRequest;
 import com.ssafya408.debatearena.common.dto.ApiResponse;
 import com.ssafya408.debatearena.common.secuirty.db.User;
 import com.ssafya408.debatearena.common.secuirty.db.UserRepository;

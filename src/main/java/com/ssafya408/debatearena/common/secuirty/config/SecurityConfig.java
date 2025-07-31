@@ -1,6 +1,6 @@
 package com.ssafya408.debatearena.common.secuirty.config;
 
-import com.ssafya408.debatearena.common.auth.oAuth.CustomOAuth2SuccessHandler;
+import com.ssafya408.debatearena.service.auth.oAuth.CustomOAuth2SuccessHandler;
 import com.ssafya408.debatearena.common.secuirty.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

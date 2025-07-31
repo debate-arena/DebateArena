@@ -1,4 +1,4 @@
-package com.ssafya408.debatearena.db;
+package com.ssafya408.debatearena.service.topic.db;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

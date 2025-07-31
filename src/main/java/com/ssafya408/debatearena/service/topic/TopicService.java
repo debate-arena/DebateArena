@@ -1,13 +1,12 @@
-package com.ssafya408.debatearena.api.service;
+package com.ssafya408.debatearena.service.topic;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ssafya408.debatearena.api.dto.TopicDto;
-import com.ssafya408.debatearena.api.dto.TopicList;
-import com.ssafya408.debatearena.db.Topic;
-import com.ssafya408.debatearena.db.TopicRepository;
+import com.ssafya408.debatearena.service.topic.db.Topic;
+import com.ssafya408.debatearena.service.topic.db.TopicRepository;
+import com.ssafya408.debatearena.service.topic.dto.TopicDto;
+import com.ssafya408.debatearena.service.topic.dto.TopicList;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;

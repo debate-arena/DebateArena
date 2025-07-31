@@ -1,5 +1,6 @@
-package com.ssafya408.debatearena.api.dto;
+package com.ssafya408.debatearena.service.topic.dto;
 
+import com.ssafya408.debatearena.service.topic.dto.TopicDto;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

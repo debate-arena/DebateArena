@@ -1,4 +1,4 @@
-package com.ssafya408.debatearena.api.dto;
+package com.ssafya408.debatearena.service.auth.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

@@ -1,6 +1,5 @@
-package com.ssafya408.debatearena.db;
+package com.ssafya408.debatearena.service.topic.db;
 
-import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TopicRepository extends JpaRepository<Topic,Long> {

@@ -1,6 +1,6 @@
 package com.ssafya408.debatearena.config;
 
-import com.ssafya408.debatearena.api.service.TopicService;
+import com.ssafya408.debatearena.service.topic.TopicService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
