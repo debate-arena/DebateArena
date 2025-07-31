@@ -12,8 +12,11 @@ RUN npm ci --only=production
 # 소스 코드 복사
 COPY . .
 
-# 빌드 실행
+# 빌드 실행 (.env 파일 포함하여 빌드)
 RUN npm run build
+
+# 보안을 위해 .env 파일 제거 (빌드 결과물에만 환경변수가 적용됨)
+RUN rm -f .env
 
 # 프로덕션 스테이지 - Nginx
 FROM nginx:alpine

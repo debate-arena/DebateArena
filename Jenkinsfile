@@ -33,6 +33,32 @@ pipeline {
             }
         }
         
+        stage('Setup Environment Variables') {
+            steps {
+                script {
+                    echo "⚙️ 환경변수 파일 설정 중..."
+                    withCredentials([file(credentialsId: 'frontend-env', variable: 'ENV_FILE')]) {
+                        dir("${FRONTEND_DIR}") {
+                            sh '''
+                                echo "📝 .env 파일 복사 중..."
+                                cp $ENV_FILE .env
+                                echo "✅ .env 파일 설정 완료"
+                                
+                                # .env 파일 존재 확인 (보안상 내용은 출력하지 않음)
+                                if [ -f ".env" ]; then
+                                    echo "📋 .env 파일이 성공적으로 생성되었습니다."
+                                    echo "📏 파일 크기: $(wc -c < .env) bytes"
+                                else
+                                    echo "❌ .env 파일 생성 실패"
+                                    exit 1
+                                fi
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+        
         stage('Install Dependencies') {
             steps {
                 dir("${FRONTEND_DIR}") {
