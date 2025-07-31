@@ -8,9 +8,9 @@ pipeline {
         DIST_DIR = 'Front-end/dist'
     }
     
-    tools {
-        nodejs "${NODE_VERSION}"
-    }
+    // tools {
+    //     nodejs "${NODE_VERSION}"
+    // }
     
     stages {
         stage('Trigger Check') {
@@ -27,8 +27,24 @@ pipeline {
             steps {
                 script {
                     echo "🔧 Node.js 환경 설정 중..."
-                    sh 'node --version'
-                    sh 'npm --version'
+                    
+                    // 먼저 시스템에 Node.js가 있는지 확인
+                    def nodeExists = sh(script: 'command -v node', returnStatus: true) == 0
+                    
+                    if (nodeExists) {
+                        echo "✅ 시스템에 Node.js가 설치되어 있습니다."
+                        sh '''
+                            echo "📋 Node.js 버전:"
+                            node --version
+                            echo "📋 npm 버전:"
+                            npm --version
+                        '''
+                    } else {
+                        echo "⚠️ 시스템에 Node.js가 없습니다. Docker를 사용합니다."
+                        // Docker 사용 가능 여부 확인
+                        sh 'docker --version'
+                        echo "🐳 Docker를 사용하여 Node.js 환경을 구성합니다."
+                    }
                 }
             }
         }
@@ -61,21 +77,45 @@ pipeline {
         
         stage('Install Dependencies') {
             steps {
-                dir("${FRONTEND_DIR}") {
-                    echo "📦 의존성 설치 중..."
-                    sh 'npm ci --prefer-offline --no-audit'
+                script {
+                    def nodeExists = sh(script: 'command -v node', returnStatus: true) == 0
+                    
+                    dir("${FRONTEND_DIR}") {
+                        if (nodeExists) {
+                            echo "📦 시스템 Node.js로 의존성 설치 중..."
+                            sh 'npm ci --prefer-offline --no-audit'
+                        } else {
+                            echo "📦 Docker로 의존성 설치 중..."
+                            sh '''
+                                docker run --rm -v $(pwd):/app -w /app node:20-alpine \
+                                npm ci --prefer-offline --no-audit
+                            '''
+                        }
+                    }
                 }
             }
         }
         
         stage('Build Application') {
             steps {
-                dir("${FRONTEND_DIR}") {
-                    echo "🏗️ 애플리케이션 빌드 중..."
-                    sh 'npm run build'
+                script {
+                    def nodeExists = sh(script: 'command -v node', returnStatus: true) == 0
                     
-                    // 빌드 결과 확인
-                    sh 'ls -la dist/'
+                    dir("${FRONTEND_DIR}") {
+                        if (nodeExists) {
+                            echo "🏗️ 시스템 Node.js로 애플리케이션 빌드 중..."
+                            sh 'npm run build'
+                        } else {
+                            echo "🏗️ Docker로 애플리케이션 빌드 중..."
+                            sh '''
+                                docker run --rm -v $(pwd):/app -w /app node:20-alpine \
+                                npm run build
+                            '''
+                        }
+                        
+                        // 빌드 결과 확인
+                        sh 'ls -la dist/'
+                    }
                 }
             }
         }
