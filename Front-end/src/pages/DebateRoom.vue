@@ -818,6 +818,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch, computed } from "vue";
+import { useRoute } from "vue-router";
 import vikingProfile from "@/assets/images/profile/viking.png";
 import gladiatorProfile from "@/assets/images/profile/gladiator.png";
 import audienceProfile from "@/assets/images/profile/audience.png";
@@ -844,6 +845,11 @@ import type {
   STTMessage,
   SessionUpdateMessage,
 } from "@/types/debate";
+
+// 라우트에서 roomId 가져오기
+const route = useRoute();
+const roomId = route.params.id as string;
+console.log('🔍 현재 토론방 ID:', roomId);
 
 const debateSession = ref<DebateSession>({
   currentSpeakerId: null,
@@ -925,7 +931,6 @@ const startWebRTCConnection = async (participantsList: any[]) => {
   }
   
   // 토론방 입장
-  const roomId = "test-room"; // 실제로는 라우터에서 받아와야 함
   joinRoom(roomId);
   
   return true;
@@ -1023,7 +1028,7 @@ const startTransitionTimer = () => {
 // STT 버튼 텍스트 결정 함수 제거됨 (자동 제어로 변경)
 
 // STOMP 구독 설정
-const roomId = "test-room"; // 실제로는 라우터에서 가져와야 함
+// roomId는 위에서 이미 정의됨
 
 const subscribeToDebateRoom = () => {
   if (!client.value || !isConnected.value) {
