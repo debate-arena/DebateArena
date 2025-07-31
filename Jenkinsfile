@@ -6,6 +6,11 @@ pipeline {
         NODE_VERSION = '22'
         FRONTEND_DIR = 'Front-end'
         DIST_DIR = 'Front-end/dist'
+        
+        // 배포 방식 선택 (true: nginx 직접 배포, false: Docker 배포)
+        USE_DIRECT_NGINX = 'false'
+        // 원격 배포 여부 (true: 원격 서버, false: 로컬 서버)
+        USE_REMOTE_DEPLOYMENT = 'true'
     }
     
     tools {
@@ -165,32 +170,43 @@ pipeline {
 def deployToProduction() {
     echo "🚀 운영 서버 배포 시작..."
     
-    // 방법 1: Nginx 서버에 정적 파일 배포
-    sh """
-        echo '📦 빌드된 파일들을 운영 서버로 복사 중...'
-        scp -r ${DIST_DIR}/* jenkins@prod-server:/var/www/html/
-        
-        echo '🔄 Nginx 설정 reload'
-        ssh jenkins@prod-server 'sudo nginx -s reload'
-        
-        echo '✅ 운영 서버 배포 완료: http://mydebate.duckdns.org'
-    """
+    def useDirectNginx = env.USE_DIRECT_NGINX ?: 'false'
+    def useRemoteDeployment = env.USE_REMOTE_DEPLOYMENT ?: 'true'
     
-    // 방법 2: Docker 컨테이너로 배포 (주석 해제 시 사용)
-    // dir("${FRONTEND_DIR}") {
-    //     sh """
-    //         echo '🐳 Docker 이미지 빌드 중...'
-    //         docker build -t debate-arena-frontend:${env.BUILD_NUMBER} .
-    //         docker tag debate-arena-frontend:${env.BUILD_NUMBER} debate-arena-frontend:latest
-    //         
-    //         echo '🚀 컨테이너 재시작 중...'
-    //         docker stop debate-arena-frontend || true
-    //         docker rm debate-arena-frontend || true
-    //         docker run -d --name debate-arena-frontend -p 80:80 debate-arena-frontend:latest
-    //         
-    //         echo '✅ Docker 배포 완료: http://서버IP'
-    //     """
-    // }
+    if (useDirectNginx == 'true' && useRemoteDeployment == 'false') {
+        echo "🌐 로컬 Nginx 직접 배포 진행..."
+        deployToNginxDirect()
+        echo '✅ 운영 서버 배포 완료: http://mydebate.duckdns.org'
+    } else if (useRemoteDeployment == 'true') {
+        echo "🌐 원격 서버 배포 진행..."
+        // 방법 1: Nginx 서버에 정적 파일 배포
+        sh """
+            echo '📦 빌드된 파일들을 운영 서버로 복사 중...'
+            scp -r ${DIST_DIR}/* jenkins@prod-server:/var/www/html/
+            
+            echo '🔄 Nginx 설정 reload'
+            ssh jenkins@prod-server 'sudo nginx -s reload'
+            
+            echo '✅ 운영 서버 배포 완료: http://mydebate.duckdns.org'
+        """
+    } else {
+        echo "🐳 Docker 컨테이너 배포 진행..."
+        // 방법 2: Docker 컨테이너로 배포
+        dir("${FRONTEND_DIR}") {
+            sh """
+                echo '🐳 Docker 이미지 빌드 중...'
+                docker build -t debate-arena-frontend:${env.BUILD_NUMBER} .
+                docker tag debate-arena-frontend:${env.BUILD_NUMBER} debate-arena-frontend:latest
+                
+                echo '🚀 컨테이너 재시작 중...'
+                docker stop debate-arena-frontend || true
+                docker rm debate-arena-frontend || true
+                docker run -d --name debate-arena-frontend -p 80:80 debate-arena-frontend:latest
+                
+                echo '✅ Docker 배포 완료: http://mydebate.duckdns.org'
+            """
+        }
+    }
 }
 
 def deployToDevelopment() {
@@ -198,8 +214,12 @@ def deployToDevelopment() {
     
     // Docker가 사용 가능한지 확인
     def dockerAvailable = sh(script: 'command -v docker >/dev/null 2>&1', returnStatus: true) == 0
+    def useDirectNginx = env.USE_DIRECT_NGINX ?: 'false'
     
-    if (dockerAvailable) {
+    if (useDirectNginx == 'true') {
+        echo "🌐 Nginx 직접 배포 진행..."
+        deployToNginxDirect()
+    } else if (dockerAvailable) {
         echo "🐳 Docker를 사용한 배포 진행..."
         dir("${FRONTEND_DIR}") {
             sh """
@@ -223,18 +243,59 @@ def deployToDevelopment() {
             """
         }
     } else {
-        echo "⚠️ Docker를 사용할 수 없습니다. 정적 파일 배포로 진행..."
-        sh """
-            echo '📦 빌드된 파일들을 서버로 복사 중...'
-            # 실제 서버 경로로 변경 필요
-            # scp -r ${DIST_DIR}/* user@server:/var/www/html/
-            echo '📁 빌드 결과물 위치: ${DIST_DIR}'
-            ls -la ${DIST_DIR}
-            
-            echo '⚠️ 수동으로 서버에 배포하거나 Docker를 설치하세요.'
-        """
+        echo "⚠️ Docker를 사용할 수 없습니다. Nginx 직접 배포로 진행..."
+        deployToNginxDirect()
     }
     
-    echo '🌐 접속 URL: http://3.34.95.4:8081'
-    echo '🐛 디버그 정보: http://3.34.95.4:8081/debug'
+    if (useDirectNginx == 'true') {
+        echo '🌐 접속 URL: http://3.34.95.4'
+    } else {
+        echo '🌐 접속 URL: http://3.34.95.4:8081'
+        echo '🐛 디버그 정보: http://3.34.95.4:8081/debug'
+    }
+}
+
+def deployToNginxDirect() {
+    echo "🌐 Nginx 직접 배포 시작..."
+    
+    dir("${FRONTEND_DIR}") {
+        sh '''
+            echo "📋 빌드 결과 확인:"
+            if [ ! -d "dist" ]; then
+                echo "❌ dist 디렉토리가 생성되지 않았습니다!"
+                exit 1
+            fi
+            
+            if [ ! -f "dist/index.html" ]; then
+                echo "❌ index.html이 빌드되지 않았습니다!"
+                exit 1
+            fi
+            
+            echo "📁 빌드된 파일 목록:"
+            ls -la dist/
+            
+            echo "🚀 Nginx로 배포 중..."
+            # 백업 생성 (오류 발생 시 무시)
+            sudo mkdir -p /usr/share/nginx/html.backup || true
+            sudo cp -r /usr/share/nginx/html/* /usr/share/nginx/html.backup/ 2>/dev/null || true
+            
+            # 기존 파일 제거 및 새 파일 복사
+            sudo rm -rf /usr/share/nginx/html/*
+            sudo cp -r dist/* /usr/share/nginx/html/
+            
+            # 권한 설정
+            sudo chown -R www-data:www-data /usr/share/nginx/html/ || sudo chown -R nginx:nginx /usr/share/nginx/html/ || true
+            sudo chmod -R 644 /usr/share/nginx/html/*
+            sudo find /usr/share/nginx/html/ -type d -exec chmod 755 {} \\;
+            
+            echo "🔄 Nginx 설정 테스트 및 재시작"
+            sudo nginx -t
+            sudo systemctl reload nginx || sudo service nginx reload
+            
+            echo "📋 배포 완료 후 파일 확인:"
+            ls -la /usr/share/nginx/html/
+            
+            echo "✅ Nginx 직접 배포 완료"
+        '''
+    }
 } 
