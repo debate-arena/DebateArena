@@ -235,6 +235,6 @@ def deployToDevelopment() {
         """
     }
     
-    echo '🌐 접속 URL: http://3.34.95.4'
-    echo '🐛 디버그 정보: http://3.34.95.4/debug'
+    echo '🌐 접속 URL: http://3.34.95.4:8081'
+    echo '🐛 디버그 정보: http://3.34.95.4:8081/debug'
 } 
