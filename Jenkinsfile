@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         BRANCH_NAME = "${env.GIT_BRANCH}".replaceFirst(/^origin\//, '')
-        NODE_VERSION = '20'
+        NODE_VERSION = '22'
         FRONTEND_DIR = 'Front-end'
         DIST_DIR = 'Front-end/dist'
     }
