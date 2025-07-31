@@ -8,9 +8,9 @@ pipeline {
         DIST_DIR = 'Front-end/dist'
         
         // 배포 방식 선택 (true: nginx 직접 배포, false: Docker 배포)
-        USE_DIRECT_NGINX = 'false'
+        USE_DIRECT_NGINX = 'true'
         // 원격 배포 여부 (true: 원격 서버, false: 로컬 서버)
-        USE_REMOTE_DEPLOYMENT = 'true'
+        USE_REMOTE_DEPLOYMENT = 'false'
     }
     
     tools {
@@ -176,7 +176,7 @@ def deployToProduction() {
     if (useDirectNginx == 'true' && useRemoteDeployment == 'false') {
         echo "🌐 로컬 Nginx 직접 배포 진행..."
         deployToNginxDirect()
-        echo '✅ 운영 서버 배포 완료: http://mydebate.duckdns.org'
+        echo '✅ 운영 서버 배포 완료: https://debate-arena.duckdns.org'
     } else if (useRemoteDeployment == 'true') {
         echo "🌐 원격 서버 배포 진행..."
         // 방법 1: Nginx 서버에 정적 파일 배포
@@ -187,7 +187,7 @@ def deployToProduction() {
             echo '🔄 Nginx 설정 reload'
             ssh jenkins@prod-server 'sudo nginx -s reload'
             
-            echo '✅ 운영 서버 배포 완료: http://mydebate.duckdns.org'
+            echo '✅ 운영 서버 배포 완료: https://debate-arena.duckdns.org'
         """
     } else {
         echo "🐳 Docker 컨테이너 배포 진행..."
@@ -201,9 +201,12 @@ def deployToProduction() {
                 echo '🚀 컨테이너 재시작 중...'
                 docker stop debate-arena-frontend || true
                 docker rm debate-arena-frontend || true
-                docker run -d --name debate-arena-frontend -p 80:80 debate-arena-frontend:latest
+                docker run -d --name debate-arena-frontend \
+                    -p 80:80 -p 443:443 \
+                    -v /etc/letsencrypt:/etc/letsencrypt:ro \
+                    debate-arena-frontend:latest
                 
-                echo '✅ Docker 배포 완료: http://mydebate.duckdns.org'
+                echo '✅ Docker 배포 완료: https://debate-arena.duckdns.org'
             """
         }
     }
@@ -234,7 +237,10 @@ def deployToDevelopment() {
                 echo '🚀 컨테이너 재시작 중...'
                 docker stop debate-arena-frontend-dev || true
                 docker rm -f debate-arena-frontend-dev || true
-                docker run -d --name debate-arena-frontend-dev -p 8081:80 debate-arena-frontend-dev:latest
+                docker run -d --name debate-arena-frontend-dev \
+                    -p 80:80 -p 443:443 \
+                    -v /etc/letsencrypt:/etc/letsencrypt:ro \
+                    debate-arena-frontend-dev:latest
                 
                 # 임시 Dockerfile 정리
                 rm -f Dockerfile.dev
@@ -248,7 +254,8 @@ def deployToDevelopment() {
     }
     
     if (useDirectNginx == 'true') {
-        echo '🌐 접속 URL: http://3.34.95.4'
+        echo '🌐 접속 URL: https://debate-arena.duckdns.org'
+        echo '🐛 디버그 정보: https://debate-arena.duckdns.org/debug'
     } else {
         echo '🌐 접속 URL: http://3.34.95.4:8081'
         echo '🐛 디버그 정보: http://3.34.95.4:8081/debug'
@@ -296,6 +303,17 @@ def deployToNginxDirect() {
             ls -la /usr/share/nginx/html/
             
             echo "✅ Nginx 직접 배포 완료"
+            
+            echo "🔐 SSL 인증서 확인 및 설정..."
+            # SSL 인증서가 있는지 확인
+            if [ ! -d "/etc/letsencrypt/live/debate-arena.duckdns.org" ]; then
+                echo "⚠️ SSL 인증서가 없습니다. 수동으로 setup-ssl.sh를 실행하세요."
+                echo "   sudo bash setup-ssl.sh"
+            else
+                echo "✅ SSL 인증서가 이미 설정되어 있습니다."
+                # 인증서 갱신 확인
+                sudo certbot renew --dry-run --quiet && echo "✅ SSL 인증서 갱신 테스트 성공" || echo "⚠️ SSL 인증서 갱신 테스트 실패"
+            fi
         '''
     }
 } 
