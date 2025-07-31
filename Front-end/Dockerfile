@@ -1,13 +1,13 @@
 # 빌드 스테이지
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
 # 의존성 파일 복사
 COPY package*.json ./
 
-# 의존성 설치
-RUN npm ci --only=production
+# 의존성 설치 (빌드에 필요한 devDependencies 포함)
+RUN npm ci --prefer-offline --no-audit
 
 # 소스 코드 복사
 COPY . .
