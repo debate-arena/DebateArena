@@ -213,7 +213,7 @@ def deployToDevelopment() {
                 
                 echo '🚀 컨테이너 재시작 중...'
                 docker stop debate-arena-frontend-dev || true
-                docker rm debate-arena-frontend-dev || true
+                docker rm -f debate-arena-frontend-dev || true
                 docker run -d --name debate-arena-frontend-dev -p 8081:80 debate-arena-frontend-dev:latest
                 
                 # 임시 Dockerfile 정리
