@@ -13,13 +13,22 @@
         <div class="mb-8">
           <div class="relative w-32 h-32 mx-auto">
             <!-- 외부 원 -->
-            <div class="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+            <div
+              class="absolute inset-0 border-4 border-blue-200 rounded-full"
+            ></div>
             <!-- 회전하는 원 -->
-            <div class="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <div
+              class="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"
+            ></div>
             <!-- 내부 원 -->
-            <div class="absolute inset-4 border-2 border-green-300 rounded-full opacity-60"></div>
-            <div class="absolute inset-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" style="animation-direction: reverse; animation-duration: 1.5s;"></div>
-            
+            <div
+              class="absolute inset-4 border-2 border-green-300 rounded-full opacity-60"
+            ></div>
+            <div
+              class="absolute inset-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"
+              style="animation-direction: reverse; animation-duration: 1.5s"
+            ></div>
+
             <!-- 중앙 아이콘 -->
             <div class="absolute inset-0 flex items-center justify-center">
               <div class="text-4xl">🔗</div>
@@ -29,7 +38,7 @@
 
         <!-- 연결 상태 텍스트 -->
         <div class="text-3xl text-white mb-4 font-bold">참가자 연결 중</div>
-        
+
         <!-- 상세 진행 상태 -->
         <div class="text-lg text-gray-300 mb-8">
           {{ webrtcState.connectionStepText }}
@@ -37,12 +46,19 @@
 
         <!-- 진행 단계 표시 -->
         <div class="flex justify-center items-center space-x-4 mb-8">
-          <div 
-            v-for="(step, index) in ['router', 'transport', 'producer', 'consumer']" 
+          <div
+            v-for="(step, index) in [
+              'router',
+              'transport',
+              'producer',
+              'consumer',
+            ]"
             :key="step"
             :class="[
               'w-4 h-4 rounded-full transition-all duration-500',
-              getStepIndex(webrtcState.connectionStep) >= index ? 'bg-blue-500' : 'bg-gray-600'
+              getStepIndex(webrtcState.connectionStep) >= index
+                ? 'bg-blue-500'
+                : 'bg-gray-600',
             ]"
           ></div>
         </div>
@@ -50,7 +66,7 @@
         <!-- 참가자 연결 상태 -->
         <div class="mt-12 w-full max-w-4xl mx-auto">
           <div class="text-xl text-white mb-6">참가자 연결 상태</div>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-12">
             <div
               v-for="participant in webrtcState.participants"
               :key="participant.id"
@@ -67,23 +83,43 @@
                 <div
                   :class="[
                     'absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center',
-                    participant.connected ? 'bg-green-500' : 'bg-gray-400'
+                    participant.connected ? 'bg-green-500' : 'bg-gray-400',
                   ]"
                 >
-                  <div v-if="participant.connected" class="text-white text-xs">✓</div>
-                  <div v-else class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                  <div v-if="participant.connected" class="text-white text-xs">
+                    ✓
+                  </div>
+                  <div
+                    v-else
+                    class="w-3 h-3 bg-white rounded-full animate-pulse"
+                  ></div>
                 </div>
               </div>
-              <span class="text-sm text-white text-center">
-                {{ participant.name }}
+              <span
+                class="text-sm text-white text-center font-bold"
+                style="
+                  line-height: 1.2;
+                  white-space: pre-line;
+                  min-height: 2.5rem;
+                "
+              >
+                {{
+                  participant.name.length > 8
+                    ? participant.name.slice(0, 8) +
+                      "\n" +
+                      participant.name.slice(8)
+                    : participant.name
+                }}
               </span>
-              <span 
+              <span
                 :class="[
                   'text-xs px-2 py-1 rounded-full',
-                  participant.connected ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'
+                  participant.connected
+                    ? 'bg-green-500/20 text-green-300'
+                    : 'bg-gray-500/20 text-gray-300',
                 ]"
               >
-                {{ participant.connected ? '연결됨' : '연결 중...' }}
+                {{ participant.connected ? "연결됨" : "연결 중..." }}
               </span>
             </div>
           </div>
@@ -292,8 +328,14 @@
                       :key="participant.id"
                       class="flex flex-col items-center space-y-1"
                     >
-                      <Avatar :class="['w-16 h-16 relative overflow-visible', 
-                                      participant.id === debateSession.currentSpeakerId ? 'speaking-glow' : '']">
+                      <Avatar
+                        :class="[
+                          'w-16 h-16 relative overflow-visible',
+                          participant.id === debateSession.currentSpeakerId
+                            ? 'speaking-glow'
+                            : '',
+                        ]"
+                      >
                         <AvatarImage
                           :src="participant.profileImage"
                           :alt="participant.name"
@@ -361,8 +403,14 @@
                       :key="participant.id"
                       class="flex flex-col items-center space-y-1"
                     >
-                      <Avatar :class="['w-16 h-16 relative overflow-visible',
-                                      participant.id === debateSession.currentSpeakerId ? 'speaking-glow' : '']">
+                      <Avatar
+                        :class="[
+                          'w-16 h-16 relative overflow-visible',
+                          participant.id === debateSession.currentSpeakerId
+                            ? 'speaking-glow'
+                            : '',
+                        ]"
+                      >
                         <AvatarImage
                           :src="participant.profileImage"
                           :alt="participant.name"
@@ -468,41 +516,56 @@
               </span>
             </Badge>
           </CardHeader>
-          
+
           <!-- 현재 발언자 및 대기시간 표시 -->
           <div class="mx-4 mb-4">
-            <Card v-if="currentSpeakerInfo || debateSession.stage === 'transition'" 
-                  class="mb-4" 
-                  :class="{
-                    'bg-blue-50 border-blue-200': debateSession.stage === 'speaking',
-                    'bg-yellow-50 border-yellow-200': debateSession.stage === 'transition'
-                  }">
+            <Card
+              v-if="currentSpeakerInfo || debateSession.stage === 'transition'"
+              class="mb-4"
+              :class="{
+                'bg-blue-50 border-blue-200':
+                  debateSession.stage === 'speaking',
+                'bg-yellow-50 border-yellow-200':
+                  debateSession.stage === 'transition',
+              }"
+            >
               <CardContent class="py-3">
                 <!-- 현재 발언 중 -->
-                <div v-if="debateSession.stage === 'speaking' && currentSpeakerInfo" 
-                     class="flex items-center justify-between">
+                <div
+                  v-if="
+                    debateSession.stage === 'speaking' && currentSpeakerInfo
+                  "
+                  class="flex items-center justify-between"
+                >
                   <div class="flex items-center space-x-3">
                     <Avatar class="w-10 h-10">
                       <AvatarImage :src="currentSpeakerInfo.profileImage" />
                     </Avatar>
                     <div>
-                      <div class="font-medium">{{ currentSpeakerInfo.name }}</div>
+                      <div class="font-medium">
+                        {{ currentSpeakerInfo.name }}
+                      </div>
                       <div class="text-sm text-blue-600">현재 발언 중</div>
                     </div>
                   </div>
                   <div class="text-right">
                     <div class="text-2xl font-bold text-blue-600">
-                      {{ Math.floor(debateSession.remainingTime / 60) }}:{{ 
-                        String(debateSession.remainingTime % 60).padStart(2, '0') 
+                      {{ Math.floor(debateSession.remainingTime / 60) }}:{{
+                        String(debateSession.remainingTime % 60).padStart(
+                          2,
+                          "0"
+                        )
                       }}
                     </div>
                     <div class="text-xs text-gray-500">남은 시간</div>
                   </div>
                 </div>
-                
+
                 <!-- 대기시간 표시 -->
-                <div v-else-if="debateSession.stage === 'transition'" 
-                     class="flex items-center justify-center space-x-4">
+                <div
+                  v-else-if="debateSession.stage === 'transition'"
+                  class="flex items-center justify-center space-x-4"
+                >
                   <div class="text-center">
                     <div class="text-3xl font-bold text-yellow-600 mb-2">
                       {{ debateSession.transitionTimeLeft }}
@@ -510,7 +573,10 @@
                     <div class="text-sm text-yellow-700">
                       다음 발언자 준비 중...
                     </div>
-                    <div v-if="isNextSpeaker" class="text-xs text-yellow-800 mt-1 font-medium">
+                    <div
+                      v-if="isNextSpeaker"
+                      class="text-xs text-yellow-800 mt-1 font-medium"
+                    >
                       곧 당신 차례입니다!
                     </div>
                   </div>
@@ -518,7 +584,7 @@
               </CardContent>
             </Card>
           </div>
-          
+
           <CardContent class="p-0">
             <!-- 메시지 영역 (스크롤 가능) -->
             <div
@@ -769,14 +835,14 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useStompConnection } from "@/composables/useStompConnection";
-import { useWebRTCConnection } from "@/composables/useWebRTCConnection";
-import type { 
-  Speaker, 
-  DebateSession, 
-  SpeakerChangeMessage, 
-  STTMessage, 
-  SessionUpdateMessage 
+import { useDebateConnection } from "@/composables/useDebateConnection";
+import { useAuthStore } from "@/store/auth";
+import type {
+  Speaker,
+  DebateSession,
+  SpeakerChangeMessage,
+  STTMessage,
+  SessionUpdateMessage,
 } from "@/types/debate";
 
 const debateSession = ref<DebateSession>({
@@ -790,8 +856,31 @@ const debateSession = ref<DebateSession>({
   transitionTimeLeft: 0,
 });
 
-// 현재 사용자 ID (실제로는 로그인한 사용자 정보에서 가져와야 함)
-const currentUserId = ref(1); // 테스트용
+//STOMP 연결 관련 
+const authStore = useAuthStore();
+const { 
+  client, 
+  isConnected, 
+  isConnecting,
+  connectionError,
+  isTestMode,
+  getCurrentUser,
+  startConnection, 
+  stopConnection: disconnect,
+  joinRoom,
+  leaveRoom,
+  sendSignalingMessage,
+  sendDebateMessage,
+  // WebRTC 관련
+  participants,
+  isProducerTransportReady,
+  isMediasoupLoaded,
+  localVideoRef,
+  startProduce
+} = useDebateConnection();
+
+// 현재 사용자 ID (테스트 모드 지원)
+const currentUserId = ref(isTestMode ? 1 : (authStore.user?.id ? parseInt(authStore.user.id) : 1));
 
 // 발언권 확인
 const canSpeak = computed(() => {
@@ -801,16 +890,52 @@ const canSpeak = computed(() => {
   );
 });
 
-//STOMP 연결 관련
-const { client, isConnected, connect, disconnect } = useStompConnection();
+// WebRTC 상태 호환성을 위한 computed
+const webrtcState = computed(() => ({
+  isConnecting: isConnecting.value,
+  isConnected: isConnected.value,
+  connectionStep: isProducerTransportReady.value ? 'completed' : 'transport',
+  connectionStepText: isConnecting.value 
+    ? 'WebRTC 연결 중...' 
+    : isProducerTransportReady.value 
+      ? '연결 완료!' 
+      : 'MediaSoup 초기화 중...',
+  participants: participants.value.map(p => ({
+    id: p.producerUserEmail, // 이메일을 ID로 사용
+    name: p.producerUserEmail.split('@')[0], // 이메일에서 이름 추출
+    email: p.producerUserEmail,
+    profileImage: '/default-avatar.png',
+    connected: p.videoStream !== null
+  }))
+}));
 
-// WebRTC 연결 관리
-const {
-  state: webrtcState,
-  allParticipantsConnected,
-  startWebRTCConnection,
-  disconnectWebRTC
-} = useWebRTCConnection();
+// 모든 참가자 연결 상태
+const allParticipantsConnected = computed(() => {
+  return participants.value.length > 0 && 
+         participants.value.every(p => p.videoStream !== null);
+});
+
+// WebRTC 연결 시작 (호환성)
+const startWebRTCConnection = async (participantsList: any[]) => {
+  console.log('🚀 WebRTC 연결 시작 (새로운 구현)');
+  
+  // 기존 연결이 없다면 STOMP 연결부터 시작
+  if (!isConnected.value) {
+    await startConnection();
+  }
+  
+  // 토론방 입장
+  const roomId = "test-room"; // 실제로는 라우터에서 받아와야 함
+  joinRoom(roomId);
+  
+  return true;
+};
+
+// WebRTC 연결 해제 (호환성)
+const disconnectWebRTC = () => {
+  console.log('🔌 WebRTC 연결 해제 (새로운 구현)');
+  leaveRoom();
+};
 // 다음 발언자인지 확인
 const isNextSpeaker = computed(() => {
   return debateSession.value.nextSpeakerId === currentUserId.value;
@@ -901,39 +1026,74 @@ const startTransitionTimer = () => {
 const roomId = "test-room"; // 실제로는 라우터에서 가져와야 함
 
 const subscribeToDebateRoom = () => {
-  if (client.value) {
+  if (!client.value || !isConnected.value) {
+    console.warn('STOMP 클라이언트가 연결되지 않음');
+    return;
+  }
+
+  console.log('🔔 토론방 구독 시작...');
+
+  try {
     // 발언 순서 변경 구독
     client.value.subscribe(`/topic/debate/${roomId}/speaker`, (message) => {
       const data = JSON.parse(message.body) as SpeakerChangeMessage;
+      console.log('👤 발언자 변경:', data);
       handleSpeakerChange(data);
     });
 
     // STT 텍스트 실시간 수신
     client.value.subscribe(`/topic/debate/${roomId}/stt`, (message) => {
       const data = JSON.parse(message.body) as STTMessage;
+      console.log('🎤 STT 결과 수신:', data);
       handleSTTResult(data);
     });
 
     // 토론 세션 상태 변경
     client.value.subscribe(`/topic/debate/${roomId}/session`, (message) => {
       const data = JSON.parse(message.body) as SessionUpdateMessage;
+      console.log('📊 세션 상태 변경:', data);
       handleSessionUpdate(data);
     });
+
+    console.log('✅ 토론방 구독 완료');
+  } catch (error) {
+    console.error('❌ 토론방 구독 실패:', error);
   }
 };
 
 // STT 결과를 서버로 전송
 const sendSTTResult = (text: string, isInterim: boolean) => {
-  if (client.value && canSpeak.value) {
-    client.value.publish({
-      destination: `/app/debate/${roomId}/stt`,
-      body: JSON.stringify({
-        speakerId: currentUserId.value,
-        text,
-        isInterim,
-        timestamp: Date.now(),
-      }),
-    });
+  if (!isConnected.value) {
+    console.warn('STOMP 연결이 없음 - STT 결과 전송 실패');
+    return;
+  }
+
+  if (!canSpeak.value) {
+    console.warn('발언권이 없음 - STT 결과 전송 건너뛰기');
+    return;
+  }
+
+  try {
+    const sttData = {
+      speakerId: currentUserId.value,
+      text,
+      isInterim,
+      timestamp: Date.now(),
+    };
+
+    if (client.value) {
+      client.value.publish({
+        destination: `/app/debate/${roomId}/stt`,
+        body: JSON.stringify(sttData),
+        headers: {
+          'content-type': 'application/json'
+        }
+      });
+      
+      console.log('🎤 STT 결과 전송:', { text: text.substring(0, 50), isInterim });
+    }
+  } catch (error) {
+    console.error('❌ STT 결과 전송 실패:', error);
   }
 };
 
@@ -1267,11 +1427,9 @@ const toggleDebateInfo = () => {
   }, 500);
 };
 
-
-
 // WebRTC 연결 단계 인덱스 반환
 const getStepIndex = (step: string): number => {
-  const steps = ['router', 'transport', 'producer', 'consumer', 'completed'];
+  const steps = ["router", "transport", "producer", "consumer", "completed"];
   return steps.indexOf(step);
 };
 
@@ -1567,81 +1725,107 @@ const handleResize = () => {
 // WebRTC 연결 시작
 const initializeWebRTCConnection = async () => {
   try {
-    console.log('🚀 WebRTC 연결 시작...');
-    
+    console.log("🚀 WebRTC 연결 시작...");
+
     // 참가자 정보 (실제로는 서버에서 받아와야 함)
     const participants = [
-      { 
-        id: 1, 
-        name: leftTeam.value[0].name, 
-        email: "user1@example.com", 
-        profileImage: leftTeam.value[0].profileImage 
+      {
+        id: 1,
+        name: leftTeam.value[0].name,
+        email: "user1@example.com",
+        profileImage: leftTeam.value[0].profileImage,
       },
-      { 
-        id: 2, 
-        name: leftTeam.value[1].name, 
-        email: "user2@example.com", 
-        profileImage: leftTeam.value[1].profileImage 
+      {
+        id: 2,
+        name: leftTeam.value[1].name,
+        email: "user2@example.com",
+        profileImage: leftTeam.value[1].profileImage,
       },
-      { 
-        id: 3, 
-        name: rightTeam.value[0].name, 
-        email: "user3@example.com", 
-        profileImage: rightTeam.value[0].profileImage 
+      {
+        id: 3,
+        name: rightTeam.value[0].name,
+        email: "user3@example.com",
+        profileImage: rightTeam.value[0].profileImage,
       },
-      { 
-        id: 4, 
-        name: rightTeam.value[1].name, 
-        email: "user4@example.com", 
-        profileImage: rightTeam.value[1].profileImage 
-      }
+      {
+        id: 4,
+        name: rightTeam.value[1].name,
+        email: "user4@example.com",
+        profileImage: rightTeam.value[1].profileImage,
+      },
     ];
 
     await startWebRTCConnection(participants);
-    console.log('✅ WebRTC 연결 완료, 준비시간 시작');
-    
+    console.log("✅ WebRTC 연결 완료, 준비시간 시작");
+
     // WebRTC 연결 완료 후 준비시간 시작
     isPreparationTime.value = true;
     startPreparationTimer();
-    
   } catch (error) {
-    console.error('❌ WebRTC 연결 실패:', error);
+    console.error("❌ WebRTC 연결 실패:", error);
     // WebRTC 연결에 실패해도 토론은 계속 진행 (fallback)
-    console.log('📢 WebRTC 없이 토론 진행');
+    console.log("📢 WebRTC 없이 토론 진행");
     isPreparationTime.value = true;
     startPreparationTimer();
   }
 };
 
-// 컴포넌트 마운트 시 STOMP 연결 및 STT 초기화
-onMounted(() => {
-  // STOMP 연결
-  connect("ws://localhost:8080/ws"); // 실제 백엔드 URL로 변경
+// 컴포넌트 마운트 시 초기화
+onMounted(async () => {
+  console.log('🚀 토론방 초기화 시작');
+  
+  // 테스트 모드 정보 출력
+  if (isTestMode) {
+    const testUser = getCurrentUser();
+    console.log('🧪 테스트 모드 활성화');
+    console.log('👤 테스트 사용자:', testUser);
+  }
+  
+  try {
+    // 1. 인증 상태 확인 (테스트 모드에서는 우회)
+    if (!isTestMode && !authStore.isLoggedIn) {
+      console.error('❌ 로그인이 필요합니다.');
+      return;
+    }
 
-  // 연결 완료 후 구독
-  watch(
-    isConnected,
-    (connected) => {
-      if (connected) {
-        subscribeToDebateRoom();
-      }
-    },
-    { immediate: true }
-  );
+    // 2. STOMP 연결 시작 (useDebateConnection에서 자동으로 처리됨)
+    console.log('🔌 STOMP 연결 시작...');
+    const connected = await startConnection();
+    
+    if (!connected) {
+      console.error('❌ STOMP 연결 실패:', connectionError.value);
+      return;
+    }
 
-  // STT 지원 여부 확인
+    console.log('✅ STOMP 연결 성공');
+
+    // 2.1 시그널링 시작
+    console.log('🔌 시그널링 연결 시작...');
+    joinRoom(roomId);
+
+
+    // 3. 토론방 구독
+    subscribeToDebateRoom();
+    console.log('✅ 토론방 구독 완료');
+
+  } catch (error) {
+    console.error('💥 토론방 초기화 실패:', error);
+  }
+
+  // 4. STT 지원 여부 확인
   checkSTTSupport();
   console.log("STT 지원 여부:", sttSupported.value);
 
-  // WebRTC 연결 시작 (준비시간은 연결 완료 후 시작)
+  // 5. WebRTC 연결 시작 (STOMP 연결 후 시작)
   initializeWebRTCConnection();
 
-  // resize 이벤트 리스너 추가
+  // 6. UI 이벤트 리스너 추가
   window.addEventListener("resize", handleResize);
 
-  // setTimeout(() => {
-  //   addMessages();
-  // }, 5000);
+  // 7. 개발용 테스트 메시지 (배포시 제거)
+  setTimeout(() => {
+    addMessages();
+  }, 10000);
 });
 
 const addMessages = () => {
@@ -1713,28 +1897,44 @@ onUnmounted(() => {
 }
 
 .speaking-glow::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -4px;
   left: -4px;
   right: -4px;
   bottom: -4px;
   border-radius: 50%;
-  background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7, #dda0dd);
+  background: linear-gradient(
+    45deg,
+    #ff6b6b,
+    #4ecdc4,
+    #45b7d1,
+    #96ceb4,
+    #ffeaa7,
+    #dda0dd
+  );
   background-size: 300% 300%;
   animation: glow-pulse 2s ease-in-out infinite;
   z-index: -1;
 }
 
 .speaking-glow::after {
-  content: '';
+  content: "";
   position: absolute;
   top: -2px;
   left: -2px;
   right: -2px;
   bottom: -2px;
   border-radius: 50%;
-  background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7, #dda0dd);
+  background: linear-gradient(
+    45deg,
+    #ff6b6b,
+    #4ecdc4,
+    #45b7d1,
+    #96ceb4,
+    #ffeaa7,
+    #dda0dd
+  );
   background-size: 300% 300%;
   animation: glow-rotate 3s linear infinite;
   opacity: 0.8;
@@ -1743,7 +1943,8 @@ onUnmounted(() => {
 }
 
 @keyframes glow-pulse {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
     transform: scale(1);
     opacity: 0.8;

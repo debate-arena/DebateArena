@@ -1,8 +1,11 @@
 import axios from 'axios'
 
+// 환경 변수를 활용한 API URL 설정
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+
 // 인증 API 전용 axios 인스턴스
 const authAxios = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: API_BASE_URL,
   timeout: 10000,
   withCredentials: true, // 쿠키 포함
   headers: {
@@ -123,7 +126,7 @@ export const authAPI = {
 
   // OAuth2 로그인 URL 생성
   getOAuthUrl: (provider: 'google', next?: string): string => {
-    const baseUrl = 'http://localhost:8080/oauth2/authorization/google'
+    const baseUrl = `${API_BASE_URL}/oauth2/authorization/google`
     if (next) {
       return `${baseUrl}?next=${encodeURIComponent(next)}`
     }
