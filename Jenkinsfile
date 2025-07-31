@@ -8,9 +8,7 @@ pipeline {
         DIST_DIR = 'Front-end/dist'
     }
     
-    tools {
-        nodejs "${NODE_VERSION}"
-    }
+    // Docker를 사용하여 Node.js 환경을 설정하므로 tools 섹션 제거
     
     stages {
         stage('Trigger Check') {
@@ -26,19 +24,18 @@ pipeline {
         stage('Environment Setup') {
             steps {
                 script {
-                    echo "🔧 Node.js 환경 설정 중..."
+                    echo "🔧 Docker를 사용한 Node.js 환경 설정 중..."
                     
-                    // Jenkins tools로 설치된 Node.js 확인
+                    // Docker를 사용하여 Node.js 환경 확인
                     sh '''
-                        echo "📋 Node.js 버전:"
-                        node --version
-                        echo "📋 npm 버전:"
-                        npm --version
-                        echo "📋 설치 경로:"
-                        which node
-                        which npm
+                        echo "📋 Docker 버전 확인:"
+                        docker --version
+                        
+                        echo "📋 Node.js Docker 이미지로 환경 테스트:"
+                        docker run --rm node:${NODE_VERSION}-alpine node --version
+                        docker run --rm node:${NODE_VERSION}-alpine npm --version
                     '''
-                    echo "✅ Jenkins tools를 통해 Node.js 환경이 설정되었습니다."
+                    echo "✅ Docker를 통해 Node.js 환경이 설정되었습니다."
                 }
             }
         }
@@ -72,8 +69,15 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 dir("${FRONTEND_DIR}") {
-                    echo "📦 Node.js로 의존성 설치 중..."
-                    sh 'npm ci --prefer-offline --no-audit'
+                    echo "📦 Docker를 사용하여 의존성 설치 중..."
+                    sh '''
+                        # Docker를 사용하여 npm 패키지 설치
+                        docker run --rm \
+                            -v $(pwd):/app \
+                            -w /app \
+                            node:${NODE_VERSION}-alpine \
+                            npm ci --prefer-offline --no-audit
+                    '''
                 }
             }
         }
@@ -81,11 +85,18 @@ pipeline {
         stage('Build Application') {
             steps {
                 dir("${FRONTEND_DIR}") {
-                    echo "🏗️ Node.js로 애플리케이션 빌드 중..."
-                    sh 'npm run build'
-                    
-                    // 빌드 결과 확인
-                    sh 'ls -la dist/'
+                    echo "🏗️ Docker를 사용하여 애플리케이션 빌드 중..."
+                    sh '''
+                        # Docker를 사용하여 빌드 실행
+                        docker run --rm \
+                            -v $(pwd):/app \
+                            -w /app \
+                            node:${NODE_VERSION}-alpine \
+                            npm run build
+                        
+                        # 빌드 결과 확인
+                        ls -la dist/
+                    '''
                 }
             }
         }
