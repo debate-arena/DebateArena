@@ -1,16 +1,6 @@
 <template>
   <div class="min-h-screen bg-background">
-    <!-- 헤더 -->
-    <header class="border-b border-border bg-card">
-      <div class="container mx-auto px-6 py-4">
-        <div class="flex items-center justify-between">
-          <h1 class="text-xl font-semibold text-foreground">매칭</h1>
-          <Button variant="outline" @click="$router.push('/')">
-            홈으로
-          </Button>
-        </div>
-      </div>
-    </header>
+
 
     <!-- 메인 콘텐츠 -->
     <div class="container mx-auto px-6 py-8">
@@ -101,15 +91,14 @@
               </div>
               <div v-else class="space-y-2">
                 <div 
-                  v-for="(item, index) in getSortedSelectedItems" 
-                  :key="index"
+                  v-for="selection in matchingStore.selectedTopicSelections" 
+                  :key="selection.topicId"
                   class="text-sm"
                 >
-                  <div class="text-foreground">
-                    {{ index + 1 }}) {{ getTopicTitle(item.topicId) }}: {{ getStanceText(item.topicId, item.stance) }}
-                  </div>
-                  <div class="text-muted-foreground ml-4">
-                    모드: {{ item.modes.join(', ') }}
+                  <div class="font-medium">{{ selection.topicTitle }}</div>
+                  <div class="text-muted-foreground">
+                    진영: {{ getStanceLabel(selection.stance) }} | 
+                    모드: {{ Array.from(selection.modes).join(', ') }}
                   </div>
                 </div>
               </div>
@@ -130,188 +119,144 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- 모달들 -->
-  <!-- 매칭 시작 확인 모달 -->
-  <Dialog v-model:open="isStartModalOpen" @update:open="handleStartModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">매칭 시작</DialogTitle>
-        <DialogDescription class="text-center">
-          선택한 주제와 모드로 매칭을 시작하시겠습니까?
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            선택된 주제: {{ matchingStore.selectedTopicCount }}개
-          </p>
-          <p class="text-sm text-muted-foreground">
-            선택된 모드: {{ getModeSummary() }}
-          </p>
-        </div>
-        
-        <div class="space-y-2">
-          <Button size="lg" class="w-full" @click="confirmStartMatching">매칭 시작</Button>
-          <Button variant="outline" size="lg" class="w-full" @click="cancelStartMatching">취소</Button>
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-
-  <!-- 매칭 성사 모달 -->
-  <Dialog v-model:open="isMatchCompleteModalOpen" @update:open="handleMatchCompleteModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">🎉 매칭 성사!</DialogTitle>
-        <DialogDescription class="text-center">
-          매칭이 성사되었습니다.
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            주제: {{ getTopicTitle(matchInfo.topicId) }}
-          </p>
-          <p class="text-sm text-muted-foreground">
-            진영: {{ getStanceText(matchInfo.topicId, matchInfo.stance) }}
-          </p>
-          <p class="text-sm text-muted-foreground">
-            모드: {{ matchInfo.mode }}
-          </p>
-        </div>
-        
-        <div class="space-y-2">
-          <Button size="lg" class="w-full" @click="acceptMatch">수락</Button>
-          <Button variant="outline" size="sm" class="w-full" @click="cancelAllMatches">모든 매칭 취소</Button>
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-
-  <!-- 연결 중 모달 -->
-  <Dialog v-model:open="isConnectingModalOpen" @update:open="handleConnectingModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">🔗 연결 중...</DialogTitle>
-        <DialogDescription class="text-center">
-          토론방에 연결하고 있습니다.
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            방 ID: {{ roomInfo.roomId }}
-          </p>
-          <p class="text-sm text-muted-foreground">
-            연결된 사용자: {{ roomInfo.connectedUsers }}/{{ roomInfo.totalUsers }}
-            {{ console.log('모달 렌더링:', roomInfo.connectedUsers) }}
-          </p>
-        </div>
-        
-        <!-- 연결 상태 표시 -->
-        <div class="flex justify-center gap-2">
-          <UserIcon
-            v-for="index in roomInfo.totalUsers"
-            :key="index"
-            :class="getIconClass(index) + ' text-2xl'"
-          />
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-
-  <!-- 타임아웃 모달 -->
-  <Dialog v-model:open="isTimeoutModalOpen" @update:open="handleTimeoutModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">⏰ 매칭 타임아웃</DialogTitle>
-        <DialogDescription class="text-center">
-          매칭 시간이 초과되었습니다.
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            다시 매칭을 시도하시겠습니까?
-          </p>
-        </div>
-        
-        <div class="space-y-2">
-          <Button size="lg" class="w-full" @click="restartMatching">다시 매칭하기</Button>
-          <Button variant="outline" size="lg" class="w-full" @click="handleTimeoutModalClose">취소</Button>
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-
-  <!-- 주제 변경으로 취소 알림 모달 -->
-  <Dialog v-model:open="isTopicChangeModalOpen" @update:open="handleTopicChangeModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">
-          ⏰ 주제 변경으로 인한 매칭 취소
-        </DialogTitle>
-        <DialogDescription class="text-center">
-          주제가 변경되어 매칭이 자동으로 취소되었습니다.
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            새로운 주제로 다시 매칭하시겠습니까?
-          </p>
-        </div>
-        
-        <div class="space-y-2">
-          <Button 
-            variant="outline" 
-            size="lg" 
-            class="w-full" 
-            @click="handleTopicChangeModalClose"
-          >
+    <!-- 모달들 -->
+    <!-- 매칭 시작 확인 모달 -->
+    <Dialog v-model:open="isStartModalOpen" @update:open="handleStartModalClose">
+      <DialogContent class="sm:max-w-md no-backdrop">
+        <DialogHeader>
+          <DialogTitle class="text-center">매칭 시작</DialogTitle>
+          <DialogDescription class="text-center">
+            선택한 조건으로 매칭을 시작하시겠습니까?
+          </DialogDescription>
+        </DialogHeader>
+        <div class="flex gap-2">
+          <Button @click="confirmStartMatching" class="flex-1">
+            시작
+          </Button>
+          <Button @click="isStartModalOpen = false" variant="outline" class="flex-1">
             취소
           </Button>
         </div>
-      </div>
-    </DialogContent>
-  </Dialog>
+      </DialogContent>
+    </Dialog>
+    
+    <!-- 매칭 성사 모달 -->
+    <Dialog v-model:open="isMatchCompleteModalOpen" @update:open="handleMatchCompleteModalClose">
+      <DialogContent class="sm:max-w-md no-backdrop">
+        <DialogHeader>
+          <DialogTitle class="text-center">🎉 매칭 성사!</DialogTitle>
+          <DialogDescription class="text-center">
+            <div class="space-y-2">
+              <p><strong>주제:</strong> {{ matchInfo.topicTitle }}</p>
+              <p><strong>진영:</strong> {{ matchInfo.myStance }}</p>
+              <p><strong>모드:</strong> {{ matchInfo.mode }}</p>
+            </div>
+          </DialogDescription>
+        </DialogHeader>
+        <div class="flex gap-2">
+          <Button @click="acceptMatch" class="flex-1">
+            수락
+          </Button>
+          <Button @click="rejectMatch" variant="outline" class="flex-1">
+            거절
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    
+    <!-- 연결 중 모달 -->
+    <Dialog v-model:open="isConnectingModalOpen" @update:open="handleConnectingModalClose">
+      <DialogContent class="sm:max-w-md no-backdrop">
+        <DialogHeader>
+          <DialogTitle class="text-center">🔗 연결 중...</DialogTitle>
+          <DialogDescription class="text-center">
+            토론방에 연결하고 있습니다. 잠시만 기다려주세요.
+          </DialogDescription>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
+    
+    <!-- 타임아웃 모달 -->
+    <Dialog v-model:open="isTimeoutModalOpen" @update:open="handleTimeoutModalClose">
+      <DialogContent class="sm:max-w-md no-backdrop">
+        <DialogHeader>
+          <DialogTitle class="text-center">⏰ 매칭 타임아웃</DialogTitle>
+          <DialogDescription class="text-center">
+            매칭 시간이 초과되었습니다. 다시 시도해주세요.
+          </DialogDescription>
+        </DialogHeader>
+        <div class="flex gap-2">
+          <Button @click="isTimeoutModalOpen = false" class="flex-1">
+            확인
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
 
-  <!-- 주제 변경 경고 모달 -->
-  <Dialog v-model:open="isHourWarningModalOpen" @update:open="handleHourWarningModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">
-          ⚠️ 주제 변경 예정
-        </DialogTitle>
-        <DialogDescription class="text-center">
-          주제가 곧 변경됩니다.
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            주제 변경 후 10초가 지나면 모든 매칭이 자동으로 취소됩니다.
-          </p>
-          <p class="text-sm font-medium text-foreground">
-            계속 진행하시겠습니까?
-          </p>
-        </div>
+    <!-- 주제 변경으로 취소 알림 모달 -->
+    <Dialog v-model:open="isTopicChangeModalOpen" @update:open="handleTopicChangeModalClose">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle class="text-center">
+            ⏰ 주제 변경으로 인한 매칭 취소
+          </DialogTitle>
+          <DialogDescription class="text-center">
+            주제가 변경되어 매칭이 자동으로 취소되었습니다.
+          </DialogDescription>
+        </DialogHeader>
         
-        <div class="space-y-2">
-          <Button size="lg" class="w-full" @click="confirmHourWarning">계속 진행</Button>
-          <Button variant="outline" size="lg" class="w-full" @click="hideHourWarningModal">취소</Button>
+        <div class="space-y-4">
+          <div class="text-center space-y-2">
+            <p class="text-sm text-muted-foreground">
+              새로운 주제로 다시 매칭하시겠습니까?
+            </p>
+          </div>
+          
+          <div class="space-y-2">
+            <Button 
+              variant="outline" 
+              size="lg" 
+              class="w-full" 
+              @click="handleTopicChangeModalClose"
+            >
+              취소
+            </Button>
+          </div>
         </div>
-      </div>
-    </DialogContent>
-  </Dialog>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 주제 변경 경고 모달 -->
+    <Dialog v-model:open="isHourWarningModalOpen" @update:open="handleHourWarningModalClose">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle class="text-center">
+            ⚠️ 주제 변경 예정
+          </DialogTitle>
+          <DialogDescription class="text-center">
+            주제가 곧 변경됩니다.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div class="space-y-4">
+          <div class="text-center space-y-2">
+            <p class="text-sm text-muted-foreground">
+              주제 변경 후 10초가 지나면 모든 매칭이 자동으로 취소됩니다.
+            </p>
+            <p class="text-sm font-medium text-foreground">
+              계속 진행하시겠습니까?
+            </p>
+          </div>
+          
+          <div class="space-y-2">
+            <Button size="lg" class="w-full" @click="confirmHourWarning">계속 진행</Button>
+            <Button variant="outline" size="lg" class="w-full" @click="hideHourWarningModal">취소</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -326,6 +271,9 @@ import { useMatchingModals } from '@/composables/useMatchingModals'
 import { useMatchingTimer } from '@/composables/useMatchingTimer'
 import { useMatchingActions } from '@/composables/useMatchingActions'
 import { useWebSocket } from '@/composables/useWebSocket'
+
+// WebSocket composable 사용
+const webSocket = useWebSocket()
 import { formatEstimatedTime } from '@/utils/matching'
 import PlayerCountSelection from '@/components/matching/PlayerCountSelection.vue'
 import TopicCard from '@/components/matching/TopicCard.vue'
@@ -348,12 +296,102 @@ const formatTime = (seconds: number) => {
   return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
-// 웹소켓 연결
-const connectWebSocket = () => {
-  console.log('🔌 WebSocket 연결 시도')
-}
-const disconnectWebSocket = () => {
-  console.log('🔌 WebSocket 연결 해제')
+// WebSocket 메시지 처리
+const handleWebSocketMessage = (data: any) => {
+  console.log('📨 WebSocket 메시지 처리:', data)
+  console.log('🔍 메시지 타입:', data.type)
+  console.log('🔍 메시지 데이터:', data.data)
+  
+  switch (data.type) {
+    case 'MATCH_STATUS':
+      // 매칭 현황판 처리
+      console.log('📊 매칭 현황판:', data.data)
+      // TODO: UI에 큐 상태 표시
+      break
+      
+    case 'MATCH_INVITATION':
+      // 매칭 초대장 처리 (status: "INFO")
+      console.log('💌 매칭 초대장 수신됨!')
+      console.log('🔍 매칭 초대장 데이터:', data.data)
+      
+      // matchId만 저장 (topicId는 주석 처리)
+      currentMatchId.value = data.data.data.matchId
+      // const topicId = data.data.data.topicId
+      console.log('🔍 매칭 ID 저장:', currentMatchId.value)
+      // console.log('🔍 주제 ID:', topicId)
+      
+      // topicId 기반 주제 정보 가져오기 (주석 처리)
+      // const topicSetStore = useTopicSetStore()
+      // const topic = topicSetStore.currentSet?.topics.find(t => t.id === topicId)
+      
+      // if (topic) {
+      //   console.log('🔍 주제 정보 찾음:', topic)
+      //   // 실제 매칭 정보로 모달 표시
+      //   showMatchCompleteModal(topic.title, 'option1', '1:1')
+      // } else {
+      //   console.log('⚠️ 주제 정보를 찾을 수 없음, 기본값 사용')
+      //   showMatchCompleteModal('매칭된 주제', 'option1', '1:1')
+      // }
+      
+      // 기본값으로 모달 표시
+      showMatchCompleteModal('매칭된 주제', '선택1', '1:1')
+      
+      console.log('✅ 매칭 초대장 처리 완료')
+      break
+      
+    case 'MATCH_SUCCESS':
+      // 매칭 성사 처리 (status: "SUCCESS")
+      console.log('🎉 매칭 성사 수신됨!')
+      console.log('🔍 매칭 성사 데이터:', data.data)
+      
+      // 토론방으로 이동
+      if (data.data.data.roomUrl) {
+        console.log('🔍 토론방으로 이동:', data.data.data.roomUrl)
+        router.push(data.data.data.roomUrl)
+      } else {
+        console.log('🔍 기본 토론방으로 이동: /debate')
+        router.push('/debate')
+      }
+      break
+      
+    case 'MATCH_FAILURE':
+      // 매칭 실패 처리 (status: "WARNING")
+      console.log('❌ 매칭 실패 수신됨!')
+      console.log('🔍 매칭 실패 데이터:', data.data)
+      
+      // 매칭 상태 초기화
+      matchingStore.isMatching = false
+      matchingStore.status = 'idle'
+      matchingStore.elapsedTime = 0
+      stopMatchingTimer()
+      
+      // 실패 메시지 표시
+      matchingStore.setError(data.data.data.message || '매칭이 취소되었습니다.')
+      console.log('✅ 매칭 실패 처리 완료')
+      break
+      
+    case 'ACCEPTANCE_STATUS':
+      // 다른 사람 응답 현황 처리
+      console.log('👥 다른 사람 응답 현황 수신됨!')
+      console.log('🔍 응답 현황 데이터:', data.data)
+      
+      // TODO: UI에 다른 사람 응답 상태 표시
+      const user = data.data.data.user
+      const accept = data.data.data.accept
+      console.log(`👤 ${user}님이 ${accept ? '수락' : '거부'}했습니다.`)
+      break
+      
+    case 'ERROR':
+      // 에러 처리
+      console.error('❌ 매칭 에러 수신됨!')
+      console.error('🔍 에러 데이터:', data.data)
+      matchingStore.setError(data.data.message)
+      break
+      
+    default:
+      console.log('⚠️ 알 수 없는 메시지 타입:', data.type)
+      break
+  }
 }
 
 // 모달 관리
@@ -378,8 +416,8 @@ const {
   hideHourWarningModal
 } = useMatchingModals()
 
-// 매칭 액션 관리
-const { startMatching, cancelMatching } = useMatchingActions()
+// 매칭 액션 관리 (cancelMatching은 사용하지 않음)
+const { startMatching } = useMatchingActions()
 
 // 연결 상태 관리
 const roomInfo = ref({
@@ -387,6 +425,9 @@ const roomInfo = ref({
   totalUsers: 0,
   connectedUsers: 0
 })
+
+// 현재 매칭 ID 저장
+const currentMatchId = ref('')
 
 let connectionInterval: ReturnType<typeof setInterval> | null = null
 
@@ -468,27 +509,55 @@ const getModeSummary = () => {
 }
 
 // 매칭 시작 처리
-const handleStartMatching = () => {
+const handleStartMatching = async () => {
   // 정각 5분 전(300초)인지 체크
   if (remainingTime.value <= 300) {
     showHourWarningModal()
   } else {
-    // 바로 매칭 시작
-    const selections = matchingStore.selectedTopicSelections
-    startMatching(selections, handleTimeout)
-    startMatchingTimer(handleTimeout)
-    connectWebSocket()
+    // WebSocket 연결 후 매칭 시작
+    try {
+      await webSocket.connect()
+      
+      // 매칭 요청 전송
+      const request = matchingStore.toMatchRequest
+      webSocket.sendMatchRequest(request)
+      
+      // 매칭 상태 업데이트
+      matchingStore.isMatching = true
+      matchingStore.status = 'waiting'
+      matchingStore.elapsedTime = 0
+      
+      // 타이머 시작
+      startMatchingTimer(handleTimeout)
+      
+      // 메시지 수신 처리
+      webSocket.handleMessage(handleWebSocketMessage)
+      
+    } catch (error) {
+      console.error('❌ 매칭 시작 실패:', error)
+      matchingStore.setError('매칭 시작에 실패했습니다.')
+    }
   }
 }
 
 // 매칭 취소 처리
 const handleCancelMatching = () => {
-  cancelMatching(stopMatchingTimer)
+  console.log('❌ 매칭 취소 요청')
+  console.log('📊 취소 시점 상태:', {
+    isMatching: matchingStore.isMatching,
+    status: matchingStore.status,
+    elapsedTime: matchingStore.elapsedTime
+  })
+  
+  // 프론트 상태만 변경 (백엔드 메시지 전송 안함)
+  matchingStore.isMatching = false
+  matchingStore.status = 'idle'
+  matchingStore.elapsedTime = 0
+  stopMatchingTimer()
   hideStartModal()
   hideHourWarningModal()
   
-  // WebSocket 연결 해제
-  disconnectWebSocket()
+  console.log('✅ 매칭 취소 완료 (프론트 상태만 변경)')
 }
 
 // 매칭 성사 처리
@@ -505,13 +574,54 @@ const handleTimeout = () => {
 
 // 매칭 수락
 const acceptMatch = () => {
+  console.log('🔍 acceptMatch 호출됨')
+  console.log('🔍 수락 전 모달 상태:', isMatchCompleteModalOpen.value)
+  
+  // 서버에 매칭 수락 메시지 전송
+  const matchId = currentMatchId.value || 'default-match-id'
+  console.log('📤 서버에 매칭 수락 전송:', { matchId, accept: true })
+  webSocket.sendMatchAcceptance(matchId, true)
+  
   hideMatchCompleteModal()
+  console.log('🔍 수락 후 모달 상태:', isMatchCompleteModalOpen.value)
   showConnectingModal()
+  console.log('🔍 연결 모달 표시됨')
   simulateConnection()
+  console.log('🔍 연결 시뮬레이션 시작됨')
+}
+
+// 매칭 거부
+const rejectMatch = () => {
+  console.log('🔍 rejectMatch 호출됨')
+  console.log('🔍 거부 전 모달 상태:', isMatchCompleteModalOpen.value)
+  
+  // 서버에 매칭 거부 메시지 전송
+  const matchId = currentMatchId.value || 'default-match-id'
+  console.log('📤 서버에 매칭 거부 전송:', { matchId, accept: false })
+  webSocket.sendMatchAcceptance(matchId, false)
+  
+  hideMatchCompleteModal()
+  console.log('🔍 거부 후 모달 상태:', isMatchCompleteModalOpen.value)
+  
+  // 매칭 상태 초기화
+  matchingStore.isMatching = false
+  matchingStore.status = 'idle'
+  matchingStore.elapsedTime = 0
+  stopMatchingTimer()
+  
+  console.log('✅ 매칭 거부 완료')
 }
 
 // 모든 매칭 취소
 const cancelAllMatches = () => {
+  console.log('❌ 모든 매칭 취소 요청')
+  
+  // 프론트 상태만 변경 (백엔드 메시지 전송 안함)
+  matchingStore.isMatching = false
+  matchingStore.status = 'idle'
+  matchingStore.elapsedTime = 0
+  stopMatchingTimer()
+  
   hideMatchCompleteModal()
   hideConnectingModal()
   if (connectionInterval) {
@@ -519,7 +629,8 @@ const cancelAllMatches = () => {
     connectionInterval = null
   }
   roomInfo.value = { roomId: '', totalUsers: 0, connectedUsers: 0 }
-  cancelMatching(stopMatchingTimer)
+  
+  console.log('✅ 모든 매칭 취소 완료 (프론트 상태만 변경)')
 }
 
 // 연결 모달 닫기
@@ -527,7 +638,7 @@ const handleConnectingModalClose = () => {
   hideConnectingModal()
   matchingStore.cancelMatching()
   stopMatchingTimer()
-  disconnectWebSocket()
+  webSocket.disconnect()
   if (connectionInterval) {
     clearInterval(connectionInterval)
     connectionInterval = null
@@ -563,7 +674,7 @@ const handleTopicChangeModalClose = () => {
   matchingStore.error = undefined
   matchingStore.clearAllSelections()
   stopMatchingTimer()
-  disconnectWebSocket()
+  webSocket.disconnect()
   if (connectionInterval) {
     clearInterval(connectionInterval)
     connectionInterval = null
@@ -579,7 +690,6 @@ onMounted(async () => {
   // 매칭 상태 초기화
   matchingStore.cancelMatching()
   stopMatchingTimer()
-  disconnectWebSocket()
   if (connectionInterval) {
     clearInterval(connectionInterval)
     connectionInterval = null
@@ -607,8 +717,13 @@ onMounted(async () => {
     topicSelections: matchingStore.topicSelections
   })
   
-  // 웹소켓 연결 시도
-  connectWebSocket()
+  // WebSocket 연결
+  try {
+    await webSocket.connect()
+    console.log('🔗 WebSocket 연결 성공')
+  } catch (error) {
+    console.error('❌ WebSocket 연결 실패:', error)
+  }
 })
 
 // Watch for currentSet changes to update remainingTime
@@ -635,8 +750,12 @@ watch(
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
-  cancelMatching(stopMatchingTimer)
-  disconnectWebSocket()
+  // 프론트 상태만 변경 (백엔드 메시지 전송 안함)
+  matchingStore.isMatching = false
+  matchingStore.status = 'idle'
+  matchingStore.elapsedTime = 0
+  stopMatchingTimer()
+  webSocket.disconnect()
   if (connectionInterval) {
     clearInterval(connectionInterval)
   }
@@ -672,7 +791,6 @@ const confirmHourWarning = () => {
   const selections = matchingStore.selectedTopicSelections
   startMatching(selections, handleTimeout)
   startMatchingTimer(handleTimeout)
-  connectWebSocket()
 }
 
 // 매칭 시작 모달 닫기 핸들러
@@ -687,7 +805,7 @@ const handleMatchCompleteModalClose = () => {
   hideMatchCompleteModal()
   matchingStore.cancelMatching()
   stopMatchingTimer()
-  disconnectWebSocket()
+  webSocket.disconnect()
   if (connectionInterval) {
     clearInterval(connectionInterval)
     connectionInterval = null
@@ -700,7 +818,7 @@ const handleTimeoutModalClose = () => {
   hideTimeoutModal()
   matchingStore.cancelMatching()
   stopMatchingTimer()
-  disconnectWebSocket()
+  webSocket.disconnect()
   if (connectionInterval) {
     clearInterval(connectionInterval)
     connectionInterval = null
@@ -720,7 +838,7 @@ const matchInfo = ref({
   stance: 'option1' as Stance,
   mode: '1:1' as PlayerMode,
   topicTitle: 'AI 규제는 필요한가?',
-  myStance: '찬성'
+  myStance: '선택1'
 })
 
 const getIconClass = (index: number) => {

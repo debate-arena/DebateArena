@@ -102,3 +102,16 @@
   writing-mode: vertical-rl;
   text-orientation: mixed;
 }
+
+/* backdrop 제거 스타일 */
+.no-backdrop {
+  --tw-bg-opacity: 0;
+}
+
+.no-backdrop::before {
+  display: none !important;
+}
+
+.no-backdrop .data-\[state\=open\]\:animate-in {
+  background-color: transparent !important;
+}

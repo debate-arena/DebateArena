@@ -89,73 +89,66 @@ const handleNicknameModalChange = (isOpen: boolean) => {
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center gap-4">
-            <img src="/src/assets/images/icons/colosseum_icon.png" alt="Logo" class="h-8 w-8" />
-            <span class="text-lg sm:text-xl lg:text-2xl font-semibold text-foreground">Debate Arena</span>
+            <img 
+              src="/src/assets/images/icons/colosseum_icon.png" 
+              alt="Logo" 
+              class="h-8 w-8 cursor-pointer hover:opacity-80 transition-opacity" 
+              @click="$router.push('/')"
+            />
+            <span 
+              class="text-lg sm:text-xl lg:text-2xl font-semibold text-foreground cursor-pointer hover:opacity-80 transition-opacity"
+              @click="$router.push('/')"
+            >
+              Debate Arena
+            </span>
             <Badge variant="secondary" class="text-sm">{{ onlineUsers }}명 온라인</Badge>
           </div>
           <nav class="flex gap-2">
-            <Button variant="ghost" size="sm" @click="toggleDarkMode">테마 변경</Button>
-            <Button variant="ghost" size="sm">홈</Button>
+            <Button variant="ghost" size="sm" @click="$router.push('/')">홈</Button>
             <Button variant="ghost" size="sm" @click="$router.push('/matching')">
               매칭
             </Button>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" @click="$router.push('/debate')">
               토론방
-              <Badge variant="destructive" class="ml-2">{{ activeRooms }}</Badge>
             </Button>
-            
-            <!-- 로그인 상태에 따른 헤더 변경 -->
-            <template v-if="authStore.isLoggedIn">
-              <!-- 로그인된 상태: 사용자 프로필 -->
-              <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                  <Button variant="ghost" size="sm" class="flex items-center gap-2">
-                    <Avatar class="h-6 w-6">
-                      <AvatarImage src="" />
-                      <AvatarFallback>{{ authStore.userNickname.charAt(0) || 'U' }}</AvatarFallback>
-                    </Avatar>
-                    <span class="hidden sm:inline">{{ authStore.userNickname || '사용자' }}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem>프로필 설정</DropdownMenuItem>
-                  <DropdownMenuItem>토론 기록</DropdownMenuItem>
-                  <DropdownMenuItem>설정</DropdownMenuItem>
-                  <DropdownMenuItem @click="handleLogout" class="text-destructive">
-                    로그아웃
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </template>
-            
-            <template v-else>
-              <!-- 로그인되지 않은 상태: 로그인 버튼 -->
-              <Button 
-                variant="outline" 
-                size="sm" 
-                @click="openLoginModal"
-                class="ml-2"
-              >
-                로그인
-              </Button>
-            </template>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" class="relative">
+                  <Avatar class="h-6 w-6 ring-2 ring-primary">
+                    <AvatarFallback>{{ authStore.userNickname?.[0] || 'U' }}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" class="w-56">
+                <div class="flex items-center justify-start gap-2 p-2">
+                  <Avatar class="h-8 w-8 ring-2 ring-primary">
+                    <AvatarFallback>{{ authStore.userNickname?.[0] || 'U' }}</AvatarFallback>
+                  </Avatar>
+                  <div class="flex flex-col space-y-1">
+                    <p class="text-sm font-medium leading-none">{{ authStore.userNickname || '사용자' }}</p>
+                    <p class="text-xs leading-none text-muted-foreground">{{ authStore.user?.email }}</p>
+                  </div>
+                </div>
+                <DropdownMenuItem @click="toggleDarkMode">
+                  테마 변경
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="handleLogout">
+                  로그아웃
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
         </div>
       </div>
     </header>
 
-    <!-- 메인 컨텐츠 -->
-    <main class="">
-      <div :class="isDebateRoom ? '' : 'px-4 py-6 sm:px-0'">
-        <!-- 라우터 뷰 -->
-        <router-view />
-      </div>
+    <!-- 메인 콘텐츠 -->
+    <main class="flex-1">
+      <RouterView />
     </main>
 
-    <!-- 로그인 모달 -->
+    <!-- 모달들 -->
     <LoginModal v-model:open="isLoginModalOpen" />
-    
-    <!-- 닉네임 온보딩 모달 -->
     <NicknameModal 
       v-model:open="isNicknameModalOpen" 
       @success="handleNicknameSuccess"

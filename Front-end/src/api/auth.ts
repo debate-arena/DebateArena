@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // 인증 API 전용 axios 인스턴스
 const authAxios = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: '',  // 상대 경로 사용하여 프록시 활용
   timeout: 10000,
   withCredentials: true, // 쿠키 포함
   headers: {
@@ -77,13 +77,21 @@ export interface AuthResponse {
 // 인증 관련 API 서비스
 export const authAPI = {
   // 인증 상태 확인
-  verifyAuth: async (): Promise<boolean> => {
+  verifyAuth: async (): Promise<{ success: boolean; message?: string }> => {
     try {
       const response = await authAxios.get('/api/auth/verify')
       const data = response.data
-      return data.status === 'success'
-    } catch (err) {
-      return false
+      console.log('🔐 인증 상태 확인 응답:', data)
+      return { 
+        success: data.status === 'success',
+        message: data.message || data.data || '인증 상태 확인 완료'
+      }
+    } catch (err: any) {
+      console.error('❌ 인증 상태 확인 실패:', err.response?.data || err.message)
+      return { 
+        success: false,
+        message: err.response?.data?.message || err.message || '인증 상태 확인 실패'
+      }
     }
   },
 
@@ -123,7 +131,7 @@ export const authAPI = {
 
   // OAuth2 로그인 URL 생성
   getOAuthUrl: (provider: 'google', next?: string): string => {
-    const baseUrl = 'http://localhost:8080/oauth2/authorization/google'
+    const baseUrl = '/oauth2/authorization/google'
     if (next) {
       return `${baseUrl}?next=${encodeURIComponent(next)}`
     }

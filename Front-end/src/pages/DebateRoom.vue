@@ -1616,7 +1616,7 @@ const initializeWebRTCConnection = async () => {
 // 컴포넌트 마운트 시 STOMP 연결 및 STT 초기화
 onMounted(() => {
   // STOMP 연결
-  connect("ws://localhost:8080/ws"); // 실제 백엔드 URL로 변경
+          connect("ws://localhost:8080/ws"); // 로컬 WebSocket 연결
 
   // 연결 완료 후 구독
   watch(

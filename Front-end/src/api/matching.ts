@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // 매칭 API 전용 axios 인스턴스
 const matchingAxios = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: 'https://valid-grouse-randomly.ngrok-free.app',
   timeout: 10000,
   withCredentials: true, // 쿠키 포함
   headers: {

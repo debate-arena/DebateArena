@@ -9,21 +9,36 @@
         :variant="getStanceVariant('option1')"
         size="sm"
         @click="handleStanceSelect('option1')"
+        :class="{ 
+          'bg-debate-left hover:bg-debate-left/90 ring-2 ring-yellow-500': getStanceVariant('option1') === 'default',
+          'ring-2 ring-gray-300': getStanceVariant('option1') === 'outline'
+        }"
       >
+        <img v-if="getStanceVariant('option1') === 'default'" :src="vikingIcon" class="w-4 h-4 mr-1" alt="viking" />
         {{ topic.option1 }}
       </Button>
       <Button 
         :variant="getStanceVariant('option2')"
         size="sm"
         @click="handleStanceSelect('option2')"
+        :class="{ 
+          'bg-debate-right hover:bg-debate-right/90 ring-2 ring-red-600': getStanceVariant('option2') === 'default',
+          'ring-2 ring-gray-300': getStanceVariant('option2') === 'outline'
+        }"
       >
+        <img v-if="getStanceVariant('option2') === 'default'" :src="gladiatorIcon" class="w-4 h-4 mr-1" alt="gladiator" />
         {{ topic.option2 }}
       </Button>
       <Button 
         :variant="getStanceVariant('random')"
         size="sm"
         @click="handleStanceSelect('random')"
+        :class="{ 
+          'ring-2 ring-gray-500': getStanceVariant('random') === 'default',
+          'ring-2 ring-gray-300': getStanceVariant('random') === 'outline'
+        }"
       >
+        <img v-if="getStanceVariant('random') === 'default'" :src="diceIcon" class="w-4 h-4 mr-1" alt="dice" />
         상관없음
       </Button>
     </div>
@@ -34,6 +49,10 @@
         :variant="getModeVariant('1:1')"
         size="sm"
         @click="handleModeToggle('1:1')"
+        :class="{ 
+          'ring-2 ring-primary': getModeVariant('1:1') === 'default',
+          'ring-2 ring-gray-300': getModeVariant('1:1') === 'outline'
+        }"
       >
         1:1
       </Button>
@@ -41,6 +60,10 @@
         :variant="getModeVariant('2:2')"
         size="sm"
         @click="handleModeToggle('2:2')"
+        :class="{ 
+          'ring-2 ring-primary': getModeVariant('2:2') === 'default',
+          'ring-2 ring-gray-300': getModeVariant('2:2') === 'outline'
+        }"
       >
         2:2
       </Button>
@@ -51,6 +74,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Button } from '@/components/ui/button'
+import vikingIcon from '@/assets/images/profile/viking.png'
+import gladiatorIcon from '@/assets/images/profile/gladiator.png'
+import diceIcon from '@/assets/images/profile/dice.png'
 import { useMatchingStore } from '@/store/matching'
 import type { Topic } from '@/types/topic'
 import type { Stance, PlayerMode } from '@/types/matching'

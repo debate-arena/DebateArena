@@ -7,15 +7,21 @@
       <div class="space-y-2">
         <h4 class="text-xs font-medium text-muted-foreground">인원수</h4>
         <div class="flex gap-2">
-          <Checkbox 
-            v-model="modelMode1"
-          />
-          <label class="text-sm">1:1</label>
+          <div class="flex items-center gap-1">
+            <Checkbox 
+              v-model="modelMode1"
+              :class="{ 'ring-2 ring-primary': modelMode1 }"
+            />
+            <label class="text-sm">1:1</label>
+          </div>
           
-          <Checkbox 
-            v-model="modelMode2"
-          />
-          <label class="text-sm">2:2</label>
+          <div class="flex items-center gap-1">
+            <Checkbox 
+              v-model="modelMode2"
+              :class="{ 'ring-2 ring-primary': modelMode2 }"
+            />
+            <label class="text-sm">2:2</label>
+          </div>
         </div>
       </div>
       
@@ -23,20 +29,38 @@
       <div class="space-y-2">
         <h4 class="text-xs font-medium text-muted-foreground">진영</h4>
         <div class="flex gap-2">
-          <Checkbox 
-            v-model="modelStance1"
-          />
-          <label class="text-sm">옵션1</label>
+          <div class="flex items-center gap-1">
+            <Checkbox 
+              v-model="modelStance1"
+              :class="{ 'bg-debate-left ring-2 ring-yellow-500': modelStance1 }"
+            />
+            <label class="text-sm flex items-center gap-1">
+              <img v-if="modelStance1" :src="vikingIcon" class="w-4 h-4" alt="viking" />
+              선택1
+            </label>
+          </div>
           
-          <Checkbox 
-            v-model="modelStance2"
-          />
-          <label class="text-sm">옵션2</label>
+          <div class="flex items-center gap-1">
+            <Checkbox 
+              v-model="modelStance2"
+              :class="{ 'bg-debate-right ring-2 ring-red-600': modelStance2 }"
+            />
+            <label class="text-sm flex items-center gap-1">
+              <img v-if="modelStance2" :src="gladiatorIcon" class="w-4 h-4" alt="gladiator" />
+              선택2
+            </label>
+          </div>
           
-          <Checkbox 
-            v-model="modelStanceRandom"
-          />
-          <label class="text-sm">상관없음</label>
+          <div class="flex items-center gap-1">
+            <Checkbox 
+              v-model="modelStanceRandom"
+              :class="{ 'ring-2 ring-gray-500': modelStanceRandom }"
+            />
+            <label class="text-sm flex items-center gap-1">
+              <img v-if="modelStanceRandom" :src="diceIcon" class="w-4 h-4" alt="dice" />
+              상관없음
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -47,6 +71,9 @@
 import { computed, watch } from 'vue'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import vikingIcon from '@/assets/images/profile/viking.png'
+import gladiatorIcon from '@/assets/images/profile/gladiator.png'
+import diceIcon from '@/assets/images/profile/dice.png'
 import { useMatchingStore } from '@/store/matching'
 import { storeToRefs } from 'pinia'
 import type { Stance, PlayerMode } from '@/types/matching'

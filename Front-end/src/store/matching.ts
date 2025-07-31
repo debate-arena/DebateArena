@@ -84,6 +84,34 @@ export const useMatchingStore = defineStore('matching', {
     // 글로벌 진영이 선택되었는지 확인
     isGlobalStanceSelected: (state) => (stance: Stance) => {
       return state.globalStances.has(stance)
+    },
+
+    // WebSocket API 요청으로 변환
+    toMatchRequest: (state) => {
+      const choices: Array<{
+        matchType: number
+        matchTitle: number
+        choice: number
+      }> = []
+      
+      state.topicSelections.forEach(selection => {
+        selection.modes.forEach(mode => {
+          choices.push({
+            matchType: mode === '1:1' ? 0 : 1,
+            matchTitle: selection.topicId - 1, // API는 0부터 시작
+            choice: (() => {
+              switch (selection.stance) {
+                case 'option1': return 1  // pro (찬성)
+                case 'option2': return 2  // con (반대)
+                case 'random': return 0   // any (상관없음)
+                default: return 0
+              }
+            })()
+          })
+        })
+      })
+      
+      return { choices }
     }
   },
 
@@ -307,6 +335,35 @@ export const useMatchingStore = defineStore('matching', {
       this.topicSelections.clear()
       this.globalModes.clear()
       this.globalStances.clear()
+    },
+
+    // 진영을 API choice로 변환
+    convertStanceToChoice(stance: Stance): number {
+      switch (stance) {
+        case 'option1': return 0  // pro (찬성)
+        case 'option2': return 1  // con (반대)
+        case 'random': return 2   // any (상관없음)
+        default: return 2
+      }
+    },
+
+    // WebSocket 매칭 요청 전송
+    async sendMatchRequest() {
+      if (!this.canStartMatching) return
+      
+      const request = this.toMatchRequest
+      console.log('🎯 매칭 요청 전송:', request)
+      
+      // WebSocket으로 요청 전송
+      // stompClient.publish({
+      //   destination: '/pub/match/request',
+      //   body: JSON.stringify(request)
+      // })
+      
+      this.isMatching = true
+      this.status = 'waiting'
+      this.elapsedTime = 0
+      this.error = undefined
     }
   }
 }) 

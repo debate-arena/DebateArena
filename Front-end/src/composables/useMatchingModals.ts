@@ -45,9 +45,12 @@ function createModalInstance() {
 
   const showMatchCompleteModal = (topicTitle: string, myStance: string, mode: string) => {
     console.log('🔍 showMatchCompleteModal 호출됨:', { topicTitle, myStance, mode })
+    console.log('🔍 호출 전 모달 상태:', isMatchCompleteModalOpen.value)
     matchInfo.value = { topicTitle, myStance, mode }
     isMatchCompleteModalOpen.value = true
+    console.log('🔍 호출 후 모달 상태:', isMatchCompleteModalOpen.value)
     console.log('✅ matchComplete 모달 상태:', isMatchCompleteModalOpen.value)
+    console.log('✅ matchInfo 설정됨:', matchInfo.value)
   }
 
   const showConnectingModal = () => {
