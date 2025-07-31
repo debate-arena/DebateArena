@@ -66,7 +66,7 @@ export const useMatchingStore = defineStore('matching', {
       return Array.from(state.topicSelections.values()).map(selection => ({
         topicId: selection.topicId,
         stance: selection.stance,
-        modes: selection.modeOrder // modeOrder 사용
+        modes: Array.from(selection.modes) // Set을 Array로 변환
       }))
     },
 
@@ -260,6 +260,15 @@ export const useMatchingStore = defineStore('matching', {
     // 페이지 진입 시 모든 주제에 초기 선택 생성
     initializeTopicSelections(topicIds: number[]) {
       this.topicSelections.clear()
+      
+      // 글로벌 상태가 비어있으면 기본값 설정
+      if (this.globalModes.size === 0) {
+        this.globalModes = new Set(['1:1', '2:2'])
+      }
+      if (this.globalStances.size === 0) {
+        this.globalStances = new Set(['random'])
+      }
+      
       topicIds.forEach(topicId => {
         this.topicSelections.set(topicId, {
           topicId,

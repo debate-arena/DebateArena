@@ -1,6 +1,6 @@
 <template>
   <Dialog v-model:open="isOpen" @update:open="handleClose" :escape-key-down="false">
-    <DialogContent class="sm:max-w-md" :close-button="false" :close-on-overlay-click="false">
+    <DialogContent class="sm:max-w-md no-backdrop" :close-button="false" :close-on-overlay-click="false">
       <DialogHeader>
         <DialogTitle class="text-center">닉네임 설정</DialogTitle>
         <DialogDescription class="text-center">
@@ -64,6 +64,7 @@ import { useAuthStore } from '@/store/auth'
 
 interface Props {
   open: boolean
+  isOnboarding?: boolean // 온보딩 모달인지 여부
 }
 
 interface Emits {
@@ -198,11 +199,20 @@ const handleClose = (value: boolean) => {
   
   // 모달이 닫히려고 할 때
   if (!value) {
-    console.log('🔍 닉네임 모달 닫기 시도 - 필수 설정이므로 다시 열기')
-    // 약간의 지연 후 다시 열기
-    setTimeout(() => {
-      emit('update:open', true)
-    }, 100)
+    console.log('🔍 닉네임 모달 닫기 시도')
+    
+    // 온보딩 모달이고 닉네임이 없는 경우에만 다시 열기
+    if (props.isOnboarding && !authStore.hasNickname) {
+      console.log('🔍 온보딩 모달 - 닉네임 없음, 다시 열기')
+      setTimeout(() => {
+        emit('update:open', true)
+      }, 100)
+      return
+    }
+    
+    // 그 외의 경우는 그냥 닫기
+    console.log('🔍 모달 그냥 닫기')
+    emit('update:open', value)
     return
   }
   

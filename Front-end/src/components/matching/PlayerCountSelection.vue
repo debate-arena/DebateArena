@@ -57,7 +57,12 @@
               :class="{ 'ring-2 ring-gray-500': modelStanceRandom }"
             />
             <label class="text-sm flex items-center gap-1">
-              <img v-if="modelStanceRandom" :src="diceIcon" class="w-4 h-4" alt="dice" />
+              <img 
+                v-if="modelStanceRandom" 
+                :src="currentDiceIcon" 
+                class="w-4 h-4 transition-all duration-300" 
+                alt="dice" 
+              />
               상관없음
             </label>
           </div>
@@ -74,7 +79,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import vikingIcon from '@/assets/images/profile/viking.png'
 import gladiatorIcon from '@/assets/images/profile/gladiator.png'
 import diceIcon from '@/assets/images/profile/dice.png'
+import diceDarkIcon from '@/assets/images/profile/dice-dark.png'
 import { useMatchingStore } from '@/store/matching'
+import { useThemeStore } from '@/store/theme'
 import { storeToRefs } from 'pinia'
 import type { Stance, PlayerMode } from '@/types/matching'
 
@@ -85,7 +92,13 @@ interface Emits {
 
 const emit = defineEmits<Emits>()
 const matchingStore = useMatchingStore()
+const themeStore = useThemeStore()
 const { globalModes, globalStances } = storeToRefs(matchingStore)
+
+// 다크모드에 따른 dice 아이콘 선택
+const currentDiceIcon = computed(() => {
+  return themeStore.isDark ? diceDarkIcon : diceIcon
+})
 
 // v-model용 computed getter/setter
 const modelMode1 = computed({

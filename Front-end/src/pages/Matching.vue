@@ -95,10 +95,10 @@
                   :key="selection.topicId"
                   class="text-sm"
                 >
-                  <div class="font-medium">{{ selection.topicTitle }}</div>
+                  <div class="font-medium">{{ getTopicTitle(selection.topicId) }}</div>
                   <div class="text-muted-foreground">
-                    진영: {{ getStanceLabel(selection.stance) }} | 
-                    모드: {{ Array.from(selection.modes).join(', ') }}
+                    진영: {{ getStanceText(selection.topicId, selection.stance) }} | 
+                    모드: {{ selection.modes.join(', ') }}
                   </div>
                 </div>
               </div>
@@ -701,11 +701,11 @@ onMounted(async () => {
   const activeTopics = topicSetStore.currentSet?.topics || []
   console.log('📱 활성 주제:', activeTopics)
   
-  // 글로벌 상태를 먼저 설정
+  // 글로벌 상태를 기본값으로 설정
   matchingStore.globalModes = new Set(['1:1', '2:2'])
   matchingStore.globalStances = new Set(['random'])
   
-  // 주제별 초기 선택 생성 (글로벌 상태가 이미 설정된 상태에서)
+  // 주제별 초기 선택 생성
   matchingStore.initializeTopicSelections(activeTopics.map(topic => topic.id))
   
   // DOM 업데이트를 강제로 트리거
