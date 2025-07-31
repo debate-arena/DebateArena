@@ -8,7 +8,9 @@ pipeline {
         DIST_DIR = 'Front-end/dist'
     }
     
-    // Docker를 사용하여 Node.js 환경을 설정하므로 tools 섹션 제거
+    tools {
+        nodejs "${NODE_VERSION}"
+    }
     
     stages {
         stage('Trigger Check') {
@@ -24,18 +26,21 @@ pipeline {
         stage('Environment Setup') {
             steps {
                 script {
-                    echo "🔧 Docker를 사용한 Node.js 환경 설정 중..."
+                    echo "🔧 Node.js 환경 설정 중..."
                     
-                    // Docker를 사용하여 Node.js 환경 확인
+                    // Node.js 환경 확인
                     sh '''
-                        echo "📋 Docker 버전 확인:"
-                        docker --version
+                        echo "📋 Node.js 버전 확인:"
+                        node --version
                         
-                        echo "📋 Node.js Docker 이미지로 환경 테스트:"
-                        docker run --rm node:${NODE_VERSION}-alpine node --version
-                        docker run --rm node:${NODE_VERSION}-alpine npm --version
+                        echo "📋 npm 버전 확인:"
+                        npm --version
+                        
+                        echo "📋 현재 작업 디렉토리:"
+                        pwd
+                        ls -la
                     '''
-                    echo "✅ Docker를 통해 Node.js 환경이 설정되었습니다."
+                    echo "✅ Node.js 환경이 설정되었습니다."
                 }
             }
         }
@@ -69,14 +74,15 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 dir("${FRONTEND_DIR}") {
-                    echo "📦 Docker를 사용하여 의존성 설치 중..."
+                    echo "📦 의존성 설치 중..."
                     sh '''
-                        # Docker를 사용하여 npm 패키지 설치
-                        docker run --rm \
-                            -v $(pwd):/app \
-                            -w /app \
-                            node:${NODE_VERSION}-alpine \
-                            npm ci --prefer-offline --no-audit
+                        echo "📋 package.json 확인:"
+                        ls -la package*.json
+                        
+                        echo "📦 npm 패키지 설치:"
+                        npm ci --prefer-offline --no-audit
+                        
+                        echo "✅ 의존성 설치 완료"
                     '''
                 }
             }
@@ -85,21 +91,33 @@ pipeline {
         stage('Build Application') {
             steps {
                 dir("${FRONTEND_DIR}") {
-                    echo "🏗️ Docker를 사용하여 애플리케이션 빌드 중..."
+                    echo "🏗️ 애플리케이션 빌드 중..."
                     sh '''
-                        # Docker를 사용하여 빌드 실행
-                        docker run --rm \
-                            -v $(pwd):/app \
-                            -w /app \
-                            node:${NODE_VERSION}-alpine \
-                            npm run build
+                        echo "🏗️ npm run build 실행:"
+                        npm run build
                         
-                        # 빌드 결과 확인
+                        echo "📋 빌드 결과 확인:"
                         ls -la dist/
+                        
+                        echo "✅ 빌드 완료"
                     '''
                 }
             }
         }
+
+        stage('권한 체크') {
+            steps {
+                sh '''
+                    echo 🔍 현재 사용자:
+                    whoami
+                    echo 🔍 그룹 정보:
+                    id
+                    echo 🔍 docker.sock 권한:
+                    ls -l /var/run/docker.sock
+                '''
+            }
+}
+
         
         stage('Deploy') {
             steps {
@@ -178,27 +196,45 @@ def deployToProduction() {
 def deployToDevelopment() {
     echo "🧪 개발 서버 배포 시작..."
     
-    dir("${FRONTEND_DIR}") {
+    // Docker가 사용 가능한지 확인
+    def dockerAvailable = sh(script: 'command -v docker >/dev/null 2>&1', returnStatus: true) == 0
+    
+    if (dockerAvailable) {
+        echo "🐳 Docker를 사용한 배포 진행..."
+        dir("${FRONTEND_DIR}") {
+            sh """
+                echo '🐳 개발용 Docker 이미지 빌드 중...'
+                # 개발용 Dockerfile 생성 (개발용 nginx 설정 사용)
+                cp Dockerfile Dockerfile.dev
+                sed -i 's/nginx.conf/nginx-dev.conf/g' Dockerfile.dev
+                
+                docker build -f Dockerfile.dev -t debate-arena-frontend-dev:${env.BUILD_NUMBER} .
+                docker tag debate-arena-frontend-dev:${env.BUILD_NUMBER} debate-arena-frontend-dev:latest
+                
+                echo '🚀 컨테이너 재시작 중...'
+                docker stop debate-arena-frontend-dev || true
+                docker rm debate-arena-frontend-dev || true
+                docker run -d --name debate-arena-frontend-dev -p 80:80 debate-arena-frontend-dev:latest
+                
+                # 임시 Dockerfile 정리
+                rm -f Dockerfile.dev
+                
+                echo '✅ Docker 배포 완료'
+            """
+        }
+    } else {
+        echo "⚠️ Docker를 사용할 수 없습니다. 정적 파일 배포로 진행..."
         sh """
-            echo '🐳 개발용 Docker 이미지 빌드 중...'
-            # 개발용 Dockerfile 생성 (개발용 nginx 설정 사용)
-            cp Dockerfile Dockerfile.dev
-            sed -i 's/nginx.conf/nginx-dev.conf/g' Dockerfile.dev
+            echo '📦 빌드된 파일들을 서버로 복사 중...'
+            # 실제 서버 경로로 변경 필요
+            # scp -r ${DIST_DIR}/* user@server:/var/www/html/
+            echo '📁 빌드 결과물 위치: ${DIST_DIR}'
+            ls -la ${DIST_DIR}
             
-            docker build -f Dockerfile.dev -t debate-arena-frontend-dev:${env.BUILD_NUMBER} .
-            docker tag debate-arena-frontend-dev:${env.BUILD_NUMBER} debate-arena-frontend-dev:latest
-            
-            echo '🚀 컨테이너 재시작 중...'
-            docker stop debate-arena-frontend-dev || true
-            docker rm debate-arena-frontend-dev || true
-            docker run -d --name debate-arena-frontend-dev -p 80:80 debate-arena-frontend-dev:latest
-            
-            # 임시 Dockerfile 정리
-            rm -f Dockerfile.dev
-            
-            echo '✅ Docker 배포 완료'
-            echo '🌐 접속 URL: http://3.34.95.4'
-            echo '🐛 디버그 정보: http://3.34.95.4/debug'
+            echo '⚠️ 수동으로 서버에 배포하거나 Docker를 설치하세요.'
         """
     }
+    
+    echo '🌐 접속 URL: http://3.34.95.4'
+    echo '🐛 디버그 정보: http://3.34.95.4/debug'
 } 
