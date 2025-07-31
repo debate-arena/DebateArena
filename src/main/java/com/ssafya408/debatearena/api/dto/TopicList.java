@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TopicList {
-  private List<Long> currentTopics;
-  private List<Long> nextTopics;
+  private List<TopicDto> currentTopics;
+  private List<TopicDto> nextTopics;
 }

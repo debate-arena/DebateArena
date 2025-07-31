@@ -1,6 +1,7 @@
 package com.ssafya408.debatearena.api.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafya408.debatearena.api.dto.TopicDto;
 import com.ssafya408.debatearena.api.dto.TopicList;
 import com.ssafya408.debatearena.db.Topic;
 import com.ssafya408.debatearena.db.TopicRepository;
@@ -10,6 +11,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,26 +60,7 @@ public class TopicService {
     }
   }
   
-  @SuppressWarnings("unchecked")
-  private List<Long> convertToLongList(List<?> list) {
-    if (list == null) {
-      return new ArrayList<>();
-    }
-    
-    List<Long> result = new ArrayList<>();
-    for (Object item : list) {
-      if (item instanceof Number) {
-        result.add(((Number) item).longValue());
-      } else if (item instanceof String) {
-        try {
-          result.add(Long.parseLong((String) item));
-        } catch (NumberFormatException e) {
-          log.warn("[TopicService] 숫자로 변환할 수 없는 값: {}", item);
-        }
-      }
-    }
-    return result;
-  }
+
 
   public void put(String key, TopicList topics) {
     redisTemplate.opsForValue().set(key,topics);
@@ -94,27 +77,38 @@ public class TopicService {
   }
 
   public void initiateTopics(){
+    log.info("[TopicService] initiateTopics 시작");
 
     int pickCount = TOPIC*2;
 
-    //레디스에서 가져값을 가져온다.
+    //데이터베이스에서 랜덤 토픽을 가져온다.
     List<Topic> randomTopics = getRandomTopics(pickCount);
-
-    List<Long> currentTopics = new ArrayList<>();
-    List<Long> nextTopics = new ArrayList<>();
-
-    for (Topic topic : randomTopics) {
-      if(currentTopics.size()<TOPIC)
-        currentTopics.add(topic.getId());
-      else
-        nextTopics.add(topic.getId());
+    
+    if (randomTopics == null || randomTopics.isEmpty()) {
+      log.error("[TopicService] 랜덤 토픽을 가져올 수 없습니다.");
+      return;
     }
 
-    put(CURRENT_TOPICS,TopicList.builder()
+    List<TopicDto> currentTopics = new ArrayList<>();
+    List<TopicDto> nextTopics = new ArrayList<>();
+
+    for (Topic topic : randomTopics) {
+      TopicDto topicDto = TopicDto.fromEntity(topic);
+      if(currentTopics.size() < TOPIC)
+        currentTopics.add(topicDto);
+      else
+        nextTopics.add(topicDto);
+    }
+
+    TopicList topicList = TopicList.builder()
         .currentTopics(currentTopics)
         .nextTopics(nextTopics)
-        .build()
-    );
+        .build();
+        
+    put(CURRENT_TOPICS, topicList);
+    
+    log.info("[TopicService] initiateTopics 완료 - 현재: {}, 다음: {}", 
+        currentTopics.size(), nextTopics.size());
   }
   
   //주기적으로 주제를 변경
@@ -129,12 +123,18 @@ public class TopicService {
       return;
     }
     
-    //레디스에서 가져온 값을 사용
-    List<Long> currentTopics = currentTopicList.getNextTopics();
+    //레디스에서 가져온 값을 사용 (next -> current로 이동)
+    List<TopicDto> currentTopics = currentTopicList.getNextTopics();
     
     //이전 주제를 제외한 주제를 다음 주제로 선택
-    Set<Long> excludeSet = new HashSet<>(currentTopicList.getCurrentTopics());
-    List<Long> nextTopics = new ArrayList<>();
+    Set<Long> excludeSet = currentTopicList.getCurrentTopics().stream()
+        .map(TopicDto::getId)
+        .collect(Collectors.toSet());
+    excludeSet.addAll(currentTopics.stream()
+        .map(TopicDto::getId)
+        .collect(Collectors.toSet()));
+        
+    List<TopicDto> nextTopics = new ArrayList<>();
 
     int pickCount = TOPIC * 3; // 충분한 개수로 설정
 
@@ -143,8 +143,9 @@ public class TopicService {
       for (Topic topic : topics) {
         if(nextTopics.size() >= TOPIC)
           break;
-        if (!excludeSet.contains(topic.getId()))
-          nextTopics.add(topic.getId());
+        if (!excludeSet.contains(topic.getId())) {
+          nextTopics.add(TopicDto.fromEntity(topic));
+        }
       }
     }
     
