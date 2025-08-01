@@ -1,7 +1,7 @@
 <template>
-  <div class="p-4 border border-border rounded-lg bg-card">
-    <h4 class="font-medium text-foreground mb-2">{{ topic.title }}</h4>
-    <p class="text-sm text-muted-foreground mb-3">{{ topic.option1 }} vs {{ topic.option2 }}</p>
+  <div class="p-4 border border-border rounded-lg bg-card" :class="{ 'opacity-60': !hasIndividualSelection }">
+    <h4 class="font-medium text-foreground mb-2" :class="{ 'text-muted-foreground': !hasIndividualSelection }">{{ topic.title }}</h4>
+    <p class="text-sm text-muted-foreground mb-3" :class="{ 'opacity-50': !hasIndividualSelection }">{{ topic.option1 }} vs {{ topic.option2 }}</p>
     
     <!-- 진영 선택 -->
     <div class="flex gap-2 mb-3">
@@ -10,8 +10,8 @@
         size="sm"
         @click="handleStanceSelect('option1')"
         :class="{ 
-          'bg-debate-left hover:bg-debate-left/90 ring-2 ring-yellow-500': getStanceVariant('option1') === 'default',
-          'ring-2 ring-gray-300': getStanceVariant('option1') === 'outline'
+          'bg-debate-left hover:bg-debate-left/90 ring-2 ring-black dark:ring-white': getStanceVariant('option1') === 'default',
+          'ring-2 ring-gray-300 opacity-60': getStanceVariant('option1') === 'outline'
         }"
       >
         <img v-if="getStanceVariant('option1') === 'default'" :src="vikingIcon" class="w-4 h-4 mr-1" alt="viking" />
@@ -22,8 +22,8 @@
         size="sm"
         @click="handleStanceSelect('option2')"
         :class="{ 
-          'bg-debate-right hover:bg-debate-right/90 ring-2 ring-red-600': getStanceVariant('option2') === 'default',
-          'ring-2 ring-gray-300': getStanceVariant('option2') === 'outline'
+          'bg-debate-right hover:bg-debate-right/90 ring-2 ring-black dark:ring-white': getStanceVariant('option2') === 'default',
+          'ring-2 ring-gray-300 opacity-60': getStanceVariant('option2') === 'outline'
         }"
       >
         <img v-if="getStanceVariant('option2') === 'default'" :src="gladiatorIcon" class="w-4 h-4 mr-1" alt="gladiator" />
@@ -34,8 +34,8 @@
         size="sm"
         @click="handleStanceSelect('random')"
         :class="{ 
-          'ring-2 ring-gray-500': getStanceVariant('random') === 'default',
-          'ring-2 ring-gray-300': getStanceVariant('random') === 'outline'
+          'ring-2 ring-black dark:ring-white': getStanceVariant('random') === 'default',
+          'ring-2 ring-gray-300 opacity-60': getStanceVariant('random') === 'outline'
         }"
       >
         <img 
@@ -55,8 +55,8 @@
         size="sm"
         @click="handleModeToggle('1:1')"
         :class="{ 
-          'ring-2 ring-primary': getModeVariant('1:1') === 'default',
-          'ring-2 ring-gray-300': getModeVariant('1:1') === 'outline'
+          'ring-2 ring-black dark:ring-white': getModeVariant('1:1') === 'default',
+          'ring-2 ring-gray-300 opacity-60': getModeVariant('1:1') === 'outline'
         }"
       >
         1:1
@@ -66,8 +66,8 @@
         size="sm"
         @click="handleModeToggle('2:2')"
         :class="{ 
-          'ring-2 ring-primary': getModeVariant('2:2') === 'default',
-          'ring-2 ring-gray-300': getModeVariant('2:2') === 'outline'
+          'ring-2 ring-black dark:ring-white': getModeVariant('2:2') === 'default',
+          'ring-2 ring-gray-300 opacity-60': getModeVariant('2:2') === 'outline'
         }"
       >
         2:2

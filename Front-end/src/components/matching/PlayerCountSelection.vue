@@ -10,7 +10,7 @@
           <div class="flex items-center gap-1">
             <Checkbox 
               v-model="modelMode1"
-              :class="{ 'ring-2 ring-primary': modelMode1 }"
+              :class="{ 'ring-2 ring-black dark:ring-white': modelMode1 }"
             />
             <label class="text-sm">1:1</label>
           </div>
@@ -18,7 +18,7 @@
           <div class="flex items-center gap-1">
             <Checkbox 
               v-model="modelMode2"
-              :class="{ 'ring-2 ring-primary': modelMode2 }"
+              :class="{ 'ring-2 ring-black dark:ring-white': modelMode2 }"
             />
             <label class="text-sm">2:2</label>
           </div>
@@ -32,7 +32,7 @@
           <div class="flex items-center gap-1">
             <Checkbox 
               v-model="modelStance1"
-              :class="{ 'bg-debate-left ring-2 ring-yellow-500': modelStance1 }"
+              :class="{ 'bg-debate-left ring-2 ring-black dark:ring-white': modelStance1 }"
             />
             <label class="text-sm flex items-center gap-1">
               <img v-if="modelStance1" :src="vikingIcon" class="w-4 h-4" alt="viking" />
@@ -43,7 +43,7 @@
           <div class="flex items-center gap-1">
             <Checkbox 
               v-model="modelStance2"
-              :class="{ 'bg-debate-right ring-2 ring-red-600': modelStance2 }"
+              :class="{ 'bg-debate-right ring-2 ring-black dark:ring-white': modelStance2 }"
             />
             <label class="text-sm flex items-center gap-1">
               <img v-if="modelStance2" :src="gladiatorIcon" class="w-4 h-4" alt="gladiator" />

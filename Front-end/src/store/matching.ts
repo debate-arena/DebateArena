@@ -101,10 +101,10 @@ export const useMatchingStore = defineStore('matching', {
             matchTitle: selection.topicId - 1, // API는 0부터 시작
             choice: (() => {
               switch (selection.stance) {
-                case 'option1': return 1  // pro (찬성)
-                case 'option2': return 2  // con (반대)
-                case 'random': return 0   // any (상관없음)
-                default: return 0
+                case 'option1': return 0  // pro (찬성)
+                case 'option2': return 1  // con (반대)
+                case 'random': return 2   // any (상관없음)
+                default: return 2
               }
             })()
           })

@@ -132,7 +132,6 @@ const googleIcon = computed(() => {
             >
               Debate Arena
             </span>
-            <Badge variant="secondary" class="text-sm">{{ onlineUsers }}명 온라인</Badge>
           </div>
           <nav class="flex gap-2">
             <!-- 테마 변경 버튼 -->

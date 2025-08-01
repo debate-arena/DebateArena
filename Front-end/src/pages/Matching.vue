@@ -174,6 +174,69 @@
             토론방에 연결하고 있습니다. 잠시만 기다려주세요.
           </DialogDescription>
         </DialogHeader>
+        
+                 <!-- 연결 상태 표시 -->
+         <div class="space-y-4">
+           <!-- 진영별 레이아웃 -->
+           <div class="flex justify-center items-center gap-8">
+             <!-- 선택1 진영 -->
+             <div class="flex flex-col items-center gap-2">
+               <div class="text-sm font-medium text-foreground">선택1</div>
+               <div class="flex flex-col gap-2">
+                 <div 
+                   v-for="(user, index) in getStance1Users()" 
+                   :key="user.userId"
+                   class="flex flex-col items-center gap-1"
+                 >
+                   <div 
+                     class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 border-2"
+                     :class="getUserStatusClass(user)"
+                   >
+                     <img v-if="user.accept === true" :src="vikingIcon" class="w-6 h-6" alt="viking" />
+                     <UserIcon v-else-if="user.accept === false" class="w-6 h-6 text-red-500" />
+                     <div v-else class="w-6 h-6 rounded-full border-2 border-current"></div>
+                   </div>
+                   <span class="text-xs text-muted-foreground">
+                     {{ getUserStatusText(user) }}
+                   </span>
+                 </div>
+               </div>
+             </div>
+             
+             <!-- VS 표시 -->
+             <div class="text-lg font-bold text-foreground">VS</div>
+             
+             <!-- 선택2 진영 -->
+             <div class="flex flex-col items-center gap-2">
+               <div class="text-sm font-medium text-foreground">선택2</div>
+               <div class="flex flex-col gap-2">
+                 <div 
+                   v-for="(user, index) in getStance2Users()" 
+                   :key="user.userId"
+                   class="flex flex-col items-center gap-1"
+                 >
+                   <div 
+                     class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 border-2"
+                     :class="getUserStatusClass(user)"
+                   >
+                     <img v-if="user.accept === true" :src="gladiatorIcon" class="w-6 h-6" alt="gladiator" />
+                     <UserIcon v-else-if="user.accept === false" class="w-6 h-6 text-red-500" />
+                     <div v-else class="w-6 h-6 rounded-full border-2 border-current"></div>
+                   </div>
+                   <span class="text-xs text-muted-foreground">
+                     {{ getUserStatusText(user) }}
+                   </span>
+                 </div>
+               </div>
+             </div>
+           </div>
+           
+           <div class="text-center">
+             <p class="text-sm text-muted-foreground">
+               {{ getConnectedCount() }}/{{ getTotalCount() }} 명 연결됨
+             </p>
+           </div>
+         </div>
       </DialogContent>
     </Dialog>
     
@@ -279,6 +342,7 @@ import PlayerCountSelection from '@/components/matching/PlayerCountSelection.vue
 import TopicCard from '@/components/matching/TopicCard.vue'
 import type { Stance, PlayerMode } from '@/types/matching'
 import { UserIcon } from 'lucide-vue-next'
+import { useThemeStore } from '@/store/theme'
 
 const router = useRouter()
 const matchingStore = useMatchingStore()
@@ -314,27 +378,34 @@ const handleWebSocketMessage = (data: any) => {
       console.log('💌 매칭 초대장 수신됨!')
       console.log('🔍 매칭 초대장 데이터:', data.data)
       
-      // matchId만 저장 (topicId는 주석 처리)
+      // matchId 저장
       currentMatchId.value = data.data.data.matchId
-      // const topicId = data.data.data.topicId
       console.log('🔍 매칭 ID 저장:', currentMatchId.value)
-      // console.log('🔍 주제 ID:', topicId)
       
-      // topicId 기반 주제 정보 가져오기 (주석 처리)
-      // const topicSetStore = useTopicSetStore()
-      // const topic = topicSetStore.currentSet?.topics.find(t => t.id === topicId)
+      // 백엔드에서 받은 모드 정보 사용 (실제로는 백엔드에서 전송)
+      const receivedMode = data.data.data.mode || '1:1' // 기본값 1:1
+      console.log('🔍 받은 모드 정보:', receivedMode)
       
-      // if (topic) {
-      //   console.log('🔍 주제 정보 찾음:', topic)
-      //   // 실제 매칭 정보로 모달 표시
-      //   showMatchCompleteModal(topic.title, 'option1', '1:1')
-      // } else {
-      //   console.log('⚠️ 주제 정보를 찾을 수 없음, 기본값 사용')
-      //   showMatchCompleteModal('매칭된 주제', 'option1', '1:1')
-      // }
+      // 주제는 첫 번째 주제로 고정
+      const invitationFirstTopic = topicSetStore.currentSet?.topics[0]
+      const invitationTopicTitle = invitationFirstTopic?.title || '매칭된 주제'
       
-      // 기본값으로 모달 표시
-      showMatchCompleteModal('매칭된 주제', '선택1', '1:1')
+      // 테마에 따라 진영 결정
+      const invitationThemeStore = useThemeStore()
+      const invitationStance = invitationThemeStore.isDark ? '선택2' : '선택1'
+      
+      console.log('🔍 매칭 정보:', {
+        topicTitle: invitationTopicTitle,
+        stance: invitationStance,
+        mode: receivedMode,
+        isDark: invitationThemeStore.isDark
+      })
+      
+      // 모드 정보 저장 (수락 시 사용)
+      currentMatchMode.value = receivedMode
+      
+      // 모달 표시
+      showMatchCompleteModal(invitationTopicTitle, invitationStance, receivedMode)
       
       console.log('✅ 매칭 초대장 처리 완료')
       break
@@ -343,6 +414,24 @@ const handleWebSocketMessage = (data: any) => {
       // 매칭 성사 처리 (status: "SUCCESS")
       console.log('🎉 매칭 성사 수신됨!')
       console.log('🔍 매칭 성사 데이터:', data.data)
+      
+      // 주제는 첫 번째 주제로 고정
+      const successFirstTopic = topicSetStore.currentSet?.topics[0]
+      const successTopicTitle = successFirstTopic?.title || '매칭된 주제'
+      
+      // 모드는 1:1로 고정
+      const successMode = '1:1'
+      
+      // 테마에 따라 진영 결정
+      const successThemeStore = useThemeStore()
+      const successStance = successThemeStore.isDark ? '선택2' : '선택1'
+      
+      console.log('🔍 고정된 매칭 정보:', {
+        topicTitle: successTopicTitle,
+        stance: successStance,
+        mode: successMode,
+        isDark: successThemeStore.isDark
+      })
       
       // 토론방으로 이동
       if (data.data.data.roomUrl) {
@@ -370,16 +459,30 @@ const handleWebSocketMessage = (data: any) => {
       console.log('✅ 매칭 실패 처리 완료')
       break
       
-    case 'ACCEPTANCE_STATUS':
-      // 다른 사람 응답 현황 처리
-      console.log('👥 다른 사람 응답 현황 수신됨!')
-      console.log('🔍 응답 현황 데이터:', data.data)
-      
-      // TODO: UI에 다른 사람 응답 상태 표시
-      const user = data.data.data.user
-      const accept = data.data.data.accept
-      console.log(`👤 ${user}님이 ${accept ? '수락' : '거부'}했습니다.`)
-      break
+         case 'ACCEPTANCE_STATUS':
+       // 다른 사람 응답 현황 처리
+       console.log('👥 다른 사람 응답 현황 수신됨!')
+       console.log('🔍 응답 현황 데이터:', data.data)
+       
+       const user = data.data.data.user
+       const accept = data.data.data.accept
+       const stance = data.data.data.stance // 진영 정보
+       
+       console.log(`👤 ${user}님이 ${accept ? '수락' : '거부'}했습니다. (진영: ${stance})`)
+       
+       // 상대방 진영 계산 (테마에 따라 반대로 표시)
+       const opponentStance = getOpponentStance(stance)
+       
+       // 사용자 상태 업데이트
+       userAcceptanceStatus.value.set(user, {
+         userId: user,
+         accept: accept,
+         stance: opponentStance,
+         timestamp: Date.now()
+       })
+       
+       console.log('✅ 사용자 수락 상태 업데이트 완료:', userAcceptanceStatus.value)
+       break
       
     case 'ERROR':
       // 에러 처리
@@ -429,28 +532,58 @@ const roomInfo = ref({
 // 현재 매칭 ID 저장
 const currentMatchId = ref('')
 
+// 현재 매칭 모드 저장
+const currentMatchMode = ref('1:1')
+
+// 사용자 수락 상태 관리
+interface UserAcceptanceStatus {
+  userId: string;
+  nickname?: string;
+  accept: boolean | null; // null = 대기중, true = 수락, false = 거절
+  stance?: string; // "선택1", "선택2"
+  timestamp: number;
+}
+
+const userAcceptanceStatus = ref<Map<string, UserAcceptanceStatus>>(new Map())
+
+// 아이콘 import
+import vikingIcon from '@/assets/images/profile/viking.png'
+import gladiatorIcon from '@/assets/images/profile/gladiator.png'
+
 let connectionInterval: ReturnType<typeof setInterval> | null = null
 
-// 연결 진행 시뮬레이션
+// 연결 진행 시뮬레이션 (백엔드 연동 전까지 임시 사용)
 const simulateConnection = () => {
   console.log('simulateConnection 시작:', JSON.stringify(roomInfo.value))
-  roomInfo.value = {
-    roomId: 'ROOM_' + Math.random().toString(36).substr(2, 9),
-    totalUsers: 4,
-    connectedUsers: 0
-  }
+  
+  // 저장된 모드 정보 사용
+  const mode = currentMatchMode.value
+  const is1v1 = mode === '1:1'
+  
+  console.log(`시뮬레이션 시작: ${mode} 모드`)
+  
+  // 시뮬레이션: 1초마다 한 명씩 수락
+  let currentUserIndex = 0
+  const totalUsers = userAcceptanceStatus.value.size
   
   connectionInterval = setInterval(() => {
-    if (roomInfo.value.connectedUsers < roomInfo.value.totalUsers) {
-      roomInfo.value.connectedUsers++
-      console.log('연결 인원 증가:', roomInfo.value.connectedUsers)
+    if (currentUserIndex < totalUsers) {
+      const users = Array.from(userAcceptanceStatus.value.values())
+      const user = users[currentUserIndex]
+      if (user) {
+        user.accept = true
+        userAcceptanceStatus.value.set(user.userId, user)
+        console.log(`시뮬레이션: ${user.userId} 수락`)
+      }
+      currentUserIndex++
     } else {
       if (connectionInterval) {
         clearInterval(connectionInterval)
         connectionInterval = null
       }
+      // 자동으로 넘어가지 않고 모달만 닫기
       hideConnectingModal()
-      router.push('/debate')
+      console.log('✅ 모든 사용자 연결 완료 - 모달 닫힘')
     }
   }, 1000)
 }
@@ -466,6 +599,121 @@ const getConnectionStatus = () => {
   }
   
   return status
+}
+
+// 진영별 사용자 분류
+const getStance1Users = () => {
+  return Array.from(userAcceptanceStatus.value.values())
+    .filter(user => user.stance === '선택1')
+    .sort((a, b) => a.timestamp - b.timestamp)
+}
+
+const getStance2Users = () => {
+  return Array.from(userAcceptanceStatus.value.values())
+    .filter(user => user.stance === '선택2')
+    .sort((a, b) => a.timestamp - b.timestamp)
+}
+
+// 사용자 상태에 따른 CSS 클래스
+const getUserStatusClass = (user: UserAcceptanceStatus) => {
+  if (user.accept === true) {
+    // 수락한 상태 - 진영에 따른 배경색
+    if (user.stance === '선택1') {
+      return 'bg-debate-left text-white border-debate-left'
+    } else if (user.stance === '선택2') {
+      return 'bg-debate-right text-white border-debate-right'
+    } else {
+      return 'bg-green-500 text-white border-green-500'
+    }
+  } else if (user.accept === false) {
+    return 'bg-red-500 text-white border-red-500'
+  } else {
+    // 대기중 상태 - 테마에 따른 빈 원
+    const themeStore = useThemeStore()
+    return themeStore.isDark 
+      ? 'bg-gray-800 border-white text-white' 
+      : 'bg-white border-gray-900 text-gray-900'
+  }
+}
+
+// 사용자 상태 텍스트
+const getUserStatusText = (user: UserAcceptanceStatus) => {
+  if (user.accept === true) {
+    return '수락함'
+  } else if (user.accept === false) {
+    return '거절함'
+  } else {
+    return '대기중'
+  }
+}
+
+// 연결된 사용자 수
+const getConnectedCount = () => {
+  return Array.from(userAcceptanceStatus.value.values())
+    .filter(user => user.accept === true).length
+}
+
+// 전체 사용자 수
+const getTotalCount = () => {
+  return userAcceptanceStatus.value.size
+}
+
+// 상대방 진영 계산 (테마에 따라 반대로 표시)
+const getOpponentStance = (receivedStance: string) => {
+  const themeStore = useThemeStore()
+  
+  if (receivedStance === '선택1') {
+    return themeStore.isDark ? '선택2' : '선택1'
+  } else if (receivedStance === '선택2') {
+    return themeStore.isDark ? '선택1' : '선택2'
+  }
+  
+  return receivedStance // '상관없음' 등은 그대로
+}
+
+// 모드별 연결 상태 초기화 (백엔드 연동 시 사용)
+const initializeConnectionStatus = (mode: string) => {
+  const is1v1 = mode === '1:1'
+  
+  // 기존 상태 초기화
+  userAcceptanceStatus.value.clear()
+  
+  // 모드에 따른 사용자 생성
+  if (is1v1) {
+    // 1:1 모드 - 2명
+    const users = [
+      { userId: 'user1', stance: '선택1', accept: null },
+      { userId: 'user2', stance: '선택2', accept: null }
+    ]
+    
+    users.forEach(user => {
+      userAcceptanceStatus.value.set(user.userId, {
+        userId: user.userId,
+        accept: user.accept,
+        stance: user.stance,
+        timestamp: Date.now()
+      })
+    })
+  } else {
+    // 2:2 모드 - 4명
+    const users = [
+      { userId: 'user1', stance: '선택1', accept: null },
+      { userId: 'user2', stance: '선택1', accept: null },
+      { userId: 'user3', stance: '선택2', accept: null },
+      { userId: 'user4', stance: '선택2', accept: null }
+    ]
+    
+    users.forEach(user => {
+      userAcceptanceStatus.value.set(user.userId, {
+        userId: user.userId,
+        accept: user.accept,
+        stance: user.stance,
+        timestamp: Date.now()
+      })
+    })
+  }
+  
+  console.log(`연결 상태 초기화: ${mode} 모드, ${userAcceptanceStatus.value.size}명`)
 }
 
 // 정렬된 선택 목록 (주제 ID 순, 모드는 1:1이 앞에 오도록)
@@ -586,6 +834,21 @@ const acceptMatch = () => {
   console.log('🔍 수락 후 모달 상태:', isMatchCompleteModalOpen.value)
   showConnectingModal()
   console.log('🔍 연결 모달 표시됨')
+  
+  // 저장된 모드 정보로 연결 상태 초기화
+  const mode = currentMatchMode.value
+  console.log('🔍 사용할 모드:', mode)
+  initializeConnectionStatus(mode)
+  
+  // 내 상태를 바로 수락으로 업데이트
+  const myUserId = 'user1' // 실제로는 현재 사용자 ID 사용
+  const myUser = userAcceptanceStatus.value.get(myUserId)
+  if (myUser) {
+    myUser.accept = true
+    userAcceptanceStatus.value.set(myUserId, myUser)
+    console.log('✅ 내 상태를 수락으로 업데이트:', myUserId)
+  }
+  
   simulateConnection()
   console.log('🔍 연결 시뮬레이션 시작됨')
 }
@@ -644,6 +907,10 @@ const handleConnectingModalClose = () => {
     connectionInterval = null
   }
   roomInfo.value = { roomId: '', totalUsers: 0, connectedUsers: 0 }
+  // 사용자 수락 상태 초기화
+  userAcceptanceStatus.value.clear()
+  // 모드 정보 초기화
+  currentMatchMode.value = '1:1'
 }
 
 // 주제 변경 경고 모달 닫기
@@ -695,6 +962,9 @@ onMounted(async () => {
     connectionInterval = null
   }
   roomInfo.value = { roomId: '', totalUsers: 0, connectedUsers: 0 }
+  
+  // 사용자 수락 상태 초기화
+  userAcceptanceStatus.value.clear()
   
   // 주제 정보 가져오기 후 초기화
   await topicSetStore.fetchTopicSets()
@@ -832,13 +1102,23 @@ const restartMatching = () => {
   handleStartMatching()
 }
 
-// 매칭 정보 (임시)
-const matchInfo = ref({
-  topicId: 1,
-  stance: 'option1' as Stance,
-  mode: '1:1' as PlayerMode,
-  topicTitle: 'AI 규제는 필요한가?',
-  myStance: '선택1'
+// 매칭 정보 (동적 설정)
+const matchInfo = computed(() => {
+  const firstTopic = topicSetStore.currentSet?.topics[0]
+  const topicTitle = firstTopic?.title || '매칭된 주제'
+  const mode = '1:1'
+  
+  // 테마에 따라 진영 결정
+  const themeStore = useThemeStore()
+  const stance = themeStore.isDark ? '선택2' : '선택1'
+  
+  return {
+    topicId: firstTopic?.id || 1,
+    stance: 'option1' as Stance,
+    mode: mode as PlayerMode,
+    topicTitle: topicTitle,
+    myStance: stance
+  }
 })
 
 const getIconClass = (index: number) => {
