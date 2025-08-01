@@ -66,13 +66,13 @@ async def judging(summary_texts: dict):
     
     # 3. 청중 임베딩 불러오기
     audience_embeddings, audience_metadata = await load_audience_embeddings()
+    sorted_data = sorted(zip(audience_embeddings, audience_metadata), key=lambda x: x[1].get("id", 0))
+    audience_embeddings = np.array([x[0] for x in sorted_data])
     
     # 청중 임베딩이 비어있는 경우 에러 처리
     if audience_embeddings is None or len(audience_embeddings) == 0:
         raise ValueError("청중 임베딩 데이터가 없습니다. process.py를 실행하여 데이터를 준비해주세요.")
     
-    audience_embeddings = np.array(audience_embeddings)
-
     # 4. 유사도 계산
     num1_similarities = cosine_similarity([num1_embedding], audience_embeddings)[0]
     num2_similarities = cosine_similarity([num2_embedding], audience_embeddings)[0]

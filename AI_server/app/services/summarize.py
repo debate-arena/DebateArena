@@ -161,7 +161,7 @@ async def summarize_result_text(input_data: LastInput):
             "temperature": 0.3
         }
         
-        async with httpx.AsyncClient(verify=False, timeout=20.0) as client:
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
             print("summarize쪽에서 에러터진거 아님!!!!!!!!!!!!!!!!!!!!!!!!")
             response = await client.post(SUMMARIZE_API_URL, headers=headers, json=payload)
             response.raise_for_status()  # 에러 발생 시 예외 던짐
