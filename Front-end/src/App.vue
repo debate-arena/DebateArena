@@ -159,17 +159,17 @@ const googleIcon = computed(() => {
                     <span class="text-sm font-medium">{{ authStore.userNickname || '사용자' }}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-56">
+                <DropdownMenuContent align="end" class="w-56 bg-popover text-popover-foreground border border-border">
                   <div class="flex items-center justify-start gap-2 p-2">
                     <div class="flex flex-col space-y-1">
-                      <p class="text-sm font-medium leading-none">{{ authStore.userNickname || '사용자' }}</p>
-                      <p class="text-xs leading-none text-muted-foreground">{{ authStore.user?.email }}</p>
+                      <p class="text-sm font-medium leading-none" :class="themeStore.isDark ? 'text-white' : 'text-gray-900'">{{ authStore.userNickname || '사용자' }}</p>
+                      <p class="text-xs leading-none" :class="themeStore.isDark ? 'text-gray-300' : 'text-gray-500'">{{ authStore.user?.email }}</p>
                     </div>
                   </div>
-                  <DropdownMenuItem @click="openNicknameChangeModal">
+                  <DropdownMenuItem @click="openNicknameChangeModal" :class="themeStore.isDark ? 'text-white hover:bg-accent hover:text-accent-foreground' : 'text-gray-900 hover:bg-accent hover:text-accent-foreground'">
                     닉네임 변경
                   </DropdownMenuItem>
-                  <DropdownMenuItem @click="handleLogout">
+                  <DropdownMenuItem @click="handleLogout" :class="themeStore.isDark ? 'text-white hover:bg-accent hover:text-accent-foreground' : 'text-gray-900 hover:bg-accent hover:text-accent-foreground'">
                     로그아웃
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -184,8 +184,8 @@ const googleIcon = computed(() => {
                     로그인
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-48">
-                  <DropdownMenuItem @click="handleGoogleLogin" class="flex items-center gap-2">
+                <DropdownMenuContent align="end" class="w-48 bg-popover text-popover-foreground border border-border">
+                  <DropdownMenuItem @click="handleGoogleLogin" class="flex items-center gap-2" :class="themeStore.isDark ? 'text-white hover:bg-accent hover:text-accent-foreground' : 'text-gray-900 hover:bg-accent hover:text-accent-foreground'">
                     <img :src="googleIcon" class="w-4 h-4" alt="Google" />
                     Google로 로그인
                   </DropdownMenuItem>
