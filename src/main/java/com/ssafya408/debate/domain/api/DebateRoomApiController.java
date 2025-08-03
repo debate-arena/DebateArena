@@ -1,6 +1,7 @@
 package com.ssafya408.debate.domain.api;
 
 import com.ssafya408.debate.domain.api.dto.DebateParticipantRequest;
+import com.ssafya408.debate.domain.api.dto.DebateRoomResponse;
 import com.ssafya408.debate.domain.api.service.DebateService;
 import com.ssafya408.debate.domain.common.dto.ApiResponse;
 import com.ssafya408.debate.domain.db.Topic;
@@ -139,7 +140,7 @@ public class DebateRoomApiController {
       )
     )
   })
-  public ResponseEntity<ApiResponse<Map<String,String>>> createDebateRoom(
+  public ResponseEntity<ApiResponse<DebateRoomResponse>> createDebateRoom(
       @RequestBody @Schema(description = "토론방 생성 요청", implementation = DebateParticipantRequest.class)
       DebateParticipantRequest req
   ) {
@@ -151,12 +152,10 @@ public class DebateRoomApiController {
 
     try {
       Long roomId = debateService.generateDebateRoom(req);
-      
-      Map<String, String> res = new HashMap<>();
-      res.put("roomId", roomId.toString());
+
       
       log.info("[토론방 생성] 성공 - 생성된 방 ID: {}", roomId);
-      return ResponseEntity.ok(ApiResponse.success(res));
+      return ResponseEntity.ok(ApiResponse.success(DebateRoomResponse.builder().roomId(roomId).build()));
       
     } catch (Exception e) {
       log.error("[토론방 생성] 실패 - 오류: {}", e.getMessage(), e);
