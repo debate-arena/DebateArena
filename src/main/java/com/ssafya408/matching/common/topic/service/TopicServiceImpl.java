@@ -20,7 +20,7 @@ public class TopicServiceImpl implements TopicService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     
-    @Value("${debate.redis.topic-key:currentTopics}")
+    @Value("${debate.redis.topic-key}")
     private String CURRENT_TOPICS;
 
     @Override

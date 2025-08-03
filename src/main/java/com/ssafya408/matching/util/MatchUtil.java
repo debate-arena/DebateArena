@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -34,6 +35,9 @@ public class MatchUtil {
     private String debateServerUrl;
     private static final Logger log = LoggerFactory.getLogger(MatchUtil.class);
     private final SimpMessagingTemplate template;
+    
+    // 스케줄러를 클래스 레벨에서 관리
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
 
     @Value("${match.type}")
     private Integer TYPE ;
@@ -55,17 +59,21 @@ public class MatchUtil {
     // 만약 매칭이 취소되면 matchCandidates 에 있는 정보를 불러와서 다시 큐에 넣어준다
 //    private Map<String, Map<WaitingUser, MatchApplyRequest>> matchCandidates;
     private Map<String, MatchInfo> matchInfos;
+    private Map<String, MatchInfo> activeDebateMatch;
+
 
     private Set<String> alreadyMatched;
 
     public void setMatchUtil(
             List<List<List<ConcurrentNavigableMap<Long, String>>>> matchQueue,
-            Map<String, MatchInfo> matchInfos, Set<String> alreadyMatched,
+            Map<String, MatchInfo> matchInfos, Map<String, MatchInfo> activeDebateMatch,
+            Set<String> alreadyMatched,
             List<Long> topicIdxToId,
             Map<Long,Integer> topicIdToIdx
     ) {
         this.matchQueue = matchQueue;
         this.matchInfos=matchInfos;
+        this.activeDebateMatch=activeDebateMatch;
         this.alreadyMatched = alreadyMatched;
         this.topicIdxToId=topicIdxToId;
         this.topicIdToIdx=topicIdToIdx;
@@ -89,10 +97,11 @@ public class MatchUtil {
     }
 
     public void processQueue(WaitingUser waitingUser) {
+        log.info("[큐 처리 시작] 사용자: {} | 타임스탬프: {}", waitingUser.getUser(), waitingUser.getTimestamp());
         MatchInfo matchInfo = this.getMatchCandidatesFromQueue();
 
         if (matchInfo!=null) {
-            log.info("[매칭 후보 추출] ");
+            log.info("[매칭 후보 추출] 매칭ID: {} | 총 {}명", matchInfo.getMatchId(), matchInfo.getTotalPlayer());
             // 매칭 참가 수락 여부 처리
             Map<WaitingUser, MatchApplyRequest> userMatchInfo = new HashMap<>();
             for (List<WaitingUser> debateTeam : matchInfo.getTeams()) {
@@ -107,6 +116,8 @@ public class MatchUtil {
             matchInfos.put(matchInfo.getMatchId(),matchInfo);
 
             this.startMatching(matchInfo);
+        } else {
+            log.info("[큐 처리 완료] 매칭 후보 없음 | 사용자: {}", waitingUser.getUser());
         }
     }
     private MatchInfo getMatchCandidatesFromQueue() {
@@ -210,8 +221,16 @@ public class MatchUtil {
             }
         }
 
-        Executors.newSingleThreadScheduledExecutor().schedule(() -> {
-            evaluateResponse(matchInfo);
+        log.info("[스케줄러 생성] 매칭ID: {} | {}초 후 응답 평가 예약", matchInfo.getMatchId(), TIMEWAIT);
+        
+        scheduler.schedule(() -> {
+            try {
+                log.info("[스케줄러 실행] 매칭ID: {} | 응답 평가 시작", matchInfo.getMatchId());
+                evaluateResponse(matchInfo);
+                log.info("[스케줄러 완료] 매칭ID: {} | 응답 평가 완료", matchInfo.getMatchId());
+            } catch (Exception e) {
+                log.error("[스케줄러 오류] 매칭ID: {} | 응답 평가 중 오류: {}", matchInfo.getMatchId(), e.getMessage(), e);
+            }
         }, TIMEWAIT, TimeUnit.SECONDS);
     }
 
@@ -222,8 +241,9 @@ public class MatchUtil {
     private void evaluateResponse(MatchInfo matchInfo) {
 
         //기존 매칭 정보 맵에서 제거
-        this.matchInfos.remove(matchInfo.getMatchId());
-        
+        MatchInfo matched = this.matchInfos.remove(matchInfo.getMatchId());
+        activeDebateMatch.put(matched.getMatchId(),matched);
+
         Map<String, Boolean> acceptResponse = matchInfo.getAcceptResponse();
         Map<WaitingUser, MatchApplyRequest> candidates = matchInfo.getCandidates();
 
@@ -235,7 +255,11 @@ public class MatchUtil {
                 refuse++;
         }
 
-        if (accept == matchInfo.getTotalPlayer()) { // 모두 참여하기를 눌렀을 경우 debate 서버에 전송
+        int totalPlayer = matchInfo.getTotalPlayer();
+        log.info("[매칭 응답 평가] 매칭ID: {} | 수락: {}명, 거절: {}명, 총 인원: {}명", 
+            matchInfo.getMatchId(), accept, refuse, totalPlayer);
+
+        if (accept == totalPlayer) { // 모두 참여하기를 눌렀을 경우 debate 서버에 전송
             for (Map.Entry<WaitingUser, MatchApplyRequest> e : candidates.entrySet()) {
                 alreadyMatched.add(e.getKey().getUser());
             }
@@ -311,30 +335,28 @@ public class MatchUtil {
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(req)
             .retrieve()
-            .bodyToMono(DebateParticipantRequest.class) // 응답을 String으로 받아서 로깅
+            .bodyToMono(com.ssafya408.matching.api.dto.ApiResponse.class)
             .subscribe(
-                result -> {
-                    log.info("[토론방 생성 성공] 매칭ID: {} | 응답: {}", matchInfo.getMatchId(), result.getMatchId());
+                apiResponse -> {
+                    if ("success".equals(apiResponse.getStatus()) && apiResponse.getData() != null) {
+                        // data 필드에서 roomId 추출 (LinkedHashMap 형태로 올 수 있음)
+                        Object data = apiResponse.getData();
+                        Long roomId = null;
+                        if (data instanceof java.util.Map) {
+                            java.util.Map<String, Object> dataMap = (java.util.Map<String, Object>) data;
+                            roomId = ((Number) dataMap.get("roomId")).longValue();
+                        }
+                        log.info("[토론방 생성 성공] 매칭ID: {} | 방 ID: {}", matchInfo.getMatchId(), roomId);
+                    } else {
+                        log.error("[토론방 생성 실패] 매칭ID: {} | 응답 상태: {}", matchInfo.getMatchId(), apiResponse.getStatus());
+                    }
                 },
                 error -> {
                     log.error("[토론방 생성 실패] 매칭ID: {} | 오류: {}", matchInfo.getMatchId(), error.getMessage(), error);
                 }
             );
-        
+
     }
-
-
-    private void removeParticipant(List<WaitingUser> users) {
-        for (List<List<ConcurrentNavigableMap<Long, String>>> typeList : matchQueue) { // 타입 (일대일)
-            for (List<ConcurrentNavigableMap<Long, String>> topicList : typeList) { // 주제
-                for (ConcurrentNavigableMap<Long, String> queue : topicList) { // 주제에 찬,반, 상관 없음 큐 순회
-                    for (WaitingUser user : users)
-                        queue.remove(user.getTimestamp());
-                }
-            }
-        }
-    }
-
     public void printMatchQueueStatus(List<List<List<ConcurrentNavigableMap<Long, String>>>> matchQueue) {
         for (int type = 0; type < TYPE; type++) {
             for (int topic = 0; topic < TOPIC; topic++) {

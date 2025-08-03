@@ -52,9 +52,11 @@ public class MatchService {
     // 만약 매칭이 취소되면 matchCandidates 에 있는 정보를 불러와서 다시 큐에 넣어준다
 //    private Map<String, Map<WaitingUser, MatchApplyRequest>> matchCandidates;
     private Map<String, MatchInfo> matchInfos;
-    List<Long> topicIdxToId; //큐 idx를 실제 topic id로 변환
-    Map<Long,Integer> topicIdToIdx; //실제 topic_id -> 큐 topic idx 로 변환
 
+    private  Map<String, MatchInfo> activeDebateMatch;
+
+    private List<Long> topicIdxToId; //큐 idx를 실제 topic id로 변환
+    private Map<Long,Integer> topicIdToIdx; //실제 topic_id -> 큐 topic idx 로 변환
     private Set<String> alreadyMatched;
 
     @PostConstruct
@@ -74,7 +76,8 @@ public class MatchService {
             matchQueue.add(typeList);
         }
         matchInfos = new ConcurrentHashMap<>();
-        
+        activeDebateMatch=new ConcurrentHashMap<>();
+
         //topic 관련 인덱스 자료 구조
         topicIdToIdx = new HashMap<>();
         topicIdxToId = new ArrayList<>();
@@ -83,7 +86,7 @@ public class MatchService {
         getCurrentTopicsFromRedis();
 
         alreadyMatched = new HashSet<>();
-        matchUtil.setMatchUtil(matchQueue, matchInfos,
+        matchUtil.setMatchUtil(matchQueue, matchInfos, activeDebateMatch,
             alreadyMatched,topicIdxToId, topicIdToIdx);
     }
 
