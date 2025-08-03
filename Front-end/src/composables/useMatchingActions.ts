@@ -1,167 +1,165 @@
 import { useMatchingStore } from '@/store/matching'
 import { useWebSocket } from '@/composables/useWebSocket'
+import { useMatchingState } from '@/composables/useMatchingState'
 import { useMatchingModals } from '@/composables/useMatchingModals'
-import type { Stance, PlayerMode } from '@/types/matching'
+import { useMatchingTimer } from '@/composables/useMatchingTimer'
+import type { MatchModalData, MatchUser } from '@/composables/useMatchingModals'
 
-// 싱글톤 인스턴스
-let actionsInstance: ReturnType<typeof createActionsInstance> | null = null
-
-function createActionsInstance() {
+export function useMatchingActions() {
   const matchingStore = useMatchingStore()
-  const { sendMatchingRequest, sendMatchingCancel } = useWebSocket()
-  const { showMatchCompleteModal, showTimeoutModal, showTopicChangeModal } = useMatchingModals()
+  const webSocket = useWebSocket()
+  const matchingState = useMatchingState()
+  const modals = useMatchingModals()
+  const { startMatchingTimer, stopMatchingTimer } = useMatchingTimer()
 
   // 매칭 시작
-  const startMatching = (selections: { topicId: number; stance: Stance; modes: PlayerMode[] }[], onTimeout?: () => void) => {
-    console.log('🚀 startMatching 호출됨:', selections)
-    
-    const success = sendMatchingRequest(selections)
-    
-    if (success) {
+  const startMatching = async () => {
+    try {
+      // WebSocket 연결
+      await webSocket.connect()
+      
+      // 매칭 요청 전송
+      const request = matchingStore.toMatchRequest
+      webSocket.sendMatchRequest(request)
+      
+      // 상태 업데이트 (matchingState와 matchingStore 모두)
+      matchingState.startMatching()
       matchingStore.startMatching()
-      console.log('✅ 매칭 상태 업데이트됨')
       
-      // 가상 매칭 시뮬레이션 (3초 후 결과)
-      setTimeout(() => {
-        // 매칭이 이미 취소되었으면 처리하지 않음
-        if (!matchingStore.isMatching) {
-          console.log('❌ 매칭이 이미 취소되어 시뮬레이션 중단')
-          return
-        }
-        
-        // 확률 조정: 매칭 성공 50%, 타임아웃 25%, 주제 변경 25%
-        const randomValue = Math.random()
-        const isSuccess = randomValue < 0.5        // 50% 성공
-        const isTimeout = randomValue >= 0.5 && randomValue < 0.75  // 25% 타임아웃
-        const isHourlyTimeout = randomValue >= 0.75  // 25% 주제 변경
-        
-        console.log('🎲 확률 결과:', { randomValue, isSuccess, isTimeout, isHourlyTimeout })
-        
-        if (isSuccess) {
-          console.log('🎉 매칭 성사!')
-          // 가상 매칭 정보 생성
-          const selectedItem = matchingStore.selectedTopicSelections[0]
-          const topicTitle = selectedItem ? `주제 ${selectedItem.topicId}` : '알 수 없음'
-          const myStance = selectedItem ? selectedItem.stance : 'random'
-          const mode = selectedItem?.modes[0] || '1:1'
-          handleMatchSuccess(topicTitle, myStance, mode)
-        } else if (isHourlyTimeout) {
-          console.log('🔄 주제 변경으로 인한 취소')
-          showTopicChangeModal()
-          // onTimeout은 호출하지 않음 (주제 변경은 별도 처리)
-        } else {
-          console.log('⏰ 매칭 타임아웃 (10분 초과)')
-          if (onTimeout) {
-            onTimeout()
-          }
-        }
-      }, 3000) // 3초 후 결과
+      // 타이머 시작
+      startMatchingTimer(() => {
+        handleTimeout()
+      })
       
-      return true
-    } else {
-      console.error('❌ 매칭 요청 전송 실패')
-      return false
+      console.log('✅ 매칭 시작 완료')
+    } catch (error) {
+      console.error('❌ 매칭 시작 실패:', error)
+      matchingState.setError('매칭 시작에 실패했습니다.')
     }
   }
 
   // 매칭 취소
-  const cancelMatching = (stopTimer?: () => void) => {
-    console.log('🚫 cancelMatching 호출됨')
+  const cancelMatching = () => {
+    console.log('❌ 매칭 취소 요청')
     
-    if (stopTimer) {
-      stopTimer()
+    // WebSocket 연결 해제
+    webSocket.disconnect()
+    
+    // 타이머 정지
+    stopMatchingTimer()
+    
+    // 상태 초기화 (matchingState와 matchingStore 모두)
+    matchingState.reset()
+    matchingStore.cancelMatching()
+    
+    // 모든 모달 닫기
+    modals.hideAllModals()
+    
+    console.log('✅ 매칭 취소 완료')
+  }
+
+  // 매칭 수락
+  const acceptMatch = () => {
+    console.log('✅ 매칭 수락')
+    
+    // 연결 상태로 변경
+    matchingState.setConnecting()
+    
+    // 서버에 수락 메시지 전송
+    const matchId = matchingState.currentMatchId.value
+    if (matchId) {
+      webSocket.sendMatchAcceptance(matchId, true)
     }
     
-    const success = sendMatchingCancel()
+    // 수락 타이머 시작
+    matchingState.startAcceptTimer()
+  }
+
+  // 매칭 거절
+  const rejectMatch = () => {
+    console.log('❌ 매칭 거절')
     
-    if (success) {
-      matchingStore.cancelMatching()
-      console.log('✅ 매칭 취소 완료')
-      return true
-    } else {
-      console.error('❌ 매칭 취소 전송 실패')
-      return false
+    // 서버에 거절 메시지 전송
+    const matchId = matchingState.currentMatchId.value
+    if (matchId) {
+      webSocket.sendMatchAcceptance(matchId, false)
     }
+    
+    // 모달 닫기
+    modals.hideMatchCompleteModal()
+    
+    // 타이머 정지
+    matchingState.stopAcceptTimer()
   }
 
   // 매칭 성사 처리
-  const handleMatchSuccess = (topicTitle: string, myStance: string, mode: string) => {
-    console.log('🎉 handleMatchSuccess 호출됨:', { topicTitle, myStance, mode })
+  const handleMatchSuccess = (data: any) => {
+    console.log('🎉 매칭 성사 처리:', data)
     
-    // 매칭 상태를 먼저 업데이트하여 중복 호출 방지
-    matchingStore.cancelMatching()
-    console.log('✅ 매칭 상태 취소됨')
+    // 매칭 ID 저장
+    matchingState.currentMatchId.value = data.matchId || 'default-match-id'
+    
+    // 매칭 상태로 변경
+    matchingState.setMatched()
+    
+    // 수락 타이머 시작
+    matchingState.startAcceptTimer()
+    
+    // 모달 데이터 준비
+    const modalData: MatchModalData = {
+      topicTitle: data.topicTitle || '매칭된 주제',
+      stanceText: data.stanceText || '선택된 진영',
+      mode: data.mode || '1:1',
+      topicId: data.topicId || 1
+    }
+    
+    // 테스트용 사용자 데이터
+    const users: MatchUser[] = [
+      { userId: '유저1', stance: 'option1', accept: true, timestamp: Date.now() },
+      { userId: '유저2', stance: 'option1', accept: null, timestamp: Date.now() },
+      { userId: '유저3', stance: 'option2', accept: true, timestamp: Date.now() },
+      { userId: '유저4', stance: 'option2', accept: false, timestamp: Date.now() }
+    ]
     
     // 모달 표시
-    showMatchCompleteModal(topicTitle, myStance, mode)
-    console.log('✅ 매칭 성사 모달 표시 요청 완료')
+    modals.showMatchCompleteModal(modalData, users)
+    
+    console.log('✅ 매칭 성사 처리 완료')
   }
 
   // 타임아웃 처리
-  const handleTimeout = (onTimeout: () => void) => {
-    console.log('⏰ handleTimeout 호출됨')
+  const handleTimeout = () => {
+    console.log('⏰ 매칭 타임아웃')
     
-    // 이미 매칭이 취소되었으면 처리하지 않음
-    if (!matchingStore.isMatching) {
-      console.log('❌ 매칭이 이미 취소되어 타임아웃 처리 중단')
-      return
-    }
-    
-    // 웹소켓 취소 요청
-    sendMatchingCancel()
-    
-    // 매칭 상태 업데이트
-    matchingStore.cancelMatching()
-    console.log('✅ 매칭 상태 취소됨')
+    // 매칭 중지
+    matchingState.stopMatching()
     
     // 타임아웃 모달 표시
-    showTimeoutModal()
-    console.log('✅ 타임아웃 모달 표시 요청 완료')
-    onTimeout() // 타임아웃 발생 시 콜백 호출
+    modals.showTimeoutModal()
+    
+    console.log('✅ 타임아웃 처리 완료')
   }
 
-  // 매칭 시뮬레이션
-  const simulateMatching = (onTimeout: () => void) => {
-    console.log('🎲 매칭 시뮬레이션 시작')
+  // 에러 처리
+  const handleError = (error: string) => {
+    console.error('❌ 매칭 에러:', error)
     
-    // 확률 조정: 매칭 성공 50%, 타임아웃 25%, 주제 변경 25%
-    const randomValue = Math.random()
-    const isSuccess = randomValue < 0.5        // 50% 성공
-    const isTimeout = randomValue >= 0.5 && randomValue < 0.75  // 25% 타임아웃
-    const isHourlyTimeout = randomValue >= 0.75  // 25% 주제 변경
+    // 에러 상태 설정
+    matchingState.setError(error)
     
-    console.log('🎲 확률 결과:', { randomValue, isSuccess, isTimeout, isHourlyTimeout })
+    // 매칭 중지
+    matchingState.stopMatching()
     
-    setTimeout(() => {
-      if (isSuccess) {
-        console.log('✅ 매칭 성공!')
-        const selectedItem = matchingStore.selectedTopicSelections[0]
-        const topicTitle = selectedItem ? `주제 ${selectedItem.topicId}` : '알 수 없음'
-        const myStance = selectedItem ? selectedItem.stance : 'random'
-        const mode = selectedItem?.modes[0] || '1:1'
-        handleMatchSuccess(topicTitle, myStance, mode)
-      } else if (isTimeout) {
-        console.log('⏰ 타임아웃 발생')
-        handleTimeout(onTimeout)
-      } else if (isHourlyTimeout) {
-        console.log('🔄 주제 변경으로 인한 취소')
-        showTopicChangeModal()
-        // onTimeout() 호출하지 않음 - 주제 변경은 별도 처리
-      }
-    }, 3000) // 3초 후 결과
+    console.log('✅ 에러 처리 완료')
   }
 
-  return { startMatching, cancelMatching, handleMatchSuccess, handleTimeout }
-}
-
-/**
- * 매칭 액션 관리 Composable
- * - 매칭 시작/취소
- * - 매칭 성사/타임아웃 처리
- */
-export function useMatchingActions() {
-  if (!actionsInstance) {
-    actionsInstance = createActionsInstance()
+  return {
+    startMatching,
+    cancelMatching,
+    acceptMatch,
+    rejectMatch,
+    handleMatchSuccess,
+    handleTimeout,
+    handleError
   }
-  return actionsInstance
 } 

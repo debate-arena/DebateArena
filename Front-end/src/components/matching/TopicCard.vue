@@ -1,76 +1,53 @@
 <template>
   <div class="p-4 border border-border rounded-lg bg-card" :class="{ 'opacity-60': !hasIndividualSelection }">
-    <h4 class="font-medium text-foreground mb-2" :class="{ 'text-muted-foreground': !hasIndividualSelection }">{{ topic.title }}</h4>
-    <p class="text-sm text-muted-foreground mb-3" :class="{ 'opacity-50': !hasIndividualSelection }">{{ topic.option1 }} vs {{ topic.option2 }}</p>
+    <h3 class="text-lg font-semibold text-foreground mb-3 text-center" :class="{ 'text-muted-foreground': !hasIndividualSelection }">{{ topic.title }}</h3>
+    <h4 class="text-base font-medium text-muted-foreground mb-4 text-center" :class="{ 'opacity-50': !hasIndividualSelection }">{{ topic.option1 }} vs {{ topic.option2 }}</h4>
     
     <!-- 진영 선택 -->
-    <div class="flex gap-2 mb-3">
+    <div class="flex gap-3">
       <Button 
-        :variant="getStanceVariant('option1')"
-        size="sm"
+        variant="outline"
+        size="lg"
         @click="handleStanceSelect('option1')"
+        class="flex-1 h-12"
         :class="{ 
-          'bg-debate-left hover:bg-debate-left/90 ring-2 ring-black dark:ring-white': getStanceVariant('option1') === 'default',
-          'ring-2 ring-gray-300 opacity-60': getStanceVariant('option1') === 'outline'
+          'bg-debate-left hover:bg-debate-left/90 text-slate-800': getStanceVariant('option1') === 'default',
+          'bg-background hover:bg-accent': getStanceVariant('option1') === 'outline'
         }"
       >
-        <img v-if="getStanceVariant('option1') === 'default'" :src="vikingIcon" class="w-4 h-4 mr-1" alt="viking" />
+        <img v-if="getStanceVariant('option1') === 'default'" :src="debateLeftIcon" class="w-6 h-6 mr-2" alt="viking" />
         {{ topic.option1 }}
       </Button>
       <Button 
-        :variant="getStanceVariant('option2')"
-        size="sm"
+        variant="outline"
+        size="lg"
         @click="handleStanceSelect('option2')"
+        class="flex-1 h-12"
         :class="{ 
-          'bg-debate-right hover:bg-debate-right/90 ring-2 ring-black dark:ring-white': getStanceVariant('option2') === 'default',
-          'ring-2 ring-gray-300 opacity-60': getStanceVariant('option2') === 'outline'
+          'bg-debate-right hover:bg-debate-right/90 text-white': getStanceVariant('option2') === 'default',
+          'bg-background hover:bg-accent': getStanceVariant('option2') === 'outline'
         }"
       >
-        <img v-if="getStanceVariant('option2') === 'default'" :src="gladiatorIcon" class="w-4 h-4 mr-1" alt="gladiator" />
+        <img v-if="getStanceVariant('option2') === 'default'" :src="debateRightIcon" class="w-6 h-6 mr-2" alt="gladiator" />
         {{ topic.option2 }}
       </Button>
       <Button 
-        :variant="getStanceVariant('random')"
-        size="sm"
+        variant="outline"
+        size="lg"
         @click="handleStanceSelect('random')"
+        class="flex-1 h-12"
         :class="{ 
-          'ring-2 ring-black dark:ring-white': getStanceVariant('random') === 'default',
-          'ring-2 ring-gray-300 opacity-60': getStanceVariant('random') === 'outline'
+          'bg-debate-random hover:bg-debate-random/90 text-slate-700': getStanceVariant('random') === 'default',
+          'bg-background hover:bg-accent': getStanceVariant('random') === 'outline'
         }"
       >
         <img 
           v-if="getStanceVariant('random') === 'default'" 
-          :src="currentDiceIcon" 
-          class="w-4 h-4 mr-1 transition-all duration-300" 
+          :src="debateRandomIcon" 
+          class="w-6 h-6 mr-2 transition-all duration-300" 
           alt="dice" 
         />
         상관없음
-      </Button>
-    </div>
-
-    <!-- 모드 선택 -->
-    <div class="flex gap-2">
-      <Button 
-        :variant="getModeVariant('1:1')"
-        size="sm"
-        @click="handleModeToggle('1:1')"
-        :class="{ 
-          'ring-2 ring-black dark:ring-white': getModeVariant('1:1') === 'default',
-          'ring-2 ring-gray-300 opacity-60': getModeVariant('1:1') === 'outline'
-        }"
-      >
-        1:1
-      </Button>
-      <Button 
-        :variant="getModeVariant('2:2')"
-        size="sm"
-        @click="handleModeToggle('2:2')"
-        :class="{ 
-          'ring-2 ring-black dark:ring-white': getModeVariant('2:2') === 'default',
-          'ring-2 ring-gray-300 opacity-60': getModeVariant('2:2') === 'outline'
-        }"
-      >
-        2:2
       </Button>
     </div>
   </div>
@@ -79,14 +56,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Button } from '@/components/ui/button'
-import vikingIcon from '@/assets/images/profile/viking.png'
-import gladiatorIcon from '@/assets/images/profile/gladiator.png'
-import diceIcon from '@/assets/images/profile/dice.png'
-import diceDarkIcon from '@/assets/images/profile/dice-dark.png'
+// 아이콘 import
+import debateLeftIcon from '@/assets/images/profile/debate_left.png'
+import debateRightIcon from '@/assets/images/profile/debate_right.png'
+import debateRandomIcon from '@/assets/images/profile/debate_random.png'
 import { useMatchingStore } from '@/store/matching'
 import { useThemeStore } from '@/store/theme'
 import type { Topic } from '@/types/topic'
-import type { Stance, PlayerMode } from '@/types/matching'
+import type { Stance } from '@/types/matching'
 
 interface Props {
   topic: Topic
@@ -94,7 +71,6 @@ interface Props {
 
 interface Emits {
   (e: 'stance-select', topicId: number, stance: Stance): void
-  (e: 'mode-toggle', topicId: number, mode: PlayerMode): void
 }
 
 const props = defineProps<Props>()
@@ -102,21 +78,10 @@ const emit = defineEmits<Emits>()
 const matchingStore = useMatchingStore()
 const themeStore = useThemeStore()
 
-// 다크모드에 따른 dice 아이콘 선택
-const currentDiceIcon = computed(() => {
-  return themeStore.isDark ? diceDarkIcon : diceIcon
-})
-
 // 진영 버튼 스타일 결정 (개별 선택 우선)
 const getStanceVariant = (stance: Stance) => {
   const selection = matchingStore.topicSelections.get(props.topic.id)
   return selection?.stance === stance ? 'default' : 'outline'
-}
-
-// 모드 버튼 스타일 결정 (개별 선택 우선)
-const getModeVariant = (mode: PlayerMode) => {
-  const selection = matchingStore.topicSelections.get(props.topic.id)
-  return selection?.modes.has(mode) ? 'default' : 'outline'
 }
 
 // 진영 선택 핸들러
@@ -129,12 +94,6 @@ const handleStanceSelect = (stance: Stance) => {
     matchingStore.selectTopicStance(props.topic.id, stance)
   }
   emit('stance-select', props.topic.id, stance)
-}
-
-// 모드 선택/해제 핸들러
-const handleModeToggle = (mode: PlayerMode) => {
-  matchingStore.toggleTopicMode(props.topic.id, mode)
-  emit('mode-toggle', props.topic.id, mode)
 }
 
 // 글로벌 상태에 따른 초기 선택 상태 확인

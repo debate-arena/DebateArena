@@ -1,190 +1,143 @@
-import { ref, computed } from 'vue'
-import { useMatchingStore } from '@/store/matching'
+import { ref, computed, readonly } from 'vue'
+import type { Ref } from 'vue'
 
-// 싱글톤 인스턴스
-let modalInstance: ReturnType<typeof createModalInstance> | null = null
+export interface MatchModalData {
+  topicTitle: string
+  stanceText: string
+  mode: string
+  topicId: number
+}
 
-function createModalInstance() {
-  const matchingStore = useMatchingStore()
-  
-  // 모달 상태 (직접 ref 사용)
-  const isStartModalOpen = ref(false)
-  const isMatchCompleteModalOpen = ref(false)
-  const isConnectingModalOpen = ref(false)
-  const isTimeoutModalOpen = ref(false)
-  const isHourWarningModalOpen = ref(false)
-  const isTopicChangeModalOpen = ref(false)
-  
-  // 모달 데이터
-  const matchInfo = ref<{
-    topicTitle: string
-    myStance: string
-    mode: string
-  }>({
-    topicTitle: '',
-    myStance: '',
-    mode: ''
+export interface MatchUser {
+  userId: string
+  stance: string
+  accept: boolean | null
+  timestamp: number
+}
+
+export interface ModalState {
+  isStartModalOpen: boolean
+  isTimeoutModalOpen: boolean
+  isTopicChangeModalOpen: boolean
+  isHourWarningModalOpen: boolean
+  isMatchCompleteModalOpen: boolean
+}
+
+export function useMatchingModals() {
+  // 모달 상태 관리
+  const modalState = ref<ModalState>({
+    isStartModalOpen: false,
+    isTimeoutModalOpen: false,
+    isTopicChangeModalOpen: false,
+    isHourWarningModalOpen: false,
+    isMatchCompleteModalOpen: false
   })
-  
-  const roomInfo = ref<{
-    roomId: string
-    connectedUsers: number
-    totalUsers: number
-  }>({
-    roomId: '',
-    connectedUsers: 0,
-    totalUsers: 2
+
+  // 매칭 모달 데이터
+  const matchModalData = ref<MatchModalData>({
+    topicTitle: '',
+    stanceText: '',
+    mode: '',
+    topicId: 1
+  })
+
+  // 매칭 사용자들
+  const matchUsers = ref<Map<string, MatchUser>>(new Map())
+
+  // 연결된 사용자 수
+  const connectedCount = computed(() => {
+    return Array.from(matchUsers.value.values()).filter(user => user.accept === true).length
+  })
+
+  // 전체 사용자 수
+  const totalCount = computed(() => {
+    return matchUsers.value.size
   })
 
   // 모달 표시 함수들
   const showStartModal = () => {
-    console.log('🔍 showStartModal 호출됨')
-    isStartModalOpen.value = true
-    console.log('✅ start 모달 상태:', isStartModalOpen.value)
+    modalState.value.isStartModalOpen = true
   }
 
-  const showMatchCompleteModal = (topicTitle: string, myStance: string, mode: string) => {
-    console.log('🔍 showMatchCompleteModal 호출됨:', { topicTitle, myStance, mode })
-    console.log('🔍 호출 전 모달 상태:', isMatchCompleteModalOpen.value)
-    matchInfo.value = { topicTitle, myStance, mode }
-    isMatchCompleteModalOpen.value = true
-    console.log('🔍 호출 후 모달 상태:', isMatchCompleteModalOpen.value)
-    console.log('✅ matchComplete 모달 상태:', isMatchCompleteModalOpen.value)
-    console.log('✅ matchInfo 설정됨:', matchInfo.value)
-  }
-
-  const showConnectingModal = () => {
-    console.log('🔍 showConnectingModal 호출됨')
-    roomInfo.value = {
-      roomId: `debate_room_${Date.now()}`,
-      connectedUsers: 0,
-      totalUsers: 2
-    }
-    isConnectingModalOpen.value = true
-    console.log('✅ connecting 모달 상태:', isConnectingModalOpen.value)
+  const hideStartModal = () => {
+    modalState.value.isStartModalOpen = false
   }
 
   const showTimeoutModal = () => {
-    console.log('🔍 showTimeoutModal 호출됨')
-    isTimeoutModalOpen.value = true
-    console.log('✅ timeout 모달 상태:', isTimeoutModalOpen.value)
-  }
-
-  const showHourWarningModal = () => {
-    console.log('🔍 showHourWarningModal 호출됨')
-    isHourWarningModalOpen.value = true
-    console.log('✅ hourWarning 모달 상태:', isHourWarningModalOpen.value)
-  }
-
-  const showTopicChangeModal = () => {
-    console.log('🔍 showTopicChangeModal 호출됨')
-    isTopicChangeModalOpen.value = true
-    console.log('✅ topicChange 모달 상태:', isTopicChangeModalOpen.value)
-  }
-
-  // 모달 숨김 함수들
-  const hideStartModal = () => {
-    console.log('🔍 hideStartModal 호출됨')
-    isStartModalOpen.value = false
-  }
-
-  const hideMatchCompleteModal = () => {
-    console.log('🔍 hideMatchCompleteModal 호출됨')
-    isMatchCompleteModalOpen.value = false
-    if (matchingStore.isMatching) {
-      matchingStore.cancelMatching()
-    }
-  }
-
-  const hideConnectingModal = () => {
-    console.log('🔍 hideConnectingModal 호출됨')
-    isConnectingModalOpen.value = false
-    if (matchingStore.isMatching) {
-      matchingStore.cancelMatching()
-    }
+    modalState.value.isTimeoutModalOpen = true
   }
 
   const hideTimeoutModal = () => {
-    console.log('🔍 hideTimeoutModal 호출됨')
-    isTimeoutModalOpen.value = false
+    modalState.value.isTimeoutModalOpen = false
   }
 
-  const hideHourWarningModal = () => {
-    console.log('🔍 hideHourWarningModal 호출됨')
-    isHourWarningModalOpen.value = false
+  const showTopicChangeModal = () => {
+    modalState.value.isTopicChangeModalOpen = true
   }
 
   const hideTopicChangeModal = () => {
-    console.log('🔍 hideTopicChangeModal 호출됨')
-    isTopicChangeModalOpen.value = false
+    modalState.value.isTopicChangeModalOpen = false
   }
 
-  const hideAllModals = () => {
-    console.log('🔍 hideAllModals 호출됨')
-    isStartModalOpen.value = false
-    isMatchCompleteModalOpen.value = false
-    isConnectingModalOpen.value = false
-    isTimeoutModalOpen.value = false
-    isHourWarningModalOpen.value = false
-    isTopicChangeModalOpen.value = false
-    if (matchingStore.isMatching) {
-      matchingStore.cancelMatching()
+  const showHourWarningModal = () => {
+    modalState.value.isHourWarningModalOpen = true
+  }
+
+  const hideHourWarningModal = () => {
+    modalState.value.isHourWarningModalOpen = false
+  }
+
+  const showMatchCompleteModal = (data: MatchModalData, users: MatchUser[]) => {
+    matchModalData.value = data
+    matchUsers.value.clear()
+    users.forEach(user => {
+      matchUsers.value.set(user.userId, user)
+    })
+    modalState.value.isMatchCompleteModalOpen = true
+  }
+
+  const hideMatchCompleteModal = () => {
+    modalState.value.isMatchCompleteModalOpen = false
+    matchUsers.value.clear()
+  }
+
+  // 사용자 상태 업데이트
+  const updateUser = (userId: string, updates: Partial<MatchUser>) => {
+    const user = matchUsers.value.get(userId)
+    if (user) {
+      Object.assign(user, updates)
+      matchUsers.value.set(userId, user)
     }
   }
 
-  // 모달 열림 상태 확인
-  const isAnyModalOpen = computed(() => {
-    return isStartModalOpen.value || 
-           isMatchCompleteModalOpen.value || 
-           isConnectingModalOpen.value || 
-           isTimeoutModalOpen.value ||
-           isHourWarningModalOpen.value ||
-           isTopicChangeModalOpen.value
-  })
+  // 모든 모달 닫기
+  const hideAllModals = () => {
+    Object.keys(modalState.value).forEach(key => {
+      (modalState.value as any)[key] = false
+    })
+    matchUsers.value.clear()
+  }
 
   return {
-    // 모달 상태
-    isStartModalOpen,
-    isMatchCompleteModalOpen,
-    isConnectingModalOpen,
-    isTimeoutModalOpen,
-    isHourWarningModalOpen,
-    isTopicChangeModalOpen,
-    
-    // 모달 데이터
-    matchInfo,
-    roomInfo,
-    
-    // 모달 표시 함수
-    showStartModal,
-    showMatchCompleteModal,
-    showConnectingModal,
-    showTimeoutModal,
-    showHourWarningModal,
-    showTopicChangeModal,
-    
-    // 모달 숨김 함수
-    hideStartModal,
-    hideMatchCompleteModal,
-    hideConnectingModal,
-    hideTimeoutModal,
-    hideHourWarningModal,
-    hideTopicChangeModal,
-    hideAllModals,
-    
-    // 유틸리티
-    isAnyModalOpen
-  }
-}
+    // 상태
+    modalState: readonly(modalState),
+    matchModalData: readonly(matchModalData),
+    matchUsers: readonly(matchUsers),
+    connectedCount,
+    totalCount,
 
-/**
- * 매칭 모달 관리 Composable
- * - 모든 모달의 상태 관리
- * - 모달 표시/숨김 함수 제공
- */
-export function useMatchingModals() {
-  if (!modalInstance) {
-    modalInstance = createModalInstance()
+    // 모달 제어 함수들
+    showStartModal,
+    hideStartModal,
+    showTimeoutModal,
+    hideTimeoutModal,
+    showTopicChangeModal,
+    hideTopicChangeModal,
+    showHourWarningModal,
+    hideHourWarningModal,
+    showMatchCompleteModal,
+    hideMatchCompleteModal,
+    updateUser,
+    hideAllModals
   }
-  return modalInstance
 } 

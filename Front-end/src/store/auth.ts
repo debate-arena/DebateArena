@@ -117,6 +117,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // 임시 로그인 (테스트용)
+  const setTempLogin = () => {
+    console.log('🔍 임시 로그인 상태 설정')
+    user.value = {
+      id: 'temp-user',
+      email: 'test@example.com',
+      nickname: '테스트유저'
+    }
+    isAuthenticated.value = true
+    console.log('✅ 임시 로그인 완료:', user.value)
+  }
+
   return {
     // 상태
     user,
@@ -139,5 +151,6 @@ export const useAuthStore = defineStore('auth', () => {
     checkNickname,
     saveNickname,
     logout,
+    setTempLogin
   }
 }) 

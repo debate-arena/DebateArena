@@ -15,7 +15,7 @@
             placeholder="토론방 이름을 입력하세요"
             class="w-full"
           />
-        </div>
+    </div>
         
         <div class="flex gap-4">
           <Dialog v-model:open="isDialogOpen">
@@ -34,17 +34,17 @@
               <div class="flex gap-3 justify-end">
                 <Button variant="outline" @click="isDialogOpen = false">취소</Button>
                 <Button @click="isDialogOpen = false">생성</Button>
-              </div>
+    </div>
             </DialogContent>
           </Dialog>
           <Button variant="secondary" class="flex-1 text-sm sm:text-base">참여하기</Button>
-        </div>
+    </div>
         
         <div class="flex gap-2 justify-center">
           <Badge variant="outline">실시간 음성</Badge>
           <Badge variant="outline">다양한 주제</Badge>
           <Badge variant="outline">자유로운 토론</Badge>
-        </div>
+    </div>
       </CardContent>
     </Card>
   </div>
