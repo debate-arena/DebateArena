@@ -20,8 +20,8 @@ public class DebateParticipantRequest {
   @Schema(description = "토론 주제 ID", example = "1")
   private Long topicId;
   
-  @Schema(description = "매칭 타입", example = "TWO_ON_TWO")
-  private MatchType matchType;
+  @Schema(description = "매칭 타입", example = "0,1")
+  private Integer matchType;
   
   @Schema(description = "첫 번째 진영 토론자 목록", example = "[\"user1\", \"user2\"]")
   private List<String> firstTeam; //첫번째 진영 토론자
