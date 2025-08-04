@@ -1,7 +1,7 @@
 package com.ssafya408.debate.domain.api;
 
-import com.ssafya408.debate.domain.api.dto.DebateParticipantRequest;
-import com.ssafya408.debate.domain.api.dto.DebateRoomResponse;
+import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
+import com.ssafya408.debate.domain.api.dto.room.DebateRoomResponse;
 import com.ssafya408.debate.domain.api.service.DebateService;
 import com.ssafya408.debate.domain.common.dto.ApiResponse;
 import com.ssafya408.debate.domain.db.Topic;

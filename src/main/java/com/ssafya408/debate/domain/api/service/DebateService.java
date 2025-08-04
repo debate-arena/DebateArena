@@ -1,6 +1,11 @@
 package com.ssafya408.debate.domain.api.service;
 
-import com.ssafya408.debate.domain.api.dto.DebateParticipantRequest;
+import com.ssafya408.debate.domain.api.dto.stt.BattleSTTRequest;
+import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
+import com.ssafya408.debate.domain.api.dto.stt.STTMessage;
+import com.ssafya408.debate.domain.api.dto.stt.OpinionSTTRequest;
+import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
+import com.ssafya408.debate.domain.api.dto.stt.ai.BroadcastResponse;
 import com.ssafya408.debate.domain.db.DebateRoom;
 import com.ssafya408.debate.domain.db.DebateRoomRepository;
 import com.ssafya408.debate.domain.db.Topic;
@@ -20,8 +25,12 @@ import org.springframework.stereotype.Service;
 public class DebateService {
   private final DebateRoomRepository debateRoomRepository;
   private final TopicRepository topicRepository;
-  private Map<Long, RoomManager> roomInfos = new ConcurrentHashMap<>();
+  private Map<Long, RoomManager> roomInfos;
   private final SimpMessagingTemplate template;
+
+  private Integer OPINION=0;
+  private Integer BATTLE=1;
+
 
   @PostConstruct
   public void init() {
@@ -29,6 +38,8 @@ public class DebateService {
     if (topicRepository.count() == 0) {
       createTestTopics();
     }
+
+    roomInfos = new ConcurrentHashMap<>();
   }
 
   private void createTestTopics() {
@@ -54,27 +65,64 @@ public class DebateService {
 
     log.info("테스트용 Topic 데이터 생성 완료. 총 {}개 생성됨", topicRepository.count());
   }
+  public void broadcastSTTMessage(String user, STTRequest req) {
+    String text=req.getText();
+    Long roomId = req.getRoomId();
+    RoomManager roomManager = roomInfos.get(roomId);
 
-//  public void processSTTMessage(String user, STTRequest request) {
-//    Long roomId = request.getRoomId();
-//    String content = request.getContent();
-//    Integer order = request.getOrder();
+    log.info("STT 메시지 브로드캐스트 시작 - 사용자: {}, 방ID: {}, 텍스트: {}", user, roomId, text);
+    
+    if (roomManager == null) {
+      log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
+      return;
+    }
+
+    //모든 사용자들에게 STT 내용을 broadcast 한다
+    roomManager.broadcastSTTMessage(template, BroadcastResponse.builder().user(user).text(req.getText()).build());
+    log.info("STT 메시지 브로드캐스트 완료 - 방ID: {}", roomId);
+  }
+
+
+  // AI 서버에 STT 모음 텍스트 전송
+  public void sendTotalTextToAIServer() {
+
+  }
+
+  // 카프카에 텍스트 저장
+  public void saveTextToKafka() {
+  }
+
+  public void processOpinionSTTMessage(String user, OpinionSTTRequest req) {
+    String text=req.getText();
+    Long roomId = req.getRoomId();
+    RoomManager roomManager = roomInfos.get(roomId);
+
+    log.info("의견 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}, 순서: {}", user, roomId, req.getOrder());
+
+    if (roomManager == null) {
+      log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
+      return;
+    }
+
+    Integer order = req.getOrder();
+
+    STTMessage texts = roomManager.getOpinions().getOrDefault(user,
+        STTMessage.initializeSTTMessage(user));
+    texts.addText(text);
+
+    log.info("의견 STT 메시지 저장 완료 - 사용자: {}, 현재 누적 텍스트 길이: {}", user, texts.getJoinedText().length());
+
+//    //만약 가장 마지막 텍스트라면 text를 종합하여 AI 쪽에 전송한다
+//    if (order.equals(0)) {
 //
-//    RoomManager roomManager = roomInfos.get(roomId);
-//    roomManager.saveAtBuffer(user, content, order);
-//
-//    //모든 사용자들에게 STT 내용을 broadcast 한다
-//    roomManager.broadcastSTTMessage(template,content);
-//
-//    if (order.equals(0)) { //마지막 문자열이 들어온다면
-//      String totalText=roomManager.getTotalSTT(user);
-//
-//      // AI 서버에 STT 모음 텍스트 전송
-//      //sendTotalTextToAIServer(totalText);
-//
-//      // 카프카에 텍스트 저장
 //    }
-//  }
+  }
+
+  public void processBattleSTTMessage(String user, BattleSTTRequest request) {
+    log.info("배틀 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}", user, request.getRoomId());
+    // TODO: 배틀 STT 메시지 처리 로직 구현 필요
+    log.info("배틀 STT 메시지 처리 완료 - 사용자: {}", user);
+  }
 
   public Long generateDebateRoom(DebateParticipantRequest req) {
     try {
@@ -105,6 +153,8 @@ public class DebateService {
   public List<Topic> getAvailableTopics() {
     return topicRepository.findAll();
   }
+
+
 
 //  public void generateDebateRoom(List<String> debaters) {
 //  }

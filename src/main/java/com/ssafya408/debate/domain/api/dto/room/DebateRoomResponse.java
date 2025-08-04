@@ -1,4 +1,4 @@
-package com.ssafya408.debate.domain.api.dto;
+package com.ssafya408.debate.domain.api.dto.room;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

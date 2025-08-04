@@ -1,16 +1,16 @@
 package com.ssafya408.debate.domain.api.service;
 
+import com.ssafya408.debate.domain.api.dto.stt.STTMessage;
+import com.ssafya408.debate.domain.api.dto.stt.ai.BroadcastResponse;
+import com.ssafya408.debate.domain.common.dto.ApiResponse;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
-import java.util.concurrent.ConcurrentHashMap;
-import lombok.RequiredArgsConstructor;
+import java.util.TreeMap;
+import lombok.Getter;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Component;
 
-
+@Getter
 public class RoomManager {
 
   private Long roomId;
@@ -18,22 +18,23 @@ public class RoomManager {
   private int playerCount;
   private List<String> firstTeam;
   private List<String> secondTeam;
-  private Map<String, List<String>> opinions; //각 사용자의 stt 텍스트가 저장됨
+  private TreeMap<String, STTMessage> opinions; //각 사용자의 stt 텍스트가 저장됨
 
   // 공방전 데이터 어떻게?
-  private List<Map<String, List<String>>> sieges;
+  private List<Map<String, STTMessage>> battles; //공방전 의견 {질문, 답변} 형식
 
-  private RoomManager(Long roomId, Long topicId, List<String> firstTeam,List<String> secondTeam) {
+  private RoomManager(Long roomId, Long topicId,
+      List<String> firstTeam,List<String> secondTeam) {
     this.roomId=roomId;
     this.topicId=topicId;
     this.firstTeam = firstTeam;
     this.secondTeam = secondTeam;
     playerCount = firstTeam.size() + secondTeam.size();
     
-    opinions = new ConcurrentHashMap<>();
-    sieges = new ArrayList<>(playerCount);
+    opinions = new TreeMap<>();
+    battles = new ArrayList<>(playerCount);
     for (int i = 0; i < playerCount; i++) {
-      sieges = new ArrayList<>();
+      battles = new ArrayList<>();
     }
   }
 
@@ -48,11 +49,14 @@ public class RoomManager {
   public void saveAtBuffer(String user, String content, Integer order) {
   }
 
-  public void broadcastSTTMessage(SimpMessagingTemplate template, String content) {
+  public void broadcastSTTMessage(SimpMessagingTemplate template, BroadcastResponse stt) {
+
+    ApiResponse<BroadcastResponse> res = ApiResponse.success(stt);
     for (String user : firstTeam) {
-      template.convertAndSendToUser(user,"/user/queue/stt", content);
-    }for (String user : secondTeam) {
-      template.convertAndSendToUser(user,"/user/queue/stt", content);
+      template.convertAndSendToUser(user,"/queue/stt/broadcast", res);
+    }
+    for (String user : secondTeam) {
+      template.convertAndSendToUser(user,"/queue/stt/broadcast", res);
     }
   }
 

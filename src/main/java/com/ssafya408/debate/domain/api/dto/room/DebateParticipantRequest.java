@@ -1,4 +1,4 @@
-package com.ssafya408.debate.domain.api.dto;
+package com.ssafya408.debate.domain.api.dto.room;
 
 import com.ssafya408.debate.domain.db.MatchType;
 import io.swagger.v3.oas.annotations.media.Schema;
