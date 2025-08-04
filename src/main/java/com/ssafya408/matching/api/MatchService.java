@@ -164,6 +164,9 @@ public class MatchService {
     // 참가자들에게 보낸 참가 확인에 대한 답을 matchId에 기록
     // 30초 후에 기록한 내용을 바탕으로 방 생성 or 매칭 취소 결정
     public void receiveMatchAccept(MatchAcceptRequest message, String user) {
+        if(alreadyMatched.contains(user))
+            return;
+
         String matchId = message.getMatchId();
         Boolean answer = message.getAccept();
         log.info("[수락 응답] 사용자: {} | 매칭ID: {} | 응답: {}", user, matchId, answer);
