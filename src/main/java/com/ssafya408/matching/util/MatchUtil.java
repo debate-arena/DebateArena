@@ -133,14 +133,16 @@ public class MatchUtil {
             for (int topicIdx = 0; topicIdx < TOPIC; topicIdx++) { // 주제
                 List<ConcurrentNavigableMap<Long, String>> topicList = typeList.get(topicIdx);
 
+                int anyQueueIdx = CHOICE - 1; // 상관없음을 제외한 큐에서 유저를 poll
                 int cnt = 0;
-                for (int choice = 0; choice < CHOICE; choice++) {
+                for (int choice = 0; choice < anyQueueIdx; choice++) {
                     ConcurrentNavigableMap<Long, String> queue = topicList.get(choice);
                     cnt += Math.min(queue.size(), player);
                 }
+                cnt+=topicList.get(anyQueueIdx).size();
+                log.info("[큐 후보군 수]> cnt:{}, total:{}",cnt,total);
 
-                if (cnt >= total) { // remain 이 0이하면 큐를 잡을 수 있는 상태
-                    int anyQueueIdx = CHOICE - 1; // 상관없음을 제외한 큐에서 유저를 poll
+                if (cnt >= total) {
                     for (int choice = 0; choice < anyQueueIdx; choice++) {
                         List<WaitingUser> users = new ArrayList<>();
                         ConcurrentNavigableMap<Long, String> queue = topicList.get(choice);
