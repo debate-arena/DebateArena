@@ -75,9 +75,11 @@
                   :key="`waiting-option1-${i}`"
                   class="flex flex-col items-center gap-3"
                 >
-                  <div class="w-12 h-12 rounded-full border-2 border-dashed border-debate-random flex items-center justify-center">
-                    <UserIcon class="w-6 h-6 text-debate-random" />
-                  </div>
+                  <img 
+                    :src="waitingIcon" 
+                    class="w-12 h-12 rounded-full"
+                    alt="대기 중"
+                  />
                   <span class="text-base text-slate-700">대기 중</span>
                 </div>
               </div>
@@ -114,9 +116,11 @@
                   :key="`waiting-option2-${i}`"
                   class="flex flex-col items-center gap-3"
                 >
-                  <div class="w-12 h-12 rounded-full border-2 border-dashed border-debate-random flex items-center justify-center">
-                    <UserIcon class="w-6 h-6 text-debate-random" />
-                  </div>
+                  <img 
+                    :src="waitingIcon" 
+                    class="w-12 h-12 rounded-full"
+                    alt="대기 중"
+                  />
                   <span class="text-base text-white">대기 중</span>
                 </div>
               </div>
@@ -142,11 +146,18 @@
           <span class="text-sm font-medium">수락 시간</span>
           <span class="text-sm text-muted-foreground">{{ timeLeft }}초 남음</span>
         </div>
-        <div class="w-full bg-gray-200 rounded-full h-2">
+        <div class="relative w-full bg-gray-200 rounded-full h-2">
           <div 
-            class="bg-blue-600 h-2 rounded-full transition-all duration-1000"
+            class="bg-blue-600 h-2 rounded-full transition-all duration-1000 relative"
             :style="{ width: `${((30 - timeLeft) / 30) * 100}%` }"
-          ></div>
+          >
+            <!-- 움직이는 run 아이콘 -->
+            <img 
+              :src="runIcon" 
+              class="absolute -right-4 -top-3 w-8 h-8 animate-pulse"
+              alt="진행 중"
+            />
+          </div>
         </div>
       </div>
       
@@ -199,6 +210,8 @@ import { useMatchingModals } from '@/composables/useMatchingModals'
 import debateLeftIcon from '@/assets/images/profile/debate_left.png'
 import debateRightIcon from '@/assets/images/profile/debate_right.png'
 import debateRandomIcon from '@/assets/images/profile/debate_random.png'
+import waitingIcon from '@/assets/images/profile/waiting.png'
+import runIcon from '@/assets/images/profile/run.png'
 
 interface Props {
   isOpen: boolean
