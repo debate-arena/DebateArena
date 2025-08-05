@@ -90,10 +90,9 @@ export function useMatchingTimer() {
         
 
         
-        // 타이머 만료 시 모달 닫기
+        // 타이머 만료 시에도 모달을 닫지 않음 (사용자가 선택한 후에는 계속 열어둠)
         if (afterTime === 0) {
-          console.log('⏰ 수락 타이머 만료 - 모달 닫기')
-          modals.hideMatchCompleteModal()
+          console.log('⏰ 수락 타이머 만료 - 모달 유지')
           stopAcceptTimer()
         }
       }

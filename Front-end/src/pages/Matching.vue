@@ -18,7 +18,7 @@
         <!-- 좌측: 매칭 선택 영역 -->
         <div class="flex-1 space-y-6">
           <!-- 주제 변경까지 남은 시간 -->
-          <Card class="p-4">
+          <Card class="p-4 h-24 flex items-center justify-center">
             <div class="text-center">
               <p class="text-sm text-muted-foreground">주제 변경까지 남은 시간</p>
               <p class="text-2xl font-mono text-foreground">{{ formatTime(remainingTime) }}</p>
@@ -41,7 +41,7 @@
         <!-- 우측: 매칭 시작(요약/타이머) 영역 -->
         <div class="w-80 space-y-6">
           <!-- 매칭 시작 버튼 -->
-          <Card class="p-4">
+          <Card class="p-4 h-24 flex items-center justify-center">
             <div class="relative">
               <Button 
                 @click="handleStartMatching"
@@ -525,6 +525,7 @@ const handleWebSocketMessage = (data: any) => {
       const accept = data.data.data.accept
       const choice = data.data.data.choice      // 0: 찬성, 1: 반대, 2: 상관없음
       
+      // 백엔드에서 받은 choice 값을 사용 (실제 선택한 진영)
       // 백엔드에서 받은 전체 수락 순서를 사용 (모든 사용자가 동일한 순서)
       const totalAcceptCount = data.data.data.totalAcceptCount || (matchingStore.roomInfo.connectedUsers + 1)
       const position = (totalAcceptCount - 1) % 2  // 0: 첫 번째 (option1), 1: 두 번째 (option2)
@@ -538,12 +539,15 @@ const handleWebSocketMessage = (data: any) => {
         stance
       })
       
-      // 수락한 경우에만 카운트 증가 및 stance 업데이트 (내 수락도 포함)
+      // 수락/거절 모두 카운트 증가 및 stance 업데이트
+      const beforeConnected = matchingStore.roomInfo.connectedUsers
+      matchingStore.updateRoomInfo({ connectedUsers: matchingStore.roomInfo.connectedUsers + 1 })
+      const afterConnected = matchingStore.roomInfo.connectedUsers
+      console.log('🔍 연결된 사용자 수 업데이트:', { before: beforeConnected, after: afterConnected })
+      
       if (accept) {
-        const beforeConnected = matchingStore.roomInfo.connectedUsers
-        matchingStore.updateRoomInfo({ connectedUsers: matchingStore.roomInfo.connectedUsers + 1 })
-        const afterConnected = matchingStore.roomInfo.connectedUsers
-        console.log('🔍 연결된 사용자 수 업데이트:', { before: beforeConnected, after: afterConnected })
+        // 수락 처리
+        console.log('✅ 다른 사람이 수락함')
         
         // 마지막 수락한 진영 정보 업데이트 (계산된 stance 사용)
         lastAcceptedStance.value = stance
@@ -569,29 +573,21 @@ const handleWebSocketMessage = (data: any) => {
         // 거절 처리
         console.log('❌ 다른 사람이 거절함')
         
-        // 모달 닫기
-        modals.hideMatchCompleteModal()
-        console.log('✅ 모달 닫기됨')
+        // 모달의 진영별 거절 현황 업데이트 (계산된 stance 사용)
+        modals.updateStanceAcceptance(stance, accept)
+        console.log('🔍 모달 진영별 거절 현황 업데이트 완료')
         
-        // 수락 타이머 정지
-        matchingStore.stopAcceptTimer()
-        stopAcceptTimer()
-        console.log('✅ 수락 타이머 정지됨')
-        
-        // 거절 알림을 받은 사람은 매칭 상태 유지 (다시 매칭 대기)
-        matchingStore.isMatching = true
-        matchingStore.status = 'waiting'
-        console.log('🔍 거절 알림 받은 사람 - 매칭 상태 유지 (waiting)')
-        
-        // 알림 표시 후 자동으로 닫기 (handleError 대신 직접 설정)
-        matchingStore.setError('다른 사람이 매칭을 거절했습니다. 다시 매칭을 시작합니다.')
-        console.log('✅ 거절 알림 표시됨')
-        
-        // 3초 후 알림 자동 닫기
-        setTimeout(() => {
-          matchingStore.clearError()
-          console.log('✅ 거절 알림 자동 닫기됨')
-        }, 3000)
+        // 디버깅: 전체 데이터 구조 확인
+        console.log('🔍 ACCEPTANCE_STATUS 거절 데이터:', {
+          accept,
+          choice,
+          totalAcceptCount,
+          position,
+          stance,
+          connectedUsers: matchingStore.roomInfo.connectedUsers,
+          lastAcceptedStance: lastAcceptedStance.value,
+          stanceAcceptance: modals.stanceAcceptance.value
+        })
       }
       
       console.log(`✅ ${stance} 진영 ${accept ? '수락' : '거절'} - ${matchingStore.roomInfo.connectedUsers}/${matchingStore.roomInfo.totalUsers}`)
@@ -692,16 +688,14 @@ const handleModalAccept = () => {
       console.log(`📤 수락 메시지 전송됨 (stance: ${actualStance}, number: ${stanceNumber})`)
     }
     
-    // 핵심 데이터만 확인
-    console.log('🔍 수락 관련 핵심 데이터:', {
-      매칭ID: matchingStore.currentMatchId,
-      연결된사용자수: matchingStore.roomInfo.connectedUsers,
-      전체사용자수: matchingStore.roomInfo.totalUsers,
-      position: matchingStore.roomInfo.connectedUsers % 2
-    })
+    // 타이머 정지
+    matchingStore.stopAcceptTimer()
+    stopAcceptTimer()
+    console.log('✅ 타이머 정지됨')
     
-    // connectedUsers는 서버 응답에서만 업데이트 (로컬 증가 제거)
-    console.log('🔍 수락 메시지 전송 완료 - 서버 응답 대기 중...')
+    // 프로그레스 바를 100%로 설정
+    matchingStore.acceptTimeLeft = 0
+    console.log('✅ 프로그레스 바 100% 설정됨')
     
     console.log('✅ 매칭 수락 처리 완료 - 다른 사람 응답 대기 중...')
   } catch (error) {
@@ -711,11 +705,6 @@ const handleModalAccept = () => {
 
 const handleModalReject = () => {
   console.log('❌ 매칭 거절 버튼 클릭됨')
-  console.log('🔍 현재 matchingStore 상태:', {
-    isConnecting: matchingStore.status === 'connecting',
-    currentMatchId: matchingStore.currentMatchId,
-    acceptTimeLeft: matchingStore.acceptTimeLeft
-  })
   
   try {
     // 서버에 거절 메시지 전송
@@ -730,38 +719,14 @@ const handleModalReject = () => {
       console.warn('⚠️ matchId가 없음')
     }
     
-    // 모달 닫기
-    modals.hideMatchCompleteModal()
-    console.log('✅ 모달 닫기됨')
-    
-    // 타이머 정지 (store와 composable 모두)
+    // 타이머 정지
     matchingStore.stopAcceptTimer()
-    stopAcceptTimer() // 타이머 composable에서도 정지
+    stopAcceptTimer()
     console.log('✅ 타이머 정지됨')
     
-    // WebSocket 메시지 핸들러 제거 (중요!)
-    webSocket.removeMessageHandler()
-    console.log('🔌 WebSocket 메시지 핸들러 제거됨')
-    
-    // WebSocket 연결 해제
-    webSocket.disconnect()
-    console.log('🔌 WebSocket 연결 해제됨')
-    
-    // 거절한 사람은 매칭 완전 취소
-    matchingStore.reset()
-    console.log('🔍 거절한 사람 - 매칭 완전 취소됨')
-    
-    // 상태 강제 설정 (reset이 제대로 작동하지 않을 경우 대비)
-    matchingStore.isMatching = false
-    matchingStore.status = 'idle'
-    console.log('🔍 상태 강제 설정 완료')
-    
-    // 상태 확인
-    console.log('🔍 거절 후 상태 확인:', {
-      isMatching: matchingStore.isMatching,
-      status: matchingStore.status,
-      elapsedTime: matchingStore.elapsedTime
-    })
+    // 프로그레스 바를 100%로 설정
+    matchingStore.acceptTimeLeft = 0
+    console.log('✅ 프로그레스 바 100% 설정됨')
     
     console.log('❌ 매칭 거절 처리 완료')
   } catch (error) {

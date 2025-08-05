@@ -8,10 +8,16 @@ export interface MatchModalData {
   topicId: number
 }
 
-// 진영별 수락 현황 (단순화)
+// 진영별 수락/거절 현황
 export interface StanceAcceptance {
-  option1: number  // 찬성 진영 수락 수
-  option2: number  // 반대 진영 수락 수
+  option1: {
+    accept: number  // 찬성 진영 수락 수
+    reject: number  // 찬성 진영 거절 수
+  }
+  option2: {
+    accept: number  // 반대 진영 수락 수
+    reject: number  // 반대 진영 거절 수
+  }
 }
 
 export interface ModalState {
@@ -45,10 +51,16 @@ function createMatchingModals() {
     topicId: 1
   })
 
-  // 진영별 수락 현황 (단순화)
+  // 진영별 수락/거절 현황
   const stanceAcceptance = ref<StanceAcceptance>({
-    option1: 0,
-    option2: 0
+    option1: {
+      accept: 0,
+      reject: 0
+    },
+    option2: {
+      accept: 0,
+      reject: 0
+    }
   })
 
   // 전체 사용자 수 (모드에 따라)
@@ -111,12 +123,18 @@ function createMatchingModals() {
     }
     console.log('🔍 모달 데이터 설정됨:', matchModalData.value)
     
-    // 진영별 수락 현황 초기화
+    // 진영별 수락/거절 현황 초기화
     stanceAcceptance.value = {
-      option1: 0,
-      option2: 0
+      option1: {
+        accept: 0,
+        reject: 0
+      },
+      option2: {
+        accept: 0,
+        reject: 0
+      }
     }
-    console.log('🔍 진영별 수락 현황 초기화됨:', stanceAcceptance.value)
+    console.log('🔍 진영별 수락/거절 현황 초기화됨:', stanceAcceptance.value)
     
     // 모달 상태를 명시적으로 설정
     modalState.value = {
@@ -131,15 +149,20 @@ function createMatchingModals() {
     console.log('🔍 매칭 완료 모달 숨김')
   }
 
-  // 진영별 수락 현황 업데이트
+  // 진영별 수락/거절 현황 업데이트
   const updateStanceAcceptance = (stance: string, accept: boolean) => {
     console.log('🔍 updateStanceAcceptance 호출:', { 진영: stance, 수락: accept })
     
-    if (accept && (stance === 'option1' || stance === 'option2')) {
-      stanceAcceptance.value[stance as 'option1' | 'option2']++
-      console.log('✅ 진영별 수락 현황 업데이트 성공:', stanceAcceptance.value)
+    if (stance === 'option1' || stance === 'option2') {
+      if (accept) {
+        stanceAcceptance.value[stance as 'option1' | 'option2'].accept++
+        console.log('✅ 진영별 수락 현황 업데이트 성공:', stanceAcceptance.value)
+      } else {
+        stanceAcceptance.value[stance as 'option1' | 'option2'].reject++
+        console.log('✅ 진영별 거절 현황 업데이트 성공:', stanceAcceptance.value)
+      }
     } else {
-      console.warn('⚠️ 유효하지 않은 진영 또는 수락 상태:', { stance, accept })
+      console.warn('⚠️ 유효하지 않은 진영:', { stance, accept })
     }
   }
 
@@ -153,12 +176,18 @@ function createMatchingModals() {
       isMatchCompleteModalOpen: false,
       isLoginRequiredModalOpen: false
     }
-    // 진영별 수락 현황 초기화
+    // 진영별 수락/거절 현황 초기화
     stanceAcceptance.value = {
-      option1: 0,
-      option2: 0
+      option1: {
+        accept: 0,
+        reject: 0
+      },
+      option2: {
+        accept: 0,
+        reject: 0
+      }
     }
-    console.log('🔍 hideAllModals - 진영별 수락 현황 초기화됨')
+    console.log('🔍 hideAllModals - 진영별 수락/거절 현황 초기화됨')
   }
 
   return {
