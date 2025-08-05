@@ -3,9 +3,10 @@ package com.ssafya408.matching.util;
 import com.ssafya408.matching.api.dto.AcceptanceStatusDto;
 import com.ssafya408.matching.api.dto.ApiResponse;
 import com.ssafya408.matching.api.dto.ChoiceDto;
+import com.ssafya408.matching.api.dto.DebateRoomResponse;
 import com.ssafya408.matching.api.dto.MatchAcceptRequest;
 import com.ssafya408.matching.api.dto.MatchApplyRequest;
-import com.ssafya408.matching.api.dto.MatchEstablishResponse;
+import com.ssafya408.matching.api.dto.MatchInvitationResponse;
 import com.ssafya408.matching.api.dto.WaitingUser;
 import com.ssafya408.matching.common.dto.DebateParticipantRequest;
 import com.ssafya408.matching.common.topic.service.MatchInfo;
@@ -108,14 +109,17 @@ public class MatchUtil {
                 for (WaitingUser candidate : debateTeam) {
                     // 큐에서 참가자들의 매칭 요청을 poll 해서 매칭 시작 전까지 matchCandidates 에 저장해놓는다
                     // 만약 매칭이 취소되면 matchCandidates 에 있는 정보를 불러와서 다시 큐에 넣어준다
+                    log.info("[키 값] >>> {}", candidate.getTimestamp());
+
                     MatchApplyRequest matchApplyRequest = this.popUserWaitingInfosAtQueue(candidate.getTimestamp());
+                    log.info("[큐에서 꺼낸 선택 정보] >>> {}", matchApplyRequest.toString());
                     userMatchInfo.put(candidate, matchApplyRequest);
                 }
             }
             matchInfo.saveCandidateInfo(userMatchInfo);
             matchInfos.put(matchInfo.getMatchId(),matchInfo);
 
-            this.startMatching(matchInfo);
+            this.sendMatchInvitation(matchInfo);
         } else {
             log.info("[큐 처리 완료] 매칭 후보 없음 | 사용자: {}", waitingUser.getUser());
         }
@@ -137,6 +141,7 @@ public class MatchUtil {
                 int cnt = 0;
                 for (int choice = 0; choice < anyQueueIdx; choice++) {
                     ConcurrentNavigableMap<Long, String> queue = topicList.get(choice);
+
                     cnt += Math.min(queue.size(), player);
                 }
                 cnt+=topicList.get(anyQueueIdx).size();
@@ -147,18 +152,23 @@ public class MatchUtil {
                         List<WaitingUser> users = new ArrayList<>();
                         ConcurrentNavigableMap<Long, String> queue = topicList.get(choice);
                         int userCnt = 0;
+                        for (Map.Entry<Long, String> e : queue.entrySet()) {
+                            log.info("[참여자]> key:{}, name:{}",e.getKey(),e.getValue());
 
-                        while (userCnt < player && !queue.isEmpty()) {
-                            Map.Entry<Long, String> e = queue.pollFirstEntry();
+                            if(userCnt>=player)
+                                break;
                             users.add(WaitingUser.builder()
                                 .timestamp(e.getKey())
                                 .user(e.getValue())
                                 .build());
                             userCnt++;
                         }
+
                         ConcurrentNavigableMap<Long, String> anyQueue = topicList.get(anyQueueIdx);
-                        while (userCnt < player && !anyQueue.isEmpty()) {
-                            Map.Entry<Long, String> e = anyQueue.pollFirstEntry();
+                        for (Map.Entry<Long, String> e : anyQueue.entrySet()) {
+                            log.info("[참여자]> key:{}, name:{}",e.getKey(),e.getValue());
+                            if(userCnt>=player)
+                                break;
                             users.add(WaitingUser.builder()
                                 .timestamp(e.getKey())
                                 .user(e.getValue())
@@ -178,20 +188,22 @@ public class MatchUtil {
     }
     public MatchApplyRequest popUserWaitingInfosAtQueue(Long timestamp) {
         List<ChoiceDto> choices = new ArrayList<>();
-        for (int i = 0; i < TYPE; i++) { // 타입 별로 큐를 관리.
-            List<List<ConcurrentNavigableMap<Long, String>>> typeList = matchQueue.get(i);
-            for (int j = 0; j < TOPIC; j++) { // 주제 개수만큼 큐를 가지고 있는다
-                List<ConcurrentNavigableMap<Long, String>> topicList = typeList.get(j);
-                for (int k = 0; k < CHOICE; k++) {
-                    ConcurrentNavigableMap<Long, String> queue = topicList.get(k);
+        for (int type = 0; type < TYPE; type++) { // 타입 별로 큐를 관리.
+            List<List<ConcurrentNavigableMap<Long, String>>> typeList = matchQueue.get(type);
+            for (int topic = 0; topic < TOPIC; topic ++) { // 주제 개수만큼 큐를 가지고 있는다
+                List<ConcurrentNavigableMap<Long, String>> topicList = typeList.get(topic);
+                for (int choice= 0; choice < CHOICE; choice++) {
+                    ConcurrentNavigableMap<Long, String> queue = topicList.get(choice);
                     String user = queue.remove(timestamp);
+                    log.info("[큐에서 꺼낸 user email] >>> {}, key:{}", user,timestamp);
+                    
                     if (user != null) { // 큐에 유저가 존재한다면
-                        ChoiceDto choice = ChoiceDto.builder()
-                            .matchType(i)
-                            .matchTitle(j)
-                            .choice(k)
+                        ChoiceDto choiceDto = ChoiceDto.builder()
+                            .matchType(type)
+                            .matchTitle(topic)
+                            .choice(choice)
                             .build();
-                        choices.add(choice);
+                        choices.add(choiceDto);
                         break;
                     }
                 }
@@ -201,25 +213,25 @@ public class MatchUtil {
             .choices(choices)
             .build();
     }
-    private void startMatching(MatchInfo matchInfo) {
+    private void sendMatchInvitation(MatchInfo matchInfo) {
         List<List<WaitingUser>> teams = matchInfo.getTeams();// matchResponses 초기화
 
         for (int team=0;team<teams.size();team ++) {
             for (WaitingUser user : teams.get(team)) {
                 // 공통 포맷으로 매칭 초대 전송
 
-                ApiResponse<MatchEstablishResponse> response = ApiResponse.success(
-                    MatchEstablishResponse.builder()
+                ApiResponse<MatchInvitationResponse> response = ApiResponse.success(
+                    MatchInvitationResponse.builder()
                         .matchId(matchInfo.getMatchId())
-                        .email(user.getUser())
-                        .team(team)
                         .topicId(matchInfo.getTopicId())
+                        .team(team)
+                        .type(matchInfo.getType())
                         .build()
                 );
 
                 template.convertAndSendToUser(
                         user.getUser(), "/queue/match/acceptance", response);
-                log.info("[수락 요청 전송] 매칭ID: {} | 사용자: {}", matchInfo.getMatchId(), user.getUser());
+                log.info("[매칭 성사 정보 전송] 매칭ID: {} | 사용자: {}", matchInfo.getMatchId(), user.getUser());
             }
         }
 
@@ -268,7 +280,7 @@ public class MatchUtil {
             log.info("[매칭 성사] 매칭ID: {} | 참여자: {}", matchInfo.getMatchId(), candidates.keySet());
 
             // 매칭 성사 알림을 공통 포맷으로 전송
-            this.broadcastAcceptanceToDebaters(matchInfo);
+//            this.broadcastEstablishedToDebaters(matchInfo);
 
             //debate 서버에 요청 전송
             this.requestRoomGenerate(webClient, matchInfo);
@@ -277,28 +289,26 @@ public class MatchUtil {
             log.info("[매칭 실패] 매칭ID: {} | 일부 거절 또는 미응답", matchInfo.getMatchId());
 
             // 매칭 실패 알림을 공통 포맷으로 전송
-            Map<String, Object> failResult = Map.of(
-                    "matchId",  matchInfo.getMatchId(),
-                    "message", "매칭이 취소되었습니다. 다시 매칭 대기열에 추가됩니다.");
-            ApiResponse<Map<String, Object>> response = ApiResponse.warning(failResult);
+
+            ApiResponse<DebateRoomResponse> response = ApiResponse.success(
+                DebateRoomResponse.builder().roomId(null).build());
 
             for (Map.Entry<WaitingUser, MatchApplyRequest> e : candidates.entrySet()) {
                 WaitingUser userInfo = e.getKey();
                 MatchApplyRequest choice = e.getValue();
-
+                log.info("[선택 정보] >>> {}",choice.toString());
                 // 매칭 실패 알림 전송
                 template.convertAndSendToUser(userInfo.getUser(),
-                    "/queue/match/acceptance", response);
+                    "/queue/match/acceptance/cancel", response);
 
-                // 매칭을 수락하지 않았으면 패널티 부여
-                if (!acceptResponse.get(userInfo.getUser())) {
-                    userInfo.givePenalty(PENALTY);
-                    log.info("[패널티 부여] 사용자: {} | 패널티: {}ms", userInfo.getUser(), PENALTY);
+                // 매칭을 수락하지 않았으면 큐에서 제거
+                if (acceptResponse.get(userInfo.getUser())) {
+                    // 큐에 다시 매칭 정보를 추가
+                    this.addMatchApplyRequestToQueue(choice, userInfo);
                 }
-
-                // 큐에 다시 매칭 정보를 추가
-                this.addMatchApplyRequestToQueue(choice, userInfo);
-
+                else{
+                    removeMatchFromQueue(userInfo);
+                }
 
                 log.info("[큐 재진입] 사용자: | 큐 상태:");
                 printMatchQueueStatus(matchQueue);
@@ -306,18 +316,33 @@ public class MatchUtil {
         }
     }
 
-    private void broadcastAcceptanceToDebaters(MatchInfo matchInfo) {
-        Map<String, Boolean> acceptResponse = matchInfo.getAcceptResponse();
-        Map<String, Object> matchResult = Map.of(
-                "matchId", matchInfo.getMatchId(),
-                "participants", acceptResponse,
-                "message", "매칭이 성사되었습니다!");
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(matchResult);
-
-        for (String user : acceptResponse.keySet()) {
-            template.convertAndSendToUser(user, "/queue/match/acceptance", response);
+    private void removeMatchFromQueue(WaitingUser user) {
+        for (int type = 0; type < TYPE; type++) {
+            for (int topic = 0; topic < TOPIC; topic++) {
+                for (int choice = 0; choice < CHOICE; choice++) {
+                    ConcurrentNavigableMap<Long, String> queue = matchQueue.get(type).get(topic).get(choice);
+                    String remove = queue.remove(user.getTimestamp());
+                    log.info("큐에서 삭제된 유저: {}", remove);
+                }
+            }
         }
     }
+
+//    private void broadcastEstablishedStatus(MatchInfo matchInfo) {
+//        Map<String, Boolean> acceptResponse = matchInfo.getAcceptResponse();
+//
+//        MatchEstablishedResponse.builder()
+//            .accept()
+//        Map<String, Object> matchResult = Map.of(
+//                "matchId", matchInfo.getMatchId(),
+//                "participants", acceptResponse,
+//                "message", "매칭이 성사되었습니다!");
+//        ApiResponse<Map<String, Object>> response = ApiResponse.success(matchResult);
+//
+//        for (String user : acceptResponse.keySet()) {
+//            template.convertAndSendToUser(user, "/queue/match/invitation", response);
+//        }
+//    }
 
     private void requestRoomGenerate(WebClient webClient, MatchInfo matchInfo ) {
         log.info("[토론방 생성 요청] 매칭ID: {}, 토픽Idx: {}, 토픽ID: {}, 매칭타입: {}",
@@ -368,21 +393,18 @@ public class MatchUtil {
                     if (!queue.isEmpty()) {
                         log.info("  유저 목록: {}", queue.values());
                     }
-
-
-
                 }
             }
         }
     }
 
     //수락한 사람들에게 수락 정보를 보낸다.
-    public void sendAcceptanceInfoToDebaters(MatchAcceptRequest message, String user) {
+    public void sendAcceptanceInfoToDebaters(MatchAcceptRequest message) {
         MatchInfo matchInfo = matchInfos.get(message.getMatchId());
         Map<WaitingUser, MatchApplyRequest> candidates =matchInfo.getCandidates();
         for (WaitingUser userInfo : candidates.keySet()) {
             ApiResponse<AcceptanceStatusDto> response = ApiResponse.success(AcceptanceStatusDto.builder()
-                    .user(user)
+                    .team(message.getTeam())
                     .accept(message.getAccept())
                     .build());
             template.convertAndSendToUser(userInfo.getUser(), "/queue/match/acceptance/status", response);

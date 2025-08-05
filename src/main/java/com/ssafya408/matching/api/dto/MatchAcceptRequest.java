@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class MatchAcceptRequest {
     private String matchId;
-    private String topicId;
     private Integer team; // [0]: 1번, [1]: 2번
     private Boolean accept;
 }

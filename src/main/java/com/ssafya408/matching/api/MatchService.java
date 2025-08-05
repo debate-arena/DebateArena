@@ -91,8 +91,8 @@ public class MatchService {
     }
 
     public void processMatchQueue(String user, MatchApplyRequest req) {
-        if (alreadyMatched.contains(user))
-            return;
+//        if (alreadyMatched.contains(user))
+//            return;
 
         // {user 정보, 큐 진입시점} 쌍
         WaitingUser matchUserInfo = WaitingUser.builder()
@@ -164,9 +164,6 @@ public class MatchService {
     // 참가자들에게 보낸 참가 확인에 대한 답을 matchId에 기록
     // 30초 후에 기록한 내용을 바탕으로 방 생성 or 매칭 취소 결정
     public void receiveMatchAccept(MatchAcceptRequest message, String user) {
-        if(alreadyMatched.contains(user))
-            return;
-
         String matchId = message.getMatchId();
         Boolean answer = message.getAccept();
         log.info("[수락 응답] 사용자: {} | 매칭ID: {} | 응답: {}", user, matchId, answer);
@@ -175,7 +172,7 @@ public class MatchService {
         matchInfo.updateMatchResponse(user,answer);
 
         // 매칭 참여자들에게 실시간 수락 정보를 보낸다
-        matchUtil.sendAcceptanceInfoToDebaters(message, user);
+        matchUtil.sendAcceptanceInfoToDebaters(message);
     }
 
     /**

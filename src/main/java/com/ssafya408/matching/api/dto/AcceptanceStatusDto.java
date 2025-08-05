@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AcceptanceStatusDto {
-    private String user; // 응답한 사용자
+    private Integer team; // 응답한 사용자
     private Boolean accept; // 수락 여부 (true: 수락, false: 거절)
 }

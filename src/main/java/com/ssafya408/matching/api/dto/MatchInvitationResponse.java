@@ -5,9 +5,9 @@ import lombok.Getter;
 
 @Builder
 @Getter
-public class MatchEstablishResponse {
+public class MatchInvitationResponse {
   private String matchId;
-  private String email;
   private Long topicId;
   private Integer team;
+  private Integer type;
 }

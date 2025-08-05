@@ -18,7 +18,6 @@ public class MatchController {
     //interval 마다 매칭 큐 정보 전송
     @Scheduled(fixedRateString = "${match.status_interval}")
     public void sendMatchingInfo() {
-        log.info("main");
         matchService.sendMatchStatus();
     }
 
