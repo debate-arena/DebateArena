@@ -26,6 +26,7 @@ class AttackDefenseOutput(BaseModel):
 # 백엔드 쪽에서 들어오는 자료들 구조
 class LastInput(BaseModel):
     topic: str
+    draw: str
     entire: dict
 
 # 내가 백엔드 쪽으로 보내는 결과들
