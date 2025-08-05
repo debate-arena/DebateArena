@@ -6,9 +6,8 @@ export interface Topic {
   option2: string;    // 선택지 2 (예: 반대 등)
 }
 
-// 5개 주제와 시작/종료 시각을 담는 세트 타입 (epoch ms)
+// 주제 세트 타입 (시간 정보는 currentSet에만 포함)
 export interface TopicSet {
-  topics: Topic[];      // 5개 주제 배열
-  startAtMs: number;    // 세트 시작 시각 (epoch ms)
-  endAtMs: number;      // 세트 종료 시각 (epoch ms)
+  topics: Topic[];      // 주제 배열
+  remainingTimeSeconds?: number;  // 남은 시간 (초) - currentSet에만 있음
 } 

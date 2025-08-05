@@ -1,100 +1,71 @@
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useTopicSetStore } from '@/store/topicSet'
-import { useTimer } from '@/composables/useTimer'
-import {
-  RESYNC_THRESHOLD_MS,
-  TopicSetStatus,
-} from '@/constants/topicSet'
-import {
-  getServerNowMs,
-  getRemainingMs,
-  decideAction,
-  shouldResync,
-  type DecideActionType,
-} from '@/utils/topicSet'
+import { TopicSetStatus } from '@/constants/topicSet'
 
 /**
- * useTopicSetController - 토픽 세트 관리 및 자동 교체
- * - useTimer를 활용한 시간 관리
- * - 자동 세트 교체 및 서버 시간 동기화
+ * useTopicSetController - 토픽 세트 관리 및 자동 교체 (새로운 설계)
+ * - 1초씩 감소하는 단순한 타이머
+ * - 자동 세트 교체
  * - 에러 복구 및 탭 가시성 처리
  */
 export function useTopicSetController() {
   const store = useTopicSetStore()
-  const { remainingTime } = useTimer()
   
-  let timer: ReturnType<typeof setTimeout> | null = null
-  let lastResync = 0
+  let timer: ReturnType<typeof setInterval> | null = null
   let ticking = false
 
   // 현재 활성 주제들
   const activeTopics = computed(() => store.currentSet?.topics || [])
 
-  // 자기-보정 타이머: tick 실행 후, 다음 1초 정각까지 남은 시간만큼 예약
-  const scheduleNextTick = () => {
-    const now = Date.now()
-    const next = Math.ceil(now / 1000) * 1000
-    const delay = Math.max(0, next - now)
-    timer = setTimeout(tick, delay)
+  // 1초마다 실행되는 타이머
+  const startTimer = () => {
+    if (timer) return // 이미 실행 중이면 중복 방지
+    
+    timer = setInterval(() => {
+      if (ticking) return // 재진입 방지
+      ticking = true
+      
+      try {
+        if (store.status === TopicSetStatus.ERROR) {
+          // 에러 상태면 타이머 중단
+          stopTimer()
+          ticking = false
+          return
+        }
+        
+        if (!store.currentSet) {
+          ticking = false
+          return
+        }
+        
+        // 시간 감소
+        store.decrementTime()
+        
+        // 시간이 0이 되면 주제 교체
+        if (store.remainingTimeSeconds <= 0) {
+          store.swapSets()
+        }
+        
+      } finally {
+        ticking = false
+      }
+    }, 1000)
   }
 
-  // tick: 남은 시간/임계구간 체크 및 swap/refetch 결정
-  const tick = async () => {
-    if (ticking) return // 재진입 방지
-    ticking = true
-    
-    try {
-      if (store.status === TopicSetStatus.ERROR) {
-        // 에러 상태면 타이머 중단
-        if (timer) clearTimeout(timer)
-        timer = null
-        ticking = false
-        return
-      }
-      
-      if (!store.currentSet) {
-        ticking = false
-        scheduleNextTick()
-        return
-      }
-      
-      const clientNowMs = Date.now()
-      const serverNowMs = getServerNowMs(clientNowMs, store.serverTimeOffsetMs)
-      const remainMs = getRemainingMs(store.currentSet.endAtMs, serverNowMs)
-
-      // 정각 N초 전에 1회 reSyncServerTime (shouldResync 활용)
-      if (shouldResync(remainMs, RESYNC_THRESHOLD_MS, lastResync, clientNowMs)) {
-        store.reSyncServerTime()
-        lastResync = clientNowMs
-      }
-
-      // swap/refetch 우선순위 통합
-      const action: DecideActionType = decideAction({
-        remainMs,
-        status: store.status,
-        hasNextSet: !!store.nextSet,
-      })
-      
-      if (action === 'SWAP') {
-        await store.swapSets()
-      } else if (action === 'REFETCH') {
-        await store.fetchTopicSets()
-      }
-    } finally {
-      ticking = false
-      scheduleNextTick()
+  // 타이머 정지
+  const stopTimer = () => {
+    if (timer) {
+      clearInterval(timer)
+      timer = null
     }
   }
 
-  // 탭 복귀 시 서버 시간 재보정 + tick 1회 즉시 실행
+  // 탭 복귀 시 타이머 재시작
   const handleVisibility = () => {
-    const now = Date.now()
     if (document.visibilityState === 'visible') {
-      if (now - lastResync > RESYNC_THRESHOLD_MS) {
-        store.reSyncServerTime()
-        lastResync = now
+      if (!timer) {
+        startTimer()
       }
-      tick()
     }
   }
 
@@ -102,26 +73,26 @@ export function useTopicSetController() {
   watch(
     () => store.status,
     (newStatus, oldStatus) => {
-      if (oldStatus === TopicSetStatus.ERROR && newStatus === TopicSetStatus.READY && !timer) {
-        scheduleNextTick()
+      if (oldStatus === TopicSetStatus.ERROR && newStatus === TopicSetStatus.READY) {
+        startTimer()
       }
     }
   )
 
   onMounted(async () => {
     await store.fetchTopicSets()
-    scheduleNextTick()
+    startTimer()
     window.addEventListener('visibilitychange', handleVisibility)
   })
 
   onUnmounted(() => {
-    if (timer) clearTimeout(timer)
+    stopTimer()
     window.removeEventListener('visibilitychange', handleVisibility)
   })
 
   return {
-    remainingTime,
     activeTopics,
-    store
+    store,
+    remainingTimeSeconds: computed(() => store.remainingTimeSeconds)
   }
 } 

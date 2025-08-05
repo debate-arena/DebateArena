@@ -35,6 +35,25 @@ matchingAxios.interceptors.response.use(
   }
 )
 
+// 타입 정의들 (기존 matching.ts에서 사용하던 타입들)
+export interface Topic {
+  id: number
+  title: string
+  option1: string
+  option2: string
+}
+
+export interface TopicSet {
+  topics: Topic[]
+  remainingTimeSeconds?: number
+}
+
+export interface TopicSetResponse {
+  currentSet: TopicSet
+  nextSet: TopicSet | null
+  serverTimeMs: number
+}
+
 // 매칭 관련 API 서비스
 export const matchingAPI = {
   // 매칭 요청 (HTTP API 사용 시)

@@ -21,7 +21,7 @@
           <Card class="p-4 h-24 flex items-center justify-center">
             <div class="text-center">
               <p class="text-sm text-muted-foreground">주제 변경까지 남은 시간</p>
-              <p class="text-2xl font-mono text-foreground">{{ formatTime(remainingTime) }}</p>
+              <p class="text-2xl font-mono text-foreground">{{ formatTime(topicSetStore.remainingTimeSeconds) }}</p>
             </div>
           </Card>
 
