@@ -1,6 +1,7 @@
 import { ref, onUnmounted } from 'vue'
 import { Client } from '@stomp/stompjs'
 import { useAuthStore } from '@/store/auth'
+import { config } from '@/config/env'
 
 export const useWebSocket = () => {
   const stompClient = ref<Client | null>(null)
@@ -11,7 +12,7 @@ export const useWebSocket = () => {
   const connect = () => {
     return new Promise<void>((resolve, reject) => {
       const client = new Client({
-        brokerURL: 'wss://valid-grouse-randomly.ngrok-free.app/ws',
+        brokerURL: `${config.MATCH_WS_URL}/ws`,
         heartbeatIncoming: 10000,
         heartbeatOutgoing: 10000
       })
@@ -74,6 +75,18 @@ export const useWebSocket = () => {
       body: JSON.stringify({ matchId, accept, stance })
     })
     console.log('🎯 매칭 응답 전송:', { matchId, accept, stance })
+  }
+
+  // 메시지 핸들러 제거
+  const removeMessageHandler = () => {
+    if (stompClient.value && isConnected.value) {
+      // 모든 구독 해제
+      stompClient.value.unsubscribe('/sub/match/status')
+      stompClient.value.unsubscribe('/user/queue/match/personal')
+      stompClient.value.unsubscribe('/user/queue/match/acceptance/status')
+      stompClient.value.unsubscribe('/user/queue/error')
+      console.log('🔌 WebSocket 메시지 핸들러 제거됨')
+    }
   }
 
   // 메시지 수신 처리
@@ -259,6 +272,7 @@ export const useWebSocket = () => {
     disconnect,
     sendMatchRequest,
     sendMatchAcceptance,
-    handleMessage
+    handleMessage,
+    removeMessageHandler
   }
 } 

@@ -1,10 +1,11 @@
 import axios from 'axios'
+import { config } from '@/config/env'
 
 // 매칭 API 전용 axios 인스턴스
 const matchingAxios = axios.create({
-  baseURL: 'https://valid-grouse-randomly.ngrok-free.app',
+  baseURL: config.MATCH_API_URL,  // 매칭 서버 URL
   timeout: 10000,
-  withCredentials: true, // 쿠키 포함
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -34,52 +35,23 @@ matchingAxios.interceptors.response.use(
   }
 )
 
-export interface Topic {
-  id: number
-  title: string
-  option1: string
-  option2: string
-}
-
-export interface TopicSet {
-  topics: Topic[]
-  startAtMs: number
-  endAtMs: number
-}
-
-export interface TopicSetResponse {
-  currentSet: TopicSet
-  nextSet: TopicSet | null
-  serverTimeMs: number
-}
-
 // 매칭 관련 API 서비스
 export const matchingAPI = {
-  // 주제 세트 조회
-  getTopicSets: async (): Promise<TopicSetResponse> => {
-    const response = await matchingAxios.get('/api/matching/topics')
+  // 매칭 요청 (HTTP API 사용 시)
+  sendMatchRequest: async (request: any) => {
+    const response = await matchingAxios.post('/api/match/request', request)
     return response.data
   },
 
-  // 매칭 시작
-  startMatching: async (data: {
-    topicId: number
-    playerMode: string
-    stance: string
-  }) => {
-    const response = await matchingAxios.post('/api/matching/start', data)
+  // 매칭 응답 (HTTP API 사용 시)
+  sendMatchAcceptance: async (matchId: string, accept: boolean, stance: number) => {
+    const response = await matchingAxios.post('/api/match/acceptance', { matchId, accept, stance })
     return response.data
   },
 
-  // 매칭 취소
-  cancelMatching: async () => {
-    const response = await matchingAxios.post('/api/matching/cancel')
-    return response.data
-  },
-
-  // 매칭 상태 확인
-  getMatchingStatus: async () => {
-    const response = await matchingAxios.get('/api/matching/status')
+  // 매칭 상태 조회
+  getMatchStatus: async () => {
+    const response = await matchingAxios.get('/api/match/status')
     return response.data
   }
 } 

@@ -50,15 +50,18 @@
                 size="lg"
               >
                 <span v-if="!matchingStore.isMatching">매칭 시작</span>
+                <span v-else-if="matchingStore.status === 'matched' || matchingStore.status === 'connecting'">
+                  매칭 성사
+                </span>
                 <span v-else class="flex items-center gap-2">
                   <div class="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent"></div>
                   매칭 대기 중...
                 </span>
               </Button>
               
-              <!-- 취소 버튼 (매칭 중일 때만 표시) -->
+              <!-- 취소 버튼 (매칭 중일 때만 표시, 매칭 성사 시에는 숨김) -->
               <Button
-                v-if="matchingStore.isMatching"
+                v-if="matchingStore.isMatching && matchingStore.status !== 'matched' && matchingStore.status !== 'connecting'"
                 @click="handleCancelMatching"
                 variant="destructive"
                 size="sm"
@@ -185,7 +188,6 @@
       :stance-text="modals.matchModalData.value.stanceText"
       :mode="modals.matchModalData.value.mode"
       :topic-id="modals.matchModalData.value.topicId"
-      :connected-count="modals.connectedCount.value"
       :total-count="modals.totalCount.value"
       :time-left="matchingStore.acceptTimeLeft"
       :is-connecting="matchingStore.status === 'connecting'"
@@ -267,6 +269,32 @@
           <div class="space-y-2">
             <Button size="lg" class="w-full" @click="confirmHourWarning">계속 진행</Button>
             <Button variant="outline" size="lg" class="w-full" @click="modals.hideHourWarningModal()">취소</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 로그인 필요 모달 -->
+    <Dialog v-model:open="modals.modalState.value.isLoginRequiredModalOpen" @update:open="handleLoginRequiredModalClose">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle class="text-center">
+            🔐 로그인이 필요한 서비스입니다
+          </DialogTitle>
+          <DialogDescription class="text-center">
+            매칭을 시작하려면 로그인이 필요합니다.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div class="space-y-4">
+          <div class="text-center space-y-2">
+            <p class="text-sm text-muted-foreground">
+              Google 계정으로 로그인하여 매칭을 시작하세요.
+            </p>
+          </div>
+          
+          <div class="space-y-2">
+            <Button size="lg" class="w-full" @click="handleLoginRequiredModalClose">확인</Button>
           </div>
         </div>
       </DialogContent>
@@ -437,9 +465,14 @@ const handleWebSocketMessage = (data: any) => {
       stopMatchingTimer()
       console.log('🔍 매칭 타이머 정지됨')
       
-      // 매칭 상태를 false로 설정하여 타이머 증가 중지
-      matchingStore.isMatching = false
-      console.log('🔍 매칭 상태를 false로 설정하여 타이머 중지')
+      // 매칭 성사 상태로 설정
+      matchingStore.isMatching = true
+      matchingStore.status = 'matched'
+      console.log('🔍 매칭 성사 상태로 설정됨')
+      console.log('🔍 매칭 성사 후 상태 확인:', {
+        isMatching: matchingStore.isMatching,
+        status: matchingStore.status
+      })
       
       // 페이지 타이머 정지 (remainingTime)
       if (timer) {
@@ -545,10 +578,10 @@ const handleWebSocketMessage = (data: any) => {
         stopAcceptTimer()
         console.log('✅ 수락 타이머 정지됨')
         
-        // 매칭 상태를 waiting으로 변경 (다시 매칭 대기)
+        // 거절 알림을 받은 사람은 매칭 상태 유지 (다시 매칭 대기)
         matchingStore.isMatching = true
         matchingStore.status = 'waiting'
-        console.log('🔍 매칭 상태를 waiting으로 변경')
+        console.log('🔍 거절 알림 받은 사람 - 매칭 상태 유지 (waiting)')
         
         // 알림 표시 후 자동으로 닫기 (handleError 대신 직접 설정)
         matchingStore.setError('다른 사람이 매칭을 거절했습니다. 다시 매칭을 시작합니다.')
@@ -591,6 +624,13 @@ const handleWebSocketMessage = (data: any) => {
 
 // 매칭 시작 처리
 const handleStartMatching = async () => {
+  // 로그인 상태 확인
+  if (!authStore.isLoggedIn) {
+    console.log('❌ 로그인되지 않은 상태에서 매칭 시작 시도')
+    modals.showLoginRequiredModal()
+    return
+  }
+  
   // 정각 5분 전(300초)인지 체크
   if (remainingTime.value <= 300) {
     modals.showHourWarningModal()
@@ -699,14 +739,29 @@ const handleModalReject = () => {
     stopAcceptTimer() // 타이머 composable에서도 정지
     console.log('✅ 타이머 정지됨')
     
+    // WebSocket 메시지 핸들러 제거 (중요!)
+    webSocket.removeMessageHandler()
+    console.log('🔌 WebSocket 메시지 핸들러 제거됨')
+    
     // WebSocket 연결 해제
     webSocket.disconnect()
     console.log('🔌 WebSocket 연결 해제됨')
     
-    // 매칭 완전 취소 (거절 시 매칭 종료)
+    // 거절한 사람은 매칭 완전 취소
+    matchingStore.reset()
+    console.log('🔍 거절한 사람 - 매칭 완전 취소됨')
+    
+    // 상태 강제 설정 (reset이 제대로 작동하지 않을 경우 대비)
     matchingStore.isMatching = false
     matchingStore.status = 'idle'
-    console.log('🔍 매칭 완전 취소됨')
+    console.log('🔍 상태 강제 설정 완료')
+    
+    // 상태 확인
+    console.log('🔍 거절 후 상태 확인:', {
+      isMatching: matchingStore.isMatching,
+      status: matchingStore.status,
+      elapsedTime: matchingStore.elapsedTime
+    })
     
     console.log('❌ 매칭 거절 처리 완료')
   } catch (error) {
@@ -728,6 +783,10 @@ const handleTopicChangeModalClose = () => {
 
 const handleHourWarningModalClose = () => {
   modals.hideHourWarningModal()
+}
+
+const handleLoginRequiredModalClose = () => {
+  modals.hideLoginRequiredModal()
 }
 
 // 주제 변경 경고 확인
@@ -844,7 +903,6 @@ onMounted(async () => {
       console.log('  - stanceText:', modals.matchModalData.value.stanceText)
       console.log('  - mode:', modals.matchModalData.value.mode)
       console.log('  - topicId:', modals.matchModalData.value.topicId)
-      console.log('  - connectedCount:', modals.connectedCount.value)
       console.log('  - totalCount:', modals.totalCount.value)
       console.log('  - timeLeft:', matchingStore.acceptTimeLeft)
       console.log('  - isConnecting:', matchingStore.status === 'connecting')

@@ -127,7 +127,7 @@
         <!-- 연결 상태 표시 -->
         <div class="text-center">
           <p class="text-sm text-muted-foreground">
-            연결된 사용자: {{ connectedCount }}/{{ totalCount }}
+            연결된 사용자: {{ acceptedCounts.option1 + acceptedCounts.option2 }}/{{ totalCount }}
           </p>
           <p class="text-xs text-muted-foreground mt-1">
             <span v-if="mode === '1:1'">목표: 2명 (각 진영 1명씩)</span>
@@ -206,7 +206,6 @@ interface Props {
   stanceText: string
   mode: string
   topicId: number
-  connectedCount: number
   totalCount: number
   timeLeft: number
   isConnecting: boolean
@@ -224,7 +223,6 @@ const props = withDefaults(defineProps<Props>(), {
   stanceText: 'option2',
   mode: '1:1',
   topicId: 1,
-  connectedCount: 0,
   totalCount: 0,
   timeLeft: 30,
   isConnecting: false,
@@ -249,7 +247,7 @@ const currentUserId = computed(() => authStore.user?.id || '')
 // 현재 사용자가 수락했는지 확인 (로컬 상태 사용)
 const localHasAccepted = ref(false)
 
-const ㅈㅈhasAccepted = computed(() => {
+const hasAccepted = computed(() => {
   return localHasAccepted.value
 })
 
@@ -346,6 +344,8 @@ const handleAccept = () => {
   
   // 로컬 상태를 true로 설정
   localHasAccepted.value = true
+  console.log('✅ localHasAccepted 상태 변경됨:', localHasAccepted.value)
+  console.log('✅ hasAccepted computed 값:', hasAccepted.value)
   
   emit('accept')
 }

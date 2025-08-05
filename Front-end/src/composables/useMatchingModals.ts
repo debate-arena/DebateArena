@@ -20,6 +20,7 @@ export interface ModalState {
   isTopicChangeModalOpen: boolean
   isHourWarningModalOpen: boolean
   isMatchCompleteModalOpen: boolean
+  isLoginRequiredModalOpen: boolean
 }
 
 // 싱글톤 인스턴스
@@ -32,7 +33,8 @@ function createMatchingModals() {
     isTimeoutModalOpen: false,
     isTopicChangeModalOpen: false,
     isHourWarningModalOpen: false,
-    isMatchCompleteModalOpen: false
+    isMatchCompleteModalOpen: false,
+    isLoginRequiredModalOpen: false
   })
 
   // 매칭 모달 데이터
@@ -47,11 +49,6 @@ function createMatchingModals() {
   const stanceAcceptance = ref<StanceAcceptance>({
     option1: 0,
     option2: 0
-  })
-
-  // 연결된 사용자 수
-  const connectedCount = computed(() => {
-    return stanceAcceptance.value.option1 + stanceAcceptance.value.option2
   })
 
   // 전체 사용자 수 (모드에 따라)
@@ -91,6 +88,14 @@ function createMatchingModals() {
 
   const hideHourWarningModal = () => {
     modalState.value.isHourWarningModalOpen = false
+  }
+
+  const showLoginRequiredModal = () => {
+    modalState.value.isLoginRequiredModalOpen = true
+  }
+
+  const hideLoginRequiredModal = () => {
+    modalState.value.isLoginRequiredModalOpen = false
   }
 
   const showMatchCompleteModal = (data: MatchModalData) => {
@@ -145,13 +150,15 @@ function createMatchingModals() {
       isTimeoutModalOpen: false,
       isTopicChangeModalOpen: false,
       isHourWarningModalOpen: false,
-      isMatchCompleteModalOpen: false
+      isMatchCompleteModalOpen: false,
+      isLoginRequiredModalOpen: false
     }
     // 진영별 수락 현황 초기화
     stanceAcceptance.value = {
       option1: 0,
       option2: 0
     }
+    console.log('🔍 hideAllModals - 진영별 수락 현황 초기화됨')
   }
 
   return {
@@ -159,7 +166,6 @@ function createMatchingModals() {
     modalState,
     matchModalData,
     stanceAcceptance,
-    connectedCount,
     totalCount,
 
     // 모달 제어 함수들
@@ -171,6 +177,8 @@ function createMatchingModals() {
     hideTopicChangeModal,
     showHourWarningModal,
     hideHourWarningModal,
+    showLoginRequiredModal,
+    hideLoginRequiredModal,
     showMatchCompleteModal,
     hideMatchCompleteModal,
     updateStanceAcceptance,

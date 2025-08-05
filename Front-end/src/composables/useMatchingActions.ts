@@ -118,9 +118,10 @@ export function useMatchingActions() {
     }
     console.log('🔍 모달 데이터 준비됨:', modalData)
     
-    // 매칭 타이머 정지 (모달 표시 시)
-    matchingStore.isMatching = false
-    console.log('🔍 매칭 타이머 정지됨')
+    // 매칭 성사 상태로 설정 (isMatching은 true 유지)
+    matchingStore.isMatching = true
+    matchingStore.status = 'matched'
+    console.log('🔍 매칭 성사 상태로 설정됨')
     
     // 모달 표시 (사용자 데이터 없이)
     console.log('🔍 모달 표시 시도...')
