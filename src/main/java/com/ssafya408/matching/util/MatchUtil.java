@@ -47,8 +47,7 @@ public class MatchUtil {
     @Value("${match.choice}")
     private Integer CHOICE;
 
-    private final Integer TIMEWAIT = 30; // 매칭 초대 수락 대기시간
-    private Long PENALTY = 1000 * 60 * 10L; // 10분
+    private final Integer TIMEWAIT = 15; // 매칭 초대 수락 대기시간
 
     List<Long> topicIdxToId;
     Map<Long,Integer> topicIdToIdx;
@@ -270,7 +269,7 @@ public class MatchUtil {
         }
 
         int totalPlayer = matchInfo.getTotalPlayer();
-        log.info("[매칭 응답 평가] 매칭ID: {} | 수락: {}명, 거절: {}명, 총 인원: {}명", 
+        log.info("[매칭 응답 평가] 매칭ID: {} | 수락: {}명, 거절: {}명, 총 인원: {}명",
             matchInfo.getMatchId(), accept, refuse, totalPlayer);
 
         if (accept == totalPlayer) { // 모두 참여하기를 눌렀을 경우 debate 서버에 전송
@@ -279,36 +278,27 @@ public class MatchUtil {
             }
             log.info("[매칭 성사] 매칭ID: {} | 참여자: {}", matchInfo.getMatchId(), candidates.keySet());
 
-            // 매칭 성사 알림을 공통 포맷으로 전송
-//            this.broadcastEstablishedToDebaters(matchInfo);
-
-            //debate 서버에 요청 전송
+            //debate 서버에 요청 전송 후 참여자들에게 roomId 전송
             this.requestRoomGenerate(webClient, matchInfo);
         }
         else { // 매칭이 불발 된 경우
             log.info("[매칭 실패] 매칭ID: {} | 일부 거절 또는 미응답", matchInfo.getMatchId());
 
             // 매칭 실패 알림을 공통 포맷으로 전송
+            this.broadcastDebateInfo(matchInfo,null,false);
 
-            ApiResponse<DebateRoomResponse> response = ApiResponse.success(
-                DebateRoomResponse.builder().roomId(null).build());
 
+            // 매칭을 수락한 사람들은 다시 큐에 넣고, 수락하지 않았으면 큐에서 제거
             for (Map.Entry<WaitingUser, MatchApplyRequest> e : candidates.entrySet()) {
                 WaitingUser userInfo = e.getKey();
-                MatchApplyRequest choice = e.getValue();
-                log.info("[선택 정보] >>> {}",choice.toString());
-                // 매칭 실패 알림 전송
-                template.convertAndSendToUser(userInfo.getUser(),
-                    "/queue/match/acceptance/cancel", response);
 
-                // 매칭을 수락하지 않았으면 큐에서 제거
-                if (acceptResponse.get(userInfo.getUser())) {
+                if (acceptResponse.get(userInfo.getUser())){
+                    MatchApplyRequest choice = e.getValue();
                     // 큐에 다시 매칭 정보를 추가
                     this.addMatchApplyRequestToQueue(choice, userInfo);
                 }
-                else{
-                    removeMatchFromQueue(userInfo);
-                }
+                else
+                    this.removeMatchFromQueue(userInfo);
 
                 log.info("[큐 재진입] 사용자: | 큐 상태:");
                 printMatchQueueStatus(matchQueue);
@@ -316,6 +306,26 @@ public class MatchUtil {
         }
     }
 
+    private void broadcastDebateInfo(MatchInfo matchInfo,Long roomId, Boolean established) {
+        DebateRoomResponse debateInfo = DebateRoomResponse
+            .builder()
+            .roomId(roomId)
+            .build();
+
+        ApiResponse<DebateRoomResponse> response =
+            established ?
+                ApiResponse.success(debateInfo) //성공하면 status: success
+                : ApiResponse.fail(debateInfo); // 실패하면 status: fail 로 전송
+
+        for (Map.Entry<WaitingUser, MatchApplyRequest> e : matchInfo.getCandidates()
+            .entrySet()) {
+            WaitingUser userInfo = e.getKey();
+            // 매칭 실패 알림 전송
+            template.convertAndSendToUser(userInfo.getUser(),
+                "/queue/match/acceptance/result", response);
+
+        }
+    }
     private void removeMatchFromQueue(WaitingUser user) {
         for (int type = 0; type < TYPE; type++) {
             for (int topic = 0; topic < TOPIC; topic++) {
@@ -328,26 +338,13 @@ public class MatchUtil {
         }
     }
 
-//    private void broadcastEstablishedStatus(MatchInfo matchInfo) {
-//        Map<String, Boolean> acceptResponse = matchInfo.getAcceptResponse();
-//
-//        MatchEstablishedResponse.builder()
-//            .accept()
-//        Map<String, Object> matchResult = Map.of(
-//                "matchId", matchInfo.getMatchId(),
-//                "participants", acceptResponse,
-//                "message", "매칭이 성사되었습니다!");
-//        ApiResponse<Map<String, Object>> response = ApiResponse.success(matchResult);
-//
-//        for (String user : acceptResponse.keySet()) {
-//            template.convertAndSendToUser(user, "/queue/match/invitation", response);
-//        }
-//    }
+
 
     private void requestRoomGenerate(WebClient webClient, MatchInfo matchInfo ) {
         log.info("[토론방 생성 요청] 매칭ID: {}, 토픽Idx: {}, 토픽ID: {}, 매칭타입: {}",
             matchInfo.getMatchId(),matchInfo.getTopicIdx(), matchInfo.getTopicId(), matchInfo.getType());
         List<List<WaitingUser>> teams = matchInfo.getTeams();
+
         DebateParticipantRequest req = DebateParticipantRequest.builder()
             .matchId(matchInfo.getMatchId())
             .topicId(matchInfo.getTopicId())
@@ -374,6 +371,9 @@ public class MatchUtil {
                             roomId = ((Number) dataMap.get("roomId")).longValue();
                         }
                         log.info("[토론방 생성 성공] 매칭ID: {} | 방 ID: {}", matchInfo.getMatchId(), roomId);
+
+                        this.broadcastDebateInfo(matchInfo,roomId,true);
+
                     } else {
                         log.error("[토론방 생성 실패] 매칭ID: {} | 응답 상태: {}", matchInfo.getMatchId(), apiResponse.getStatus());
                     }
