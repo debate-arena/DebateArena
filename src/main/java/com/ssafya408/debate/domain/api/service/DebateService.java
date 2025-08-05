@@ -11,12 +11,16 @@ import com.ssafya408.debate.domain.db.DebateRoomRepository;
 import com.ssafya408.debate.domain.db.Topic;
 import com.ssafya408.debate.domain.db.TopicRepository;
 import jakarta.annotation.PostConstruct;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -27,10 +31,13 @@ public class DebateService {
   private final TopicRepository topicRepository;
   private Map<Long, RoomManager> roomInfos;
   private final SimpMessagingTemplate template;
-
   private Integer OPINION=0;
   private Integer BATTLE=1;
-
+  // TODO : User Disconnected 시 리소스 해제 처리
+  private final Map<Long, Set<String>> beforeGameStartQueue = new ConcurrentHashMap<>();
+  private final DebateProcessScheduleService scheduleService;
+  @Qualifier("taskScheduler")
+  private final TaskScheduler taskScheduler;
 
   @PostConstruct
   public void init() {
@@ -152,6 +159,21 @@ public class DebateService {
   // 사용 가능한 Topic 목록 조회
   public List<Topic> getAvailableTopics() {
     return topicRepository.findAll();
+  }
+
+  public void userJoinMatch(String user, Long roomId) {
+    // TODO : 입장 전 권한 체크하는 로직 (Redis) 구현 필요
+    beforeGameStartQueue
+            .computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet())
+            .add(user);
+
+    if(roomInfos.get(roomId).getPlayerCount()
+            ==beforeGameStartQueue.get(roomId).size()){
+      // TODO : Redis에서 WebRTCStatue 확인
+      scheduleService.gameStart(roomId);
+    }
+
+    log.info("사용자 {}가 방 {}에 참여했습니다.", user, roomId);
   }
 
 
