@@ -9,7 +9,7 @@ export type PlayerMode = '1:1' | '2:2'
 export type Stance = 'option1' | 'option2' | 'random'
 
 // 매칭 상태
-export type MatchingStatus = 'idle' | 'waiting' | 'matching' | 'connecting' | 'completed' | 'timeout' | 'cancelled'
+export type MatchingStatus = 'idle' | 'waiting' | 'matching' | 'connecting' | 'completed' | 'timeout' | 'cancelled' | 'matched' | 'error'
 
 // 주제 정보 (매칭 페이지용)
 export interface Topic {

@@ -1,11 +1,15 @@
 <template>
   <div class="min-h-screen bg-background">
 
-    <!-- 테스트 버튼 (임시) -->
-    <div class="fixed top-4 right-4 flex flex-col gap-2 z-50">
-      <Button @click="showTestMatchModal" size="sm" variant="outline" class="text-xs">
-        매칭 성사 테스트
-      </Button>
+
+
+    <!-- 에러 메시지 표시 -->
+    <div v-if="matchingStore.error" class="fixed inset-0 flex items-center justify-center z-50">
+      <Alert class="max-w-md bg-background shadow-lg">
+        <AlertCircle class="h-4 w-4" />
+        <AlertTitle>알림</AlertTitle>
+        <AlertDescription>{{ matchingStore.error }}</AlertDescription>
+      </Alert>
     </div>
 
     <!-- 메인 콘텐츠 -->
@@ -24,14 +28,14 @@
           <!-- 글로벌 선택 -->
           <PlayerCountSelection />
 
-          <!-- 주제 카드들 -->
-          <div class="space-y-4">
-            <TopicCard 
-              v-for="topic in topicSetStore.currentSet?.topics || []" 
-              :key="topic.id"
-              :topic="topic"
-            />
-          </div>
+                     <!-- 주제 카드들 -->
+           <div class="space-y-4">
+             <TopicCard 
+               v-for="topic in topicSetStore.currentSet?.topics || []" 
+               :key="topic.id"
+               :topic="topic"
+             />
+           </div>
         </div>
 
         <!-- 우측: 매칭 시작(요약/타이머) 영역 -->
@@ -136,6 +140,39 @@
               </div>
             </div>
           </Card>
+
+          <!-- 게임 규칙 -->
+          <Card class="p-4">
+            <div class="space-y-3">
+              <h3 class="text-sm font-medium text-foreground">게임 규칙</h3>
+              <div class="text-xs space-y-2 text-muted-foreground">
+                                 <div class="space-y-1">
+                   <p class="font-medium">🎯 게임 진행</p>
+                   <p>1. 준비 (30초)</p>
+                   <p class="text-xs ml-2">– 주제를 빠르게 훑고, 내 주장의 핵심 아이디어를 쓱쓱 정리해요.</p>
+                   <p>2. 입장 발표 (각 1분)</p>
+                   <p class="text-xs ml-2">– 순서대로 돌아가며 1분 동안 내 입장을 솔직·담백하게 이야기해요.</p>
+                   <p>3. 공격 대상 선정 (30초)</p>
+                   <p class="text-xs ml-2">– "어떤 부분을 콕 집어 반박할까?" 30초 동안 고민해 보고 타깃을 골라요.</p>
+                   <p>4. 공격 (30초)</p>
+                   <p class="text-xs ml-2">– 선택한 주장에 대해 반박 포인트를 후려치듯 날려 봐요.</p>
+                   <p>5. 방어 (30초)</p>
+                   <p class="text-xs ml-2">– 공격받은 부분을 침착하게 수비하고, 내 논리를 다시 한번 단단히 다져요.</p>
+                   <p>6. 선택 재투표 (30초)</p>
+                   <p class="text-xs ml-2">– 2:2로 시작했다면, 토론 후 30초 동안 다시 어느 쪽을 지지할지 선택!</p>
+                   <p>7. AI 판정 (무승부 시)</p>
+                   <p class="text-xs ml-2">– 표 결과가 동률일 때만, AI가 논리 흐름·근거 제시 등을 보고 최종 승자를 골라 줘요.</p>
+                 </div>
+                
+                                 <div class="space-y-1">
+                   <p class="font-medium">⚠️ 주의사항</p>
+                   <p>1. 마이크를 허용해야 플레이가 가능해요</p>
+                                                           <p>2. <img src="/src/assets/images/profile/debate_random.png" class="inline w-4 h-4" alt="물범" /> 선택시 <img src="/src/assets/images/profile/debate_left.png" class="inline w-4 h-4" alt="북극곰" />, <img src="/src/assets/images/profile/debate_right.png" class="inline w-4 h-4" alt="펭귄" />가 랜덤으로 선택되요</p>
+                    <p>3. 발언 순서는 <img src="/src/assets/images/profile/debate_left.png" class="inline w-4 h-4" alt="북극곰" /> → <img src="/src/assets/images/profile/debate_right.png" class="inline w-4 h-4" alt="펭귄" /> 순서로 반복</p>
+                 </div>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     </div>
@@ -148,13 +185,14 @@
       :stance-text="modals.matchModalData.value.stanceText"
       :mode="modals.matchModalData.value.mode"
       :topic-id="modals.matchModalData.value.topicId"
-      :users="Array.from(modals.matchUsers.value.values())"
       :connected-count="modals.connectedCount.value"
       :total-count="modals.totalCount.value"
-      :time-left="matchingState.acceptTimeLeft.value"
-      :is-connecting="matchingState.isConnectingActive.value"
+      :time-left="matchingStore.acceptTimeLeft"
+      :is-connecting="matchingStore.status === 'connecting'"
+      :last-accepted-stance="lastAcceptedStance"
       @accept="handleModalAccept"
       @reject="handleModalReject"
+      @update:is-open="(value) => { if (!value) modals.hideMatchCompleteModal() }"
     />
     
     <!-- 타임아웃 모달 -->
@@ -243,11 +281,12 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useMatchingStore } from '@/store/matching'
 import { useTopicSetStore } from '@/store/topicSet'
 import { useMatchingTimer } from '@/composables/useMatchingTimer'
 import { useMatchingActions } from '@/composables/useMatchingActions'
-import { useMatchingState } from '@/composables/useMatchingState'
+
 import { useMatchingModals } from '@/composables/useMatchingModals'
 import { useWebSocket } from '@/composables/useWebSocket'
 import MatchingModal from '@/components/matching/MatchingModal.vue'
@@ -255,8 +294,9 @@ import { formatEstimatedTime, sortModes } from '@/utils/matching'
 import PlayerCountSelection from '@/components/matching/PlayerCountSelection.vue'
 import TopicCard from '@/components/matching/TopicCard.vue'
 import type { Stance, PlayerMode } from '@/types/matching'
-import { UserIcon } from 'lucide-vue-next'
+import { UserIcon, AlertCircle } from 'lucide-vue-next'
 import { useThemeStore } from '@/store/theme'
+import { useAuthStore } from '@/store/auth'
 
 // 아이콘 import
 import debateLeftIcon from '@/assets/images/profile/debate_left.png'
@@ -266,19 +306,21 @@ import { CheckCircle } from 'lucide-vue-next'
 const router = useRouter()
 const matchingStore = useMatchingStore()
 const topicSetStore = useTopicSetStore()
+const themeStore = useThemeStore()
+const authStore = useAuthStore()
 
-// 새로운 composable들 사용
-const matchingState = useMatchingState()
+// 새로운 composable들 사용 (matchingState는 matchingStore로 통합)
 const modals = useMatchingModals()
 const actions = useMatchingActions()
 const webSocket = useWebSocket()
 
 // 타이머 관리
-const { startMatchingTimer, stopMatchingTimer } = useMatchingTimer()
+const { startMatchingTimer, stopMatchingTimer, startAcceptTimer, stopAcceptTimer } = useMatchingTimer()
 
 // 타이머 관련 함수들
 const remainingTime = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
+const lastAcceptedStance = ref<string | undefined>(undefined)
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60)
   const remainingSeconds = seconds % 60
@@ -301,28 +343,43 @@ const handleWebSocketMessage = (data: any) => {
       // 매칭 초대장 처리
       console.log('💌 매칭 초대장 수신됨!')
       console.log('🔍 매칭 초대장 데이터:', data.data)
+      console.log('🔍 매칭 초대장 전체 구조:', JSON.stringify(data, null, 2))
       
-      // 매칭 ID 저장
-      matchingState.currentMatchId.value = data.data.data.matchId
+      // 백엔드에서 받은 실제 데이터 사용
+      const invitationData = data.data.data
+      const matchId = invitationData.matchId // 서버에서 받아옴
+      const invitationMode = '1:1' // 고정값
+      const invitationStance = 'option1' // 고정값
+      const invitationTopicId = 1 // 고정값
+      const invitationTopicTitle = topicSetStore.currentSet?.topics.find(t => t.id === invitationTopicId)?.title || '매칭된 주제' // store에서 조회
+      const invitationUsers: any[] = [] // 백엔드에서 전송하지 않음
       
-      // 주제는 첫 번째 주제로 고정
-      const invitationFirstTopic = topicSetStore.currentSet?.topics[0]
-      const invitationTopicTitle = invitationFirstTopic?.title || '매칭된 주제'
+      console.log('🔍 실제 초대장 데이터:', {
+        matchId,
+        topicTitle: invitationTopicTitle,
+        mode: invitationMode,
+        stance: invitationStance,
+        topicId: invitationTopicId,
+        users: invitationUsers
+      })
       
-      // 모드는 1:1로 고정
-      const invitationMode = '1:1'
+      // 유저 데이터 상세 분석
+      console.log('🔍 유저 데이터 분석:', {
+        usersExists: !!invitationUsers,
+        usersType: typeof invitationUsers,
+        usersIsArray: Array.isArray(invitationUsers),
+        usersLength: invitationUsers?.length || 0,
+        usersContent: invitationUsers
+      })
       
-      // 테마에 따라 선택 결정
-      const invitationThemeStore = useThemeStore()
-      const invitationStance = invitationThemeStore.isDark ? '선택2' : '선택1'
-      
-      // 매칭 성사 처리
+      // 매칭 성사 처리 (사용자 데이터 포함)
       actions.handleMatchSuccess({
-        matchId: data.data.data.matchId,
+        matchId: matchId,
         topicTitle: invitationTopicTitle,
         stanceText: invitationStance,
         mode: invitationMode,
-        topicId: 1
+        topicId: invitationTopicId,
+        users: invitationUsers
       })
       
       console.log('✅ 매칭 초대장 처리 완료')
@@ -332,35 +389,85 @@ const handleWebSocketMessage = (data: any) => {
       // 매칭 성사 처리
       console.log('🎉 매칭 성사 수신됨!')
       console.log('🔍 매칭 성사 데이터:', data.data)
+      console.log('🔍 현재 모달 상태 (처리 전):', modals.modalState.value)
       
-      // 주제는 첫 번째 주제로 고정
-      const successFirstTopic = topicSetStore.currentSet?.topics[0]
-      const successTopicTitle = successFirstTopic?.title || '매칭된 주제'
+      // 타이머 정지 (모달 닫기는 부분 제거)
+      matchingStore.stopAcceptTimer()
+      stopAcceptTimer()
       
-      // 모드는 1:1로 고정
-      const successMode = '1:1'
+      // 백엔드에서 받은 실제 데이터 사용 (모의 데이터로 대체)
+      const matchData = data.data?.data || data.data || {}
+      const successMatchId = matchData.matchId || 'test-match-123'
+      const successMode = '1:1' // 고정값
+      const successStance = 'option1' // 고정값
+      const successTopicId = 1 // 고정값
+      const successTopicTitle = topicSetStore.currentSet?.topics.find(t => t.id === successTopicId)?.title || '매칭된 주제' // store에서 조회
+      const successUsers: any[] = [] // 백엔드에서 전송하지 않음
       
-      // 테마에 따라 선택 결정
-      const successThemeStore = useThemeStore()
-      const successStance = successThemeStore.isDark ? '선택2' : '선택1'
+      // 현재 사용자의 position 설정 (서버에서 받은 정보 기반)
+      const currentUserPosition = matchData.currentUserPosition || 0 // 서버에서 받지 못하면 기본값 0
+      matchingStore.setCurrentUserPosition(currentUserPosition)
+      console.log('🔍 현재 사용자 position 설정:', currentUserPosition)
       
-      // 매칭 성사 처리
+      console.log('🔍 실제 매칭 데이터:', {
+        matchId: successMatchId,
+        topicTitle: successTopicTitle,
+        mode: successMode,
+        stance: successStance,
+        topicId: successTopicId,
+        users: successUsers,
+        currentUserPosition
+      })
+      
+      // 유저 데이터 상세 분석
+      console.log('🔍 MATCH_SUCCESS 유저 데이터 분석:', {
+        usersExists: !!successUsers,
+        usersType: typeof successUsers,
+        usersIsArray: Array.isArray(successUsers),
+        usersLength: successUsers?.length || 0,
+        usersContent: successUsers
+      })
+      
+      // 매칭 성사 처리 (사용자 데이터 포함)
+      console.log('🔍 handleMatchSuccess 호출 전')
+      console.log('🔍 actions 객체 확인:', !!actions)
+      console.log('🔍 actions.handleMatchSuccess 확인:', !!actions.handleMatchSuccess)
+      
+      // 매칭 타이머 정지 (매칭 성사 시)
+      stopMatchingTimer()
+      console.log('🔍 매칭 타이머 정지됨')
+      
+      // 매칭 상태를 false로 설정하여 타이머 증가 중지
+      matchingStore.isMatching = false
+      console.log('🔍 매칭 상태를 false로 설정하여 타이머 중지')
+      
+      // 페이지 타이머 정지 (remainingTime)
+      if (timer) {
+        clearInterval(timer)
+        timer = null
+        console.log('🔍 페이지 타이머 정지됨')
+      }
+      
       actions.handleMatchSuccess({
-        matchId: data.data.data.matchId,
+        matchId: successMatchId,
         topicTitle: successTopicTitle,
         stanceText: successStance,
         mode: successMode,
-        topicId: 1
+        topicId: successTopicId,
+        users: successUsers
       })
+      console.log('🔍 handleMatchSuccess 호출 후')
+      console.log('🔍 현재 모달 상태 (처리 후):', modals.modalState.value)
+      console.log('🔍 모달 데이터:', modals.matchModalData.value)
       
-      // 토론방으로 이동
-      if (data.data.data.roomUrl) {
-        console.log('🔍 토론방으로 이동:', data.data.data.roomUrl)
-        router.push(data.data.data.roomUrl)
-      } else {
-        console.log('🔍 기본 토론방으로 이동: /debate')
-        router.push('/debate')
-      }
+      // 토론방으로 이동 (모달에서 수락 후 이동하므로 여기서는 제거)
+      // if (matchData.roomUrl) {
+      //   console.log('🔍 토론방으로 이동:', matchData.roomUrl)
+      //   router.push(matchData.roomUrl)
+      // } else {
+      //   console.log('🔍 기본 토론방으로 이동: /debate')
+      //   router.push('/debate')
+      // }
       break
       
     case 'MATCH_FAILURE':
@@ -368,25 +475,93 @@ const handleWebSocketMessage = (data: any) => {
       console.log('❌ 매칭 실패 수신됨!')
       console.log('🔍 매칭 실패 데이터:', data.data)
       
+      // 타이머 정지 및 모달 닫기
+      matchingStore.stopAcceptTimer()
+      stopAcceptTimer()
+      modals.hideMatchCompleteModal()
+      
       actions.handleError(data.data.data.message || '매칭이 취소되었습니다.')
       break
       
     case 'ACCEPTANCE_STATUS':
-      // 다른 사람 응답 현황 처리
-      console.log('👥 다른 사람 응답 현황 수신됨!')
+      // 다른 사람 응답 현황 처리 (내 수락도 포함)
+      console.log('👥 응답 현황 수신됨!')
       console.log('🔍 응답 현황 데이터:', data.data)
+      console.log('🔍 전체 이벤트 구조:', JSON.stringify(data, null, 2))
       
-      const user = data.data.data.user
       const accept = data.data.data.accept
+      const choice = data.data.data.choice      // 0: 찬성, 1: 반대, 2: 상관없음
       
-      // 사용자 상태 업데이트
-      modals.updateUser(user, { accept })
+      // 백엔드에서 받은 전체 수락 순서를 사용 (모든 사용자가 동일한 순서)
+      const totalAcceptCount = data.data.data.totalAcceptCount || (matchingStore.roomInfo.connectedUsers + 1)
+      const position = (totalAcceptCount - 1) % 2  // 0: 첫 번째 (option1), 1: 두 번째 (option2)
+      const stance = position === 0 ? 'option1' : 'option2'
       
+      console.log('🔍 파싱된 응답 현황 정보:', {
+        accept,
+        choice,
+        totalAcceptCount,
+        position,
+        stance
+      })
+      
+      // 수락한 경우에만 카운트 증가 및 stance 업데이트 (내 수락도 포함)
       if (accept) {
-        matchingState.updateRoomInfo({ connectedUsers: matchingState.roomInfo.value.connectedUsers + 1 })
+        const beforeConnected = matchingStore.roomInfo.connectedUsers
+        matchingStore.updateRoomInfo({ connectedUsers: matchingStore.roomInfo.connectedUsers + 1 })
+        const afterConnected = matchingStore.roomInfo.connectedUsers
+        console.log('🔍 연결된 사용자 수 업데이트:', { before: beforeConnected, after: afterConnected })
+        
+        // 마지막 수락한 진영 정보 업데이트 (계산된 stance 사용)
+        lastAcceptedStance.value = stance
+        console.log('🔍 마지막 수락한 진영 업데이트:', stance)
+        console.log('🔍 lastAcceptedStance 값:', lastAcceptedStance.value)
+        
+        // 모달의 진영별 수락 현황 업데이트 (계산된 stance 사용)
+        modals.updateStanceAcceptance(stance, accept)
+        console.log('🔍 모달 진영별 수락 현황 업데이트 완료')
+        
+        // 디버깅: 전체 데이터 구조 확인
+        console.log('🔍 ACCEPTANCE_STATUS 전체 데이터:', {
+          accept,
+          choice,
+          totalAcceptCount,
+          position,
+          stance,
+          connectedUsers: matchingStore.roomInfo.connectedUsers,
+          lastAcceptedStance: lastAcceptedStance.value,
+          stanceAcceptance: modals.stanceAcceptance.value
+        })
+      } else {
+        // 거절 처리
+        console.log('❌ 다른 사람이 거절함')
+        
+        // 모달 닫기
+        modals.hideMatchCompleteModal()
+        console.log('✅ 모달 닫기됨')
+        
+        // 수락 타이머 정지
+        matchingStore.stopAcceptTimer()
+        stopAcceptTimer()
+        console.log('✅ 수락 타이머 정지됨')
+        
+        // 매칭 상태를 waiting으로 변경 (다시 매칭 대기)
+        matchingStore.isMatching = true
+        matchingStore.status = 'waiting'
+        console.log('🔍 매칭 상태를 waiting으로 변경')
+        
+        // 알림 표시 후 자동으로 닫기 (handleError 대신 직접 설정)
+        matchingStore.setError('다른 사람이 매칭을 거절했습니다. 다시 매칭을 시작합니다.')
+        console.log('✅ 거절 알림 표시됨')
+        
+        // 3초 후 알림 자동 닫기
+        setTimeout(() => {
+          matchingStore.clearError()
+          console.log('✅ 거절 알림 자동 닫기됨')
+        }, 3000)
       }
       
-      console.log(`✅ ${user} ${accept ? '수락' : '거절'} - ${matchingState.roomInfo.value.connectedUsers}/${matchingState.roomInfo.value.totalUsers}`)
+      console.log(`✅ ${stance} 진영 ${accept ? '수락' : '거절'} - ${matchingStore.roomInfo.connectedUsers}/${matchingStore.roomInfo.totalUsers}`)
       break
       
     case 'ERROR':
@@ -394,6 +569,18 @@ const handleWebSocketMessage = (data: any) => {
       console.error('❌ 매칭 에러 수신됨!')
       console.error('🔍 에러 데이터:', data.data)
       actions.handleError(data.data.message)
+      break
+      
+    case 'MATCH_ADDITIONAL':
+      // 추가 경로 메시지 처리
+      console.log('📨 추가 경로 메시지 수신됨!')
+      console.log('🔍 추가 경로 데이터:', data.data)
+      break
+      
+    case 'MATCH_ALL_PERSONAL':
+      // 모든 개인 메시지 처리
+      console.log('📨 모든 개인 메시지 수신됨!')
+      console.log('🔍 모든 개인 메시지 데이터:', data.data)
       break
       
     default:
@@ -410,13 +597,35 @@ const handleStartMatching = async () => {
   } else {
     // 바로 매칭 시작
     console.log('🚀 매칭 시작!')
-    matchingStore.startMatching()
     
-    // 타이머 시작
-    startMatchingTimer(() => {
-      console.log('⏰ 매칭 타임아웃')
-      modals.showTimeoutModal()
-    })
+    try {
+      // WebSocket 연결 및 메시지 핸들러 설정
+      await webSocket.connect()
+      console.log('🔗 WebSocket 연결 성공')
+      
+      // 연결 성공 후 메시지 핸들러 설정
+      console.log('🔍 WebSocket 메시지 핸들러 설정 시도...')
+      webSocket.handleMessage(handleWebSocketMessage)
+      console.log('✅ WebSocket 메시지 핸들러 설정 완료')
+      
+      // 매칭 요청 전송
+      const request = matchingStore.toMatchRequest
+      webSocket.sendMatchRequest(request)
+      console.log('📤 매칭 요청 전송됨:', request)
+      
+      // 상태 업데이트
+      matchingStore.startMatching()
+      
+      // 타이머 시작
+      startMatchingTimer(() => {
+        console.log('⏰ 매칭 타임아웃')
+        modals.showTimeoutModal()
+      })
+      
+      console.log('✅ 매칭 시작 완료')
+    } catch (error) {
+      console.error('❌ 매칭 시작 실패:', error)
+    }
   }
 }
 
@@ -431,31 +640,30 @@ const handleCancelMatching = () => {
 // 모달 핸들러들
 const handleModalAccept = () => {
   console.log('✅ 매칭 수락 버튼 클릭됨')
-  console.log('🔍 현재 matchingState 상태:', {
-    isConnecting: matchingState.isConnectingActive.value,
-    currentMatchId: matchingState.currentMatchId.value,
-    acceptTimeLeft: matchingState.acceptTimeLeft.value
-  })
   
   try {
-    // 연결 상태로 변경
-    matchingState.setConnecting()
-    console.log('✅ 연결 상태로 변경됨')
-    
     // 서버에 수락 메시지 전송
-    const matchId = matchingState.currentMatchId.value
+    const matchId = matchingStore.currentMatchId
     if (matchId) {
-      webSocket.sendMatchAcceptance(matchId, true)
-      console.log('✅ 수락 메시지 전송됨')
-    } else {
-      console.warn('⚠️ matchId가 없음')
+      // 실제 stance를 숫자로 변환해서 전송
+      const actualStance = 'option1'  // 실제 선택한 진영
+      const stanceNumber = actualStance === 'option1' ? 0 : 1  // 0: option1, 1: option2
+      webSocket.sendMatchAcceptance(matchId, true, stanceNumber)
+      console.log(`📤 수락 메시지 전송됨 (stance: ${actualStance}, number: ${stanceNumber})`)
     }
     
-    // 수락 타이머 시작
-    matchingState.startAcceptTimer()
-    console.log('✅ 수락 타이머 시작됨')
+    // 핵심 데이터만 확인
+    console.log('🔍 수락 관련 핵심 데이터:', {
+      매칭ID: matchingStore.currentMatchId,
+      연결된사용자수: matchingStore.roomInfo.connectedUsers,
+      전체사용자수: matchingStore.roomInfo.totalUsers,
+      position: matchingStore.roomInfo.connectedUsers % 2
+    })
     
-    console.log('✅ 매칭 수락 처리 완료')
+    // connectedUsers는 서버 응답에서만 업데이트 (로컬 증가 제거)
+    console.log('🔍 수락 메시지 전송 완료 - 서버 응답 대기 중...')
+    
+    console.log('✅ 매칭 수락 처리 완료 - 다른 사람 응답 대기 중...')
   } catch (error) {
     console.error('❌ 매칭 수락 처리 실패:', error)
   }
@@ -463,18 +671,21 @@ const handleModalAccept = () => {
 
 const handleModalReject = () => {
   console.log('❌ 매칭 거절 버튼 클릭됨')
-  console.log('🔍 현재 matchingState 상태:', {
-    isConnecting: matchingState.isConnectingActive.value,
-    currentMatchId: matchingState.currentMatchId.value,
-    acceptTimeLeft: matchingState.acceptTimeLeft.value
+  console.log('🔍 현재 matchingStore 상태:', {
+    isConnecting: matchingStore.status === 'connecting',
+    currentMatchId: matchingStore.currentMatchId,
+    acceptTimeLeft: matchingStore.acceptTimeLeft
   })
   
   try {
     // 서버에 거절 메시지 전송
-    const matchId = matchingState.currentMatchId.value
+    const matchId = matchingStore.currentMatchId
     if (matchId) {
-      webSocket.sendMatchAcceptance(matchId, false)
-      console.log('✅ 거절 메시지 전송됨')
+      // 실제 stance를 숫자로 변환해서 전송
+      const actualStance = 'option1'  // 실제 선택한 진영
+      const stanceNumber = actualStance === 'option1' ? 0 : 1  // 0: option1, 1: option2
+      webSocket.sendMatchAcceptance(matchId, false, stanceNumber)
+      console.log(`✅ 거절 메시지 전송됨 (stance: ${actualStance}, number: ${stanceNumber})`)
     } else {
       console.warn('⚠️ matchId가 없음')
     }
@@ -483,9 +694,19 @@ const handleModalReject = () => {
     modals.hideMatchCompleteModal()
     console.log('✅ 모달 닫기됨')
     
-    // 타이머 정지
-    matchingState.stopAcceptTimer()
+    // 타이머 정지 (store와 composable 모두)
+    matchingStore.stopAcceptTimer()
+    stopAcceptTimer() // 타이머 composable에서도 정지
     console.log('✅ 타이머 정지됨')
+    
+    // WebSocket 연결 해제
+    webSocket.disconnect()
+    console.log('🔌 WebSocket 연결 해제됨')
+    
+    // 매칭 완전 취소 (거절 시 매칭 종료)
+    matchingStore.isMatching = false
+    matchingStore.status = 'idle'
+    console.log('🔍 매칭 완전 취소됨')
     
     console.log('❌ 매칭 거절 처리 완료')
   } catch (error) {
@@ -497,7 +718,7 @@ const handleTimeoutModalClose = () => {
   modals.hideTimeoutModal()
   stopMatchingTimer()
   webSocket.disconnect()
-  matchingState.reset()
+  matchingStore.reset()
 }
 
 const handleTopicChangeModalClose = () => {
@@ -561,46 +782,7 @@ const getModeButtonClass = (mode: PlayerMode) => {
   }
 }
 
-// 테스트 함수들
-const showTestMatchModal = () => {
-  console.log('🎯 showTestMatchModal 호출됨')
-  
-  // 매칭 상태 초기화
-  matchingState.reset()
-  
-  // 매칭 상태를 matched로 설정
-  matchingState.setMatched()
-  
-  // 매칭 ID 설정
-  matchingState.currentMatchId.value = 'test-match-id'
-  
-  // 수락 타이머 시작
-  matchingState.startAcceptTimer()
-  
-  // 모달 데이터 준비
-  const modalData = {
-    topicTitle: '인공지능의 발전이 인류에게 이익인가, 해악인가?',
-    stanceText: '이익이다',
-    mode: '2:2',
-    topicId: 1
-  }
-  
-  // 테스트용 사용자 데이터
-  const testUsers = [
-    { userId: '유저1', stance: 'option1', accept: true, timestamp: Date.now() },
-    { userId: '유저2', stance: 'option1', accept: null, timestamp: Date.now() },
-    { userId: '유저3', stance: 'option2', accept: true, timestamp: Date.now() },
-    { userId: '유저4', stance: 'option2', accept: false, timestamp: Date.now() }
-  ]
-  
-  console.log('✅ 테스트 모달 데이터:', modalData)
-  console.log('✅ 테스트 사용자 데이터:', testUsers)
-  
-  // 모달 표시
-  modals.showMatchCompleteModal(modalData, testUsers)
-  
-  console.log('✅ 테스트 모달 표시 완료')
-}
+
 
 // 컴포넌트 마운트/언마운트
 onMounted(async () => {
@@ -638,28 +820,43 @@ onMounted(async () => {
     status: matchingStore.status
   })
   
-  // WebSocket 메시지 핸들러 설정
-  webSocket.handleMessage(handleWebSocketMessage)
-
   // 타이머 만료 감시
-  watch(() => matchingState.matchingState.value.error, (error) => {
+  watch(() => matchingStore.error, (error) => {
     if (error === '수락 시간이 만료되었습니다.') {
       console.log('⏰ 타이머 만료로 모달 닫기')
       modals.hideMatchCompleteModal()
-      matchingState.clearError()
+      matchingStore.clearError()
+    }
+  })
+  
+  // 모달 상태 감시
+  watch(() => modals.modalState.value.isMatchCompleteModalOpen, (isOpen) => {
+    console.log('🔍 모달 상태 변경 감지:', isOpen)
+    console.log('🔍 전체 모달 상태:', modals.modalState.value)
+    console.log('🔍 모달 데이터:', modals.matchModalData.value)
+    
+    // 모달이 열릴 때 추가 디버깅
+    if (isOpen) {
+      console.log('🎉 모달이 열렸습니다!')
+      console.log('🔍 모달 Props 확인:')
+      console.log('  - isOpen:', modals.modalState.value.isMatchCompleteModalOpen)
+      console.log('  - topicTitle:', modals.matchModalData.value.topicTitle)
+      console.log('  - stanceText:', modals.matchModalData.value.stanceText)
+      console.log('  - mode:', modals.matchModalData.value.mode)
+      console.log('  - topicId:', modals.matchModalData.value.topicId)
+      console.log('  - connectedCount:', modals.connectedCount.value)
+      console.log('  - totalCount:', modals.totalCount.value)
+      console.log('  - timeLeft:', matchingStore.acceptTimeLeft)
+      console.log('  - isConnecting:', matchingStore.status === 'connecting')
+      
+      // 모달이 열릴 때 lastAcceptedStance 초기화
+      lastAcceptedStance.value = undefined
+      console.log('🔍 lastAcceptedStance 초기화됨')
     }
   })
   
   // 주제 변경 타이머 시작
   startTopicChangeTimer()
-  
-  // WebSocket 연결
-  try {
-    await webSocket.connect()
-    console.log('🔗 WebSocket 연결 성공')
-  } catch (error) {
-    console.error('❌ WebSocket 연결 실패:', error)
-  }
 })
 
 onUnmounted(() => {
@@ -675,7 +872,7 @@ onUnmounted(() => {
   webSocket.disconnect()
   
   // 상태 초기화
-  matchingState.reset()
+  matchingStore.reset()
   modals.hideAllModals()
 })
 

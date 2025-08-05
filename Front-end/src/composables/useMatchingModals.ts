@@ -1,4 +1,4 @@
-import { ref, computed, readonly } from 'vue'
+import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
 
 export interface MatchModalData {
@@ -8,11 +8,10 @@ export interface MatchModalData {
   topicId: number
 }
 
-export interface MatchUser {
-  userId: string
-  stance: string
-  accept: boolean | null
-  timestamp: number
+// 진영별 수락 현황 (단순화)
+export interface StanceAcceptance {
+  option1: number  // 찬성 진영 수락 수
+  option2: number  // 반대 진영 수락 수
 }
 
 export interface ModalState {
@@ -23,7 +22,10 @@ export interface ModalState {
   isMatchCompleteModalOpen: boolean
 }
 
-export function useMatchingModals() {
+// 싱글톤 인스턴스
+let instance: ReturnType<typeof createMatchingModals> | null = null
+
+function createMatchingModals() {
   // 모달 상태 관리
   const modalState = ref<ModalState>({
     isStartModalOpen: false,
@@ -41,17 +43,21 @@ export function useMatchingModals() {
     topicId: 1
   })
 
-  // 매칭 사용자들
-  const matchUsers = ref<Map<string, MatchUser>>(new Map())
+  // 진영별 수락 현황 (단순화)
+  const stanceAcceptance = ref<StanceAcceptance>({
+    option1: 0,
+    option2: 0
+  })
 
   // 연결된 사용자 수
   const connectedCount = computed(() => {
-    return Array.from(matchUsers.value.values()).filter(user => user.accept === true).length
+    return stanceAcceptance.value.option1 + stanceAcceptance.value.option2
   })
 
-  // 전체 사용자 수
+  // 전체 사용자 수 (모드에 따라)
   const totalCount = computed(() => {
-    return matchUsers.value.size
+    const mode = matchModalData.value.mode
+    return mode === '1:1' ? 2 : 4
   })
 
   // 모달 표시 함수들
@@ -87,42 +93,72 @@ export function useMatchingModals() {
     modalState.value.isHourWarningModalOpen = false
   }
 
-  const showMatchCompleteModal = (data: MatchModalData, users: MatchUser[]) => {
-    matchModalData.value = data
-    matchUsers.value.clear()
-    users.forEach(user => {
-      matchUsers.value.set(user.userId, user)
-    })
-    modalState.value.isMatchCompleteModalOpen = true
+  const showMatchCompleteModal = (data: MatchModalData) => {
+    console.log('🔍 showMatchCompleteModal 호출됨')
+    console.log('🔍 입력 데이터:', data)
+    
+    // 데이터를 명시적으로 설정
+    matchModalData.value = {
+      topicTitle: data.topicTitle || '',
+      stanceText: data.stanceText || '',
+      mode: data.mode || '',
+      topicId: data.topicId || 1
+    }
+    console.log('🔍 모달 데이터 설정됨:', matchModalData.value)
+    
+    // 진영별 수락 현황 초기화
+    stanceAcceptance.value = {
+      option1: 0,
+      option2: 0
+    }
+    console.log('🔍 진영별 수락 현황 초기화됨:', stanceAcceptance.value)
+    
+    // 모달 상태를 명시적으로 설정
+    modalState.value = {
+      ...modalState.value,
+      isMatchCompleteModalOpen: true
+    }
+    console.log('🔍 모달 상태 변경됨:', modalState.value.isMatchCompleteModalOpen)
   }
 
   const hideMatchCompleteModal = () => {
     modalState.value.isMatchCompleteModalOpen = false
-    matchUsers.value.clear()
+    console.log('🔍 매칭 완료 모달 숨김')
   }
 
-  // 사용자 상태 업데이트
-  const updateUser = (userId: string, updates: Partial<MatchUser>) => {
-    const user = matchUsers.value.get(userId)
-    if (user) {
-      Object.assign(user, updates)
-      matchUsers.value.set(userId, user)
+  // 진영별 수락 현황 업데이트
+  const updateStanceAcceptance = (stance: string, accept: boolean) => {
+    console.log('🔍 updateStanceAcceptance 호출:', { 진영: stance, 수락: accept })
+    
+    if (accept && (stance === 'option1' || stance === 'option2')) {
+      stanceAcceptance.value[stance as 'option1' | 'option2']++
+      console.log('✅ 진영별 수락 현황 업데이트 성공:', stanceAcceptance.value)
+    } else {
+      console.warn('⚠️ 유효하지 않은 진영 또는 수락 상태:', { stance, accept })
     }
   }
 
   // 모든 모달 닫기
   const hideAllModals = () => {
-    Object.keys(modalState.value).forEach(key => {
-      (modalState.value as any)[key] = false
-    })
-    matchUsers.value.clear()
+    modalState.value = {
+      isStartModalOpen: false,
+      isTimeoutModalOpen: false,
+      isTopicChangeModalOpen: false,
+      isHourWarningModalOpen: false,
+      isMatchCompleteModalOpen: false
+    }
+    // 진영별 수락 현황 초기화
+    stanceAcceptance.value = {
+      option1: 0,
+      option2: 0
+    }
   }
 
   return {
     // 상태
-    modalState: readonly(modalState),
-    matchModalData: readonly(matchModalData),
-    matchUsers: readonly(matchUsers),
+    modalState,
+    matchModalData,
+    stanceAcceptance,
     connectedCount,
     totalCount,
 
@@ -137,7 +173,14 @@ export function useMatchingModals() {
     hideHourWarningModal,
     showMatchCompleteModal,
     hideMatchCompleteModal,
-    updateUser,
+    updateStanceAcceptance,
     hideAllModals
   }
+}
+
+export function useMatchingModals() {
+  if (!instance) {
+    instance = createMatchingModals()
+  }
+  return instance
 } 

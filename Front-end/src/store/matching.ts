@@ -19,6 +19,22 @@ interface MatchingState {
 
   // 오류 상태
   error?: string
+
+  // 방 정보 (useMatchingState에서 통합)
+  roomInfo: {
+    roomId: string
+    totalUsers: number
+    connectedUsers: number
+  }
+
+  // 현재 매칭 ID
+  currentMatchId: string
+
+  // 수락 타이머 관련
+  acceptTimeLeft: number
+
+  // 현재 사용자의 position (0: 첫 번째, 1: 두 번째)
+  currentUserPosition: number
 }
 
 export const useMatchingStore = defineStore('matching', {
@@ -31,7 +47,15 @@ export const useMatchingStore = defineStore('matching', {
     elapsedTime: 0,
     estimatedWaitTime: undefined,
     matchResult: undefined,
-    error: undefined
+    error: undefined,
+    roomInfo: {
+      roomId: '',
+      totalUsers: 0,
+      connectedUsers: 0
+    },
+    currentMatchId: '',
+    acceptTimeLeft: 30,
+    currentUserPosition: 0
   }),
 
   getters: {
@@ -373,6 +397,88 @@ export const useMatchingStore = defineStore('matching', {
       this.status = 'waiting'
       this.elapsedTime = 0
       this.error = undefined
+    },
+
+    // useMatchingState에서 통합된 함수들
+    
+    // 매칭 상태 설정
+    setMatched() {
+      this.status = 'matched'
+    },
+
+    setConnecting() {
+      this.status = 'connecting'
+    },
+
+    clearError() {
+      this.error = undefined
+    },
+
+    // 방 정보 업데이트
+    updateRoomInfo(info: Partial<{ roomId: string; totalUsers: number; connectedUsers: number }>) {
+      this.roomInfo = { ...this.roomInfo, ...info }
+    },
+
+    resetRoomInfo() {
+      this.roomInfo = {
+        roomId: '',
+        totalUsers: 0,
+        connectedUsers: 0
+      }
+    },
+
+    // 매칭 ID 설정
+    setCurrentMatchId(matchId: string) {
+      this.currentMatchId = matchId
+    },
+
+    // 현재 사용자의 position 설정
+    setCurrentUserPosition(position: number) {
+      this.currentUserPosition = position
+    },
+
+    // 현재 사용자의 position 가져오기
+    getCurrentUserPosition(): number {
+      return this.currentUserPosition
+    },
+
+    // 수락 타이머 관리
+    startAcceptTimer() {
+      this.acceptTimeLeft = 30
+      // 실제 타이머 로직은 별도 composable에서 관리
+    },
+
+    stopAcceptTimer() {
+      this.acceptTimeLeft = 0
+    },
+
+    resetAcceptTimer() {
+      this.acceptTimeLeft = 30
+    },
+
+    // 수락 타이머 업데이트
+    updateAcceptTimer() {
+      if (this.acceptTimeLeft > 0) {
+        this.acceptTimeLeft--
+        if (this.acceptTimeLeft === 0) {
+          // 타이머 만료 시 에러 설정
+          this.error = '수락 시간이 만료되었습니다.'
+        }
+      }
+    },
+
+    // 전체 상태 리셋
+    reset() {
+      this.isMatching = false
+      this.status = 'idle'
+      this.elapsedTime = 0
+      this.error = undefined
+      this.matchResult = undefined
+      this.estimatedWaitTime = undefined
+      this.currentMatchId = ''
+      this.acceptTimeLeft = 30
+      this.currentUserPosition = 0
+      this.resetRoomInfo()
     }
   }
 }) 

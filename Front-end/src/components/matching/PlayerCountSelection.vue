@@ -1,11 +1,11 @@
 <template>
   <Card class="p-4">
-    <div class="space-y-4">
-      <h3 class="text-sm font-medium text-foreground">모든 주제에 적용됩니다</h3>
+    <div class="space-y-1">
+      <h2 class="text-lg font-semibold text-foreground text-center">모드 선택</h2>
       
       <!-- 모드 선택 -->
-      <div class="space-y-3">
-        <h4 class="text-xs font-medium text-muted-foreground">인원수</h4>
+      <div class="space-y-2">
+        <p class="text-xs text-muted-foreground text-center">※ 최소 1개의 모드를 선택해주세요 ※</p>
         <div class="flex gap-4">
           <Button 
             variant="outline"

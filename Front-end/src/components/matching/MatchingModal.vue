@@ -1,6 +1,6 @@
 <template>
   <Dialog :open="isOpen" :modal="false">
-    <DialogContent class="sm:max-w-2xl" :close-on-escape="true" :close-on-backdrop="true">
+         <DialogContent class="sm:max-w-2xl" style="z-index: 9999; pointer-events: auto !important;">
       <DialogHeader>
         <DialogTitle class="text-center">🏛️ 매칭 성사!</DialogTitle>
         <DialogDescription class="text-center">
@@ -38,6 +38,10 @@
                   </Button>
                 </div>
               </div>
+              <div class="text-xs text-muted-foreground mt-2">
+                <span v-if="mode === '1:1'">• 1:1 토론 - 각 진영 1명씩</span>
+                <span v-else-if="mode === '2:2'">• 2:2 토론 - 각 진영 2명씩</span>
+              </div>
             </div>
           </div>
         </Card>
@@ -51,26 +55,30 @@
             <div class="flex flex-col items-center gap-4">
               <div class="text-lg font-medium text-slate-800 mb-4">{{ option1Name }}</div>
               <div class="flex gap-4">
+                <!-- 수락한 사용자 아이콘들 -->
                 <div 
-                  v-for="(user, index) in users.filter(u => u.stance === 'option1')" 
-                  :key="user.userId"
+                  v-for="i in acceptedCounts.option1" 
+                  :key="`accepted-option1-${i}`"
                   class="flex flex-col items-center gap-3"
                 >
                   <img 
-                    v-if="user.accept === true" 
-                    :src="debateLeftIcon" 
+                    :src="getUserIcon('option1')" 
                     class="w-12 h-12 rounded-full"
-                    alt="찬성 아이콘"
+                    :alt="getUserIconAlt('option1')"
                   />
-                  <X 
-                    v-else-if="user.accept === false" 
-                    class="w-12 h-12 text-debate-random" 
-                  />
-                  <UserIcon 
-                    v-else 
-                    class="w-12 h-12 text-debate-random" 
-                  />
-                  <span class="text-base text-slate-700">{{ user.userId }}</span>
+                  <span class="text-base text-slate-700">수락</span>
+                </div>
+                
+                <!-- 대기 중인 사용자 아이콘들 -->
+                <div 
+                  v-for="i in (iconCount.left - acceptedCounts.option1)" 
+                  :key="`waiting-option1-${i}`"
+                  class="flex flex-col items-center gap-3"
+                >
+                  <div class="w-12 h-12 rounded-full border-2 border-dashed border-debate-random flex items-center justify-center">
+                    <UserIcon class="w-6 h-6 text-debate-random" />
+                  </div>
+                  <span class="text-base text-slate-700">대기 중</span>
                 </div>
               </div>
             </div>
@@ -86,96 +94,111 @@
             <div class="flex flex-col items-center gap-4">
               <div class="text-lg font-medium text-white mb-4">{{ option2Name }}</div>
               <div class="flex gap-4">
+                <!-- 수락한 사용자 아이콘들 -->
                 <div 
-                  v-for="(user, index) in users.filter(u => u.stance === 'option2')" 
-                  :key="user.userId"
+                  v-for="i in acceptedCounts.option2" 
+                  :key="`accepted-option2-${i}`"
                   class="flex flex-col items-center gap-3"
                 >
                   <img 
-                    v-if="user.accept === true" 
-                    :src="debateRightIcon" 
+                    :src="getUserIcon('option2')" 
                     class="w-12 h-12 rounded-full"
-                    alt="반대 아이콘"
+                    :alt="getUserIconAlt('option2')"
                   />
-                  <X 
-                    v-else-if="user.accept === false" 
-                    class="w-12 h-12 text-debate-random" 
-                  />
-                  <UserIcon 
-                    v-else 
-                    class="w-12 h-12 text-debate-random" 
-                  />
-                  <span class="text-base text-white">{{ user.userId }}</span>
+                  <span class="text-base text-white">수락</span>
+                </div>
+                
+                <!-- 대기 중인 사용자 아이콘들 -->
+                <div 
+                  v-for="i in (iconCount.right - acceptedCounts.option2)" 
+                  :key="`waiting-option2-${i}`"
+                  class="flex flex-col items-center gap-3"
+                >
+                  <div class="w-12 h-12 rounded-full border-2 border-dashed border-debate-random flex items-center justify-center">
+                    <UserIcon class="w-6 h-6 text-debate-random" />
+                  </div>
+                  <span class="text-base text-white">대기 중</span>
                 </div>
               </div>
             </div>
           </Card>
         </div>
-
-        <div class="text-center text-sm text-muted-foreground">
-          {{ connectedCount }}/{{ totalCount }} 명 연결됨
+        
+        <!-- 연결 상태 표시 -->
+        <div class="text-center">
+          <p class="text-sm text-muted-foreground">
+            연결된 사용자: {{ connectedCount }}/{{ totalCount }}
+          </p>
+          <p class="text-xs text-muted-foreground mt-1">
+            <span v-if="mode === '1:1'">목표: 2명 (각 진영 1명씩)</span>
+            <span v-else-if="mode === '2:2'">목표: 4명 (각 진영 2명씩)</span>
+          </p>
         </div>
       </div>
       
-      <!-- 수락/거절 버튼 -->
-      <div class="flex gap-2">
-        <div 
-          v-if="!isConnecting"
-          @click="handleAccept"
-          @mousedown="() => console.log('🎯 수락 버튼 마우스다운!')"
-          @touchstart="() => console.log('🎯 수락 버튼 터치!')"
-          @pointerdown="() => console.log('🎯 수락 버튼 포인터다운!')"
-          class="flex-1 bg-debate-random text-slate-700 hover:bg-debate-random/90 border-debate-random px-4 py-2 rounded-md cursor-pointer text-center font-medium"
-          style="pointer-events: auto !important; z-index: 9999 !important; position: relative;"
-        >
-          수락
-        </div>
-        <div 
-          v-if="!isConnecting"
-          @click="handleReject"
-          @mousedown="() => console.log('🎯 거절 버튼 마우스다운!')"
-          @touchstart="() => console.log('🎯 거절 버튼 터치!')"
-          @pointerdown="() => console.log('🎯 거절 버튼 포인터다운!')"
-          class="flex-1 bg-white text-black hover:bg-gray-100 border-gray-300 px-4 py-2 rounded-md cursor-pointer text-center font-medium"
-          style="pointer-events: auto !important; z-index: 9999 !important; position: relative;"
-        >
-          거절
-        </div>
-        <div 
-          v-if="isConnecting"
-          class="flex-1 bg-debate-random text-slate-700 px-4 py-2 rounded-md text-center font-medium"
-        >
-          수락 완료
-        </div>
-      </div>
-      
-      <!-- 타이머 -->
-      <div v-if="!isConnecting" class="mt-4 space-y-2">
-        <div class="flex justify-between text-xs text-muted-foreground">
-          <span>수락 제한 시간</span>
-          <span>{{ Math.ceil(timeLeft) }}초</span>
+      <!-- 타이머 및 진행률 -->
+      <div class="mb-6">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-sm font-medium">수락 시간</span>
+          <span class="text-sm text-muted-foreground">{{ timeLeft }}초 남음</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
           <div 
-            class="bg-debate-random h-2 rounded-full transition-all duration-200"
-            :style="{ width: `${((10 - timeLeft) / 10) * 100}%` }"
+            class="bg-blue-600 h-2 rounded-full transition-all duration-1000"
+            :style="{ width: `${((30 - timeLeft) / 30) * 100}%` }"
           ></div>
         </div>
       </div>
+      
+                           <!-- 버튼들 -->
+        <div class="flex gap-4">
+          <Button 
+            v-if="!isConnecting && !hasAccepted"
+            @click="handleAccept"
+            class="flex-1 w-full"
+            size="lg"
+          >
+            수락
+          </Button>
+                         <div 
+                  v-else-if="hasAccepted"
+                  class="flex-1 flex items-center justify-center bg-debate-random text-white rounded-lg px-4 py-3 text-lg font-medium"
+                >
+                  수락 완료
+                </div>
+         <div 
+           v-else-if="isConnecting"
+           class="flex-1 flex items-center justify-center bg-debate-random text-white rounded-lg px-4 py-3 text-lg font-medium"
+         >
+            수락 완료
+          </div>
+          <Button 
+            v-if="!isConnecting && !hasAccepted"
+            @click="handleReject"
+            variant="destructive"
+            class="flex-1"
+            size="lg"
+          >
+            거절
+          </Button>
+       </div>
     </DialogContent>
   </Dialog>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch, ref } from 'vue'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { UserIcon, X, Loader2 } from 'lucide-vue-next'
 import type { User } from '@/types/modal'
 import { Card } from '@/components/ui/card'
 import { useTopicSetStore } from '@/store/topicSet'
+import { useAuthStore } from '@/store/auth'
+import { useMatchingModals } from '@/composables/useMatchingModals'
 import debateLeftIcon from '@/assets/images/profile/debate_left.png'
 import debateRightIcon from '@/assets/images/profile/debate_right.png'
+import debateRandomIcon from '@/assets/images/profile/debate_random.png'
 
 interface Props {
   isOpen: boolean
@@ -183,23 +206,84 @@ interface Props {
   stanceText: string
   mode: string
   topicId: number
-  users: User[]
   connectedCount: number
   totalCount: number
   timeLeft: number
   isConnecting: boolean
+  lastAcceptedStance?: string  // 마지막으로 수락한 진영 정보 추가
 }
 
 interface Emits {
   (e: 'accept'): void
   (e: 'reject'): void
+  (e: 'update:isOpen', value: boolean): void
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  topicTitle: '매칭된 주제',
+  stanceText: 'option2',
+  mode: '1:1',
+  topicId: 1,
+  connectedCount: 0,
+  totalCount: 0,
+  timeLeft: 30,
+  isConnecting: false,
+  lastAcceptedStance: undefined
+})
 const emit = defineEmits<Emits>()
+
+// isOpen을 반응형으로 만들기
+const isOpen = computed({
+  get: () => props.isOpen,
+  set: (value) => emit('update:isOpen', value)
+})
 
 // 주제 정보 가져오기
 const topicSetStore = useTopicSetStore()
+const authStore = useAuthStore()
+const modals = useMatchingModals()
+
+// 현재 사용자 아이디
+const currentUserId = computed(() => authStore.user?.id || '')
+
+// 현재 사용자가 수락했는지 확인 (로컬 상태 사용)
+const localHasAccepted = ref(false)
+
+const ㅈㅈhasAccepted = computed(() => {
+  return localHasAccepted.value
+})
+
+// 모달이 열릴 때 로컬 상태 초기화
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    localHasAccepted.value = false
+    // 모달이 열릴 때 acceptedCounts 초기화
+    // acceptedCounts.value = { option1: 0, option2: 0 } // 이 부분은 computed로 대체되므로 제거
+    console.log('🔍 MatchingModal - 모달 열림, 카운트 초기화:', acceptedCounts.value)
+  }
+})
+
+// props.lastAcceptedStance 변화 감지하여 카운트 업데이트
+// watch(() => props.lastAcceptedStance, (newStance, oldStance) => {
+//   console.log('🔍 MatchingModal - lastAcceptedStance 변화 감지:', {
+//     이전값: oldStance,
+//     새값: newStance
+//   })
+  
+//   if (newStance && (newStance === 'option1' || newStance === 'option2')) {
+//     console.log('🔍 MatchingModal - 마지막 수락한 진영 감지:', newStance)
+//     const beforeCount = acceptedCounts.value[newStance as 'option1' | 'option2']
+//     acceptedCounts.value[newStance as 'option1' | 'option2']++
+//     const afterCount = acceptedCounts.value[newStance as 'option1' | 'option2']
+//     console.log('🔍 수락 카운트 업데이트:', {
+//       진영: newStance,
+//       이전카운트: beforeCount,
+//       새카운트: afterCount,
+//       전체카운트: acceptedCounts.value
+//     })
+//   }
+// })
+
 const currentTopic = computed(() => {
   return topicSetStore.currentSet?.topics.find(topic => topic.id === props.topicId)
 })
@@ -207,6 +291,38 @@ const currentTopic = computed(() => {
 // 선택지 이름 가져오기
 const option1Name = computed(() => currentTopic.value?.option1 || '선택1')
 const option2Name = computed(() => currentTopic.value?.option2 || '선택2')
+
+// 모드에 따른 아이콘 수 계산
+const getIconCountByMode = (mode: string) => {
+  switch (mode) {
+    case '1:1':
+      return { left: 1, right: 1 }
+    case '2:2':
+      return { left: 2, right: 2 }
+    default:
+      return { left: 1, right: 1 }
+  }
+}
+
+// 현재 모드의 아이콘 수
+const iconCount = computed(() => getIconCountByMode(props.mode))
+
+// 각 진영별 수락한 사람 수 (stanceAcceptance 카운트 사용)
+const acceptedCounts = computed(() => {
+  const counts = {
+    option1: modals.stanceAcceptance.value.option1,
+    option2: modals.stanceAcceptance.value.option2
+  }
+  
+  console.log('🔍 acceptedCounts 계산:', {
+    stanceAcceptance: modals.stanceAcceptance.value,
+    counts,
+    iconCount: iconCount.value
+  })
+  
+  return counts
+})
+
 
 // 모드에 따른 색상 클래스
 const getModeColorClass = (mode: string) => {
@@ -226,31 +342,17 @@ const getModeTextClass = (mode: string) => {
 }
 
 const handleAccept = () => {
-  console.log('🎯 MatchingModal - 수락 버튼 클릭됨!')
-  console.log('🔍 현재 props:', props)
-  console.log('🔍 isConnecting 상태:', props.isConnecting)
-  console.log('🔍 버튼 disabled 상태:', props.isConnecting)
+  console.log('🔍 MatchingModal - 수락 버튼 클릭됨')
   
-  try {
-    emit('accept')
-    console.log('✅ accept 이벤트 발생됨')
-  } catch (error) {
-    console.error('❌ accept 이벤트 발생 실패:', error)
-  }
+  // 로컬 상태를 true로 설정
+  localHasAccepted.value = true
+  
+  emit('accept')
 }
 
 const handleReject = () => {
-  console.log('🎯 MatchingModal - 거절 버튼 클릭됨!')
-  console.log('🔍 현재 props:', props)
-  console.log('🔍 isConnecting 상태:', props.isConnecting)
-  console.log('🔍 버튼 disabled 상태:', props.isConnecting)
-  
-  try {
-    emit('reject')
-    console.log('✅ reject 이벤트 발생됨')
-  } catch (error) {
-    console.error('❌ reject 이벤트 발생 실패:', error)
-  }
+  console.log('🔍 MatchingModal - 거절 버튼 클릭됨')
+  emit('reject')
 }
 
 const getUserStatusClass = (user: User) => {
@@ -260,6 +362,34 @@ const getUserStatusClass = (user: User) => {
     return 'bg-red-100 border-red-300'
   } else {
     return 'bg-gray-100 border-gray-300'
+  }
+}
+
+// 사용자 아이콘 가져오기 함수
+const getUserIcon = (stance: string) => {
+  switch (stance) {
+    case 'option1':
+      return debateLeftIcon
+    case 'option2':
+      return debateRightIcon
+    case 'random':
+      return debateRandomIcon
+    default:
+      return debateRandomIcon
+  }
+}
+
+// 사용자 아이콘 alt 텍스트 가져오기 함수
+const getUserIconAlt = (stance: string) => {
+  switch (stance) {
+    case 'option1':
+      return '북극곰 아이콘'
+    case 'option2':
+      return '펭귄 아이콘'
+    case 'random':
+      return '물범 아이콘'
+    default:
+      return '사용자 아이콘'
   }
 }
 
