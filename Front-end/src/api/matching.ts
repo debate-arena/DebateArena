@@ -43,8 +43,7 @@ export interface Topic {
 
 export interface TopicSet {
   topics: Topic[]
-  startAtMs: number
-  endAtMs: number
+  remainingTimeSeconds?: number
 }
 
 export interface TopicSetResponse {
@@ -55,7 +54,7 @@ export interface TopicSetResponse {
 
 // 매칭 관련 API 서비스
 export const matchingAPI = {
-  // 주제 세트 조회
+  // 주제 세트 조회 (기존 엔드포인트 - 호환성 유지)
   getTopicSets: async (): Promise<TopicSetResponse> => {
     const response = await matchingAxios.get('/api/matching/topics')
     return response.data
