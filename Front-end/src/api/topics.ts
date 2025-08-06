@@ -1,8 +1,9 @@
 import axios from 'axios'
+import { config } from '@/config/env'
 
-// 주제 API 전용 axios 인스턴스 (localhost:8080용)
+// 주제 API 전용 axios 인스턴스 (메인 서버용)
 const topicAxios = axios.create({
-  baseURL: '',  // 상대 경로 사용하여 vite proxy 활용
+  baseURL: config.MAIN_API_URL,  // 메인 서버 URL
   timeout: 10000,
   withCredentials: true, // 쿠키 포함
   headers: {

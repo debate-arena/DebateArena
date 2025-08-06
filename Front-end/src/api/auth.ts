@@ -3,7 +3,7 @@ import { config } from '@/config/env'
 
 // 인증 API 전용 axios 인스턴스
 const authAxios = axios.create({
-  baseURL: config.AUTH_API_URL,  // 로그인 서버 URL
+  baseURL: config.MAIN_API_URL,  // 메인 서버 URL
   timeout: 10000,
   withCredentials: true, // 쿠키 포함
   headers: {
@@ -132,7 +132,7 @@ export const authAPI = {
 
   // OAuth2 로그인 URL 생성
   getOAuthUrl: (provider: 'google', next?: string): string => {
-    const baseUrl = `${config.AUTH_API_URL}/oauth2/authorization/google`
+    const baseUrl = `${config.MAIN_API_URL}/oauth2/authorization/google`
     if (next) {
       return `${baseUrl}?next=${encodeURIComponent(next)}`
     }
