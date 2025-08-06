@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional, Dict, Any
 
 class RequestInput(BaseModel):
     topic: str
@@ -22,15 +23,18 @@ class AttackdefenseInput(BaseModel):
 class AttackDefenseOutput(BaseModel):
     result: dict
 
-# 최종 결과에 사용하는 3가지 모델
+# 최종 결과에 사용하는 모델들
 # 백엔드 쪽에서 들어오는 자료들 구조
 class LastInput(BaseModel):
     topic: str
+    draw: bool
     entire: dict
 
 # 내가 백엔드 쪽으로 보내는 결과들
 class LastOutput(BaseModel):
-    result: dict
+    result: Optional[Dict[str, Any]] = None
+    juror_explain: Optional[str] = None
+    full_summarize: Dict[str, str]
 
 # 전체 요약본을 임베딩 할 모델
 class EmbeddingInput(BaseModel):
