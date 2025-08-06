@@ -45,23 +45,24 @@ async def summarize_first_half(input_data: STTRequest) -> str:
         result = response.json()     # JSON 파싱
 
     # 응답 결과에서 요약 추출
-    return result["choices"][0]["message"]["content"].strip()
+    result = {"user_id" : user_id, "text": result["choices"][0]["message"]["content"].strip()}
+    
+    return result
     
 
 # 공방전에서 들어온 텍스트 요약
 async def summarize_second_half(input_data: AttackdefenseInput):
     topic = input_data.topic
-    target = input_data.target
-    key = input_data.key
+    data = input_data.data
     
-    attack_id = key["attack"]["user_id"]
-    attack_position = key["attack"]["position"]
-    attack_text = key["attack"]["text"]
+    attack_id = data["attack"]["user_id"]
+    attack_position = data["attack"]["position"]
+    attack_text = data["attack"]["text"]
     attack_len = len(attack_text)
     
-    defense_id = key["defense"]["user_id"]
-    defense_position = key["defense"]["position"]
-    defense_text = key["defense"]["text"]
+    defense_id = data["defense"]["user_id"]
+    defense_position = data["defense"]["position"]
+    defense_text = data["defense"]["text"]
     defense_len = len(defense_text)
 
     headers = {
@@ -95,7 +96,7 @@ async def summarize_second_half(input_data: AttackdefenseInput):
             {"role": "system", "content": "한국어로 대답해주세요. 간략하고 핵심적인 요약을 해주세요. "},
             {"role": "user", "content": prompt}
         ],
-        "max_tokens": 2048,
+        "max_tokens": 3000,
         "temperature": 0.3
     }
     
@@ -151,9 +152,6 @@ async def summarize_result_text(input_data: LastInput):
         topic과 position은 가능한 적게 사용하면서 답변을 생성 해주세요.
         해당 요약본은 임베딩하여 AI 청중단과 코사인 유사도를 비교할 것입니다. 
         최대 토큰 내에서 적절히 분량을 조절해서 결과를 만들어주세요.
-
-        형식:
-        `{topic}에 대한 {position}을 주장하는 사람의 의견 종합 요약 :`
 
         """
         

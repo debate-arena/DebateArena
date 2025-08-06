@@ -61,20 +61,14 @@ async def load_audience_embeddings():
     return embeddings, metadata
     
 #토론이 끝나면 summarize쪽에서 전체 요약을 받고 판정을 내릴 함수.
-async def judging(summary_texts: dict, entire_data: dict = None):
+async def judging(summary_texts: dict):
     # 진영 1, 2의 전체 요약본들
-    num1_text = summary_texts["num1"]
-    num2_text = summary_texts["num2"]
+    num1_text = summary_texts["num1"]["text"] if isinstance(summary_texts["num1"], dict) else summary_texts["num1"]
+    num2_text = summary_texts["num2"]["text"] if isinstance(summary_texts["num2"], dict) else summary_texts["num2"]
     
-    # 반박 점수는 entire에서 가져와야 함
-    num1_score = 5  # 기본값
-    num2_score = 5  # 기본값
-    
-    if entire_data:
-        if "num1" in entire_data and "rebuttal_score" in entire_data["num1"]:
-            num1_score = entire_data["num1"]["rebuttal_score"]
-        if "num2" in entire_data and "rebuttal_score" in entire_data["num2"]:
-            num2_score = entire_data["num2"]["rebuttal_score"]
+    # 진영 1, 2의 반박 점수 평균
+    num1_score = summary_texts["num1"]["rebuttal_score"]
+    num2_score = summary_texts["num2"]["rebuttal_score"]
     # 10으로 나눠 정규화
     norm_score1 = num1_score / 10
     norm_score2 = num2_score / 10
@@ -104,51 +98,26 @@ async def judging(summary_texts: dict, entire_data: dict = None):
     num1_similarities = cosine_similarity([num1_embedding], audience_embeddings)[0]
     num2_similarities = cosine_similarity([num2_embedding], audience_embeddings)[0]
 
-    # 5. soft voting 점수 계산
-    soft_score_1 = sum([sim1 / (sim1 + sim2) for sim1, sim2 in zip(num1_similarities, num2_similarities)])
-    soft_score_2 = sum([sim2 / (sim1 + sim2) for sim1, sim2 in zip(num1_similarities, num2_similarities)])
-    total_soft = soft_score_1 + soft_score_2
-    
-    soft_ratio1 = soft_score_1 / total_soft if total_soft else 0.5
-    soft_ratio2 = soft_score_2 / total_soft if total_soft else 0.5
-
-    # 7. weighted score 계산
-    alpha = 0.7  # 청중 판단 비중
-    beta = 0.3   # 반박 점수 비중
-
-    raw_weighted_score1 = alpha * soft_ratio1 + beta * norm_score1
-    raw_weighted_score2 = alpha * soft_ratio2 + beta * norm_score2
-    total_weight = raw_weighted_score1 + raw_weighted_score2
-
-    # 정규화: 두 점수 비율 기반으로 투표 인원 결정
-    final_ratio1 = raw_weighted_score1 / total_weight if total_weight else 0.5
-    final_ratio2 = raw_weighted_score2 / total_weight if total_weight else 0.5
-
-    num1_voting_head = round(final_ratio1 * 50)
-    num2_voting_head = 50 - num1_voting_head  # 보정
-
-    votes = {
-        "num1": num1_voting_head,
-        "num2": num2_voting_head,
-        "none": 0
-    }
-
-    # 8. 최종 승자 판단
-    if num1_voting_head > num2_voting_head:
-        winner = "num1"
-    elif num2_voting_head > num1_voting_head:
-        winner = "num2"
-    else:
-        winner = "무승부"
-
-
-    # 9. 각 juror 별 유사도 기록 (디버깅 및 설명용)
+    # 5-1. hard voting (MARGIN 기반)
+    MARGIN = 0.01
+    votes = {"num1": 0, "num2": 0, "none": 0} # none = 기권
     voted_details = []
-    for i in range(50):
+
+    for i in range(len(audience_embeddings)):
         sim1 = num1_similarities[i]
         sim2 = num2_similarities[i]
         diff = sim1 - sim2
-        vote = "num1" if sim1 > sim2 else "num2"
+
+        if diff > MARGIN:
+            votes["num1"] += 1
+            vote = "num1"
+        elif diff < -MARGIN:
+            votes["num2"] += 1
+            vote = "num2"
+        else:
+            votes["none"] += 1
+            vote = "none"
+
         voted_details.append({
             "juror": i,
             "vote": vote,
@@ -156,14 +125,33 @@ async def judging(summary_texts: dict, entire_data: dict = None):
             "sim2": round(sim2, 5),
             "diff": round(diff, 5)
         })
-        
-    # 10. 로그 출력
-    print(f"소프트 스코어 : num1 : {round(soft_score_1,3)} num2 : {round(soft_score_2,3)}")
-    print(f"[REBUTTAL] num1: {num1_score}, num2: {num2_score}")
-    print(f"[WEIGHTED raw] score1: {raw_weighted_score1:.3f}, score2: {raw_weighted_score2:.3f}")
-    print(f"[WEIGHTED final ratio] score1: {final_ratio1:.3f}, score2: {final_ratio2:.3f}")
-    print(f"최종 투표 수 : {num1_voting_head} vs {num2_voting_head}")
 
+    # 5-2. soft voting 점수 계산
+    soft_score_1 = 0
+    soft_score_2 = 0
+    for sim1, sim2 in zip(num1_similarities, num2_similarities):
+        soft_score_1 += round(sim1 / (sim1 + sim2))
+        soft_score_2 += round(sim2 / (sim1 + sim2))
+
+    # 6. 최종 승자 판단 (하드 기준 우선)
+    if votes["num1"] > votes["num2"]:
+        winner = "num1"
+    elif votes["num2"] > votes["num1"]:
+        winner = "num2"
+    else:
+        # 하드 동점이면 soft로 결정
+        if soft_score_1 > soft_score_2:
+            winner = summary_texts["num1"] + " (soft)"
+        elif soft_score_2 > soft_score_1:
+            winner = summary_texts["num2"] + " (soft)"
+        else:
+            winner = "무승부"
+
+    # 로그 출력
+    print(f"[HARD] num1: {votes['num1']} / num2: {votes['num2']} / 기권: {votes['none']}")
+    print(f"[SOFT] score1: {soft_score_1:.2f} / score2: {soft_score_2:.2f}")
+
+    # 반환값
     return {
         "winner": winner,
         "votes": votes,
