@@ -50,7 +50,7 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "Spring Boot.DebateApplication.executor": "Run",
-    "git-widget-placeholder": "be/merge",
+    "git-widget-placeholder": "Merging be/merge",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "C:/Users/SSAFY/soo/실습/2_1/debate/src/main/java/com/ssafya408/debate/domain/common",
     "node.js.detected.package.eslint": "true",
@@ -101,7 +101,7 @@
       <workItem from="1754249493256" duration="35662000" />
       <workItem from="1754446319340" duration="8314000" />
       <workItem from="1754460463530" duration="3807000" />
-      <workItem from="1754464296260" duration="1307000" />
+      <workItem from="1754464296260" duration="1511000" />
     </task>
     <task id="LOCAL-00001" summary="chore: Debate Service 프로젝트 환경설정">
       <option name="closed" value="true" />
