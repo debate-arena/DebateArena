@@ -37,4 +37,13 @@ public class DebateApiController {
 
   }
 
+  @MessageMapping("/debate/join")
+  public void joinMatch(Principal principal, Long roomId) {
+    String user = principal.getName();
+    log.info("방 입장 - 사용자: {}, 방ID: {}", user, roomId);
+
+    debateService.userJoinMatch(user, roomId);
+
+  }
+
 }

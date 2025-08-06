@@ -20,11 +20,15 @@ import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 @Service
 @RequiredArgsConstructor
@@ -33,12 +37,16 @@ public class DebateService {
   private final DebateRoomRepository debateRoomRepository;
   private final DebateRedisRepository debateRedisRepository;
   private final TopicRepository topicRepository;
+  private final RestClient.Builder builder;
   private Map<Long, RoomManager> roomInfos;
   private final SimpMessagingTemplate template;
-
   private Integer OPINION=0;
   private Integer BATTLE=1;
-
+  // TODO : User Disconnected 시 리소스 해제 처리
+  private final Map<Long, Set<String>> beforeGameStartQueue = new ConcurrentHashMap<>();
+  private final DebateProcessScheduleService scheduleService;
+  @Qualifier("taskScheduler")
+  private final TaskScheduler taskScheduler;
 
   @PostConstruct
   public void init() {
@@ -204,6 +212,25 @@ public class DebateService {
       return null;
     }
   }
+  public void userJoinMatch(String user, Long roomId) {
+    log.info("[userJoinMatch] 입장");
+    // TODO : 입장 전 권한 체크하는 로직 (Redis) 구현 필요
+    beforeGameStartQueue
+            .computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet())
+            .add(user);
+
+    if(roomInfos.get(roomId).getPlayerCount()
+            ==beforeGameStartQueue.get(roomId).size()){
+      log.info("[토론 시작]");
+      // TODO : Redis에서 WebRTCStatue 확인
+      beforeGameStartQueue.get(roomId);
+      RoomManager roomManager= roomInfos.get(roomId);
+      scheduleService.gameStart(roomManager);
+    }
+
+    log.info("사용자 {}가 방 {}에 참여했습니다.", user, roomId);
+  }
+
 
   // 토론방 상태 업데이트
   public void updateRoomStatus(Long roomId, RoomStatus status) {

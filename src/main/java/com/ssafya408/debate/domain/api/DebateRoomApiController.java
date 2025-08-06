@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -334,21 +335,42 @@ public class DebateRoomApiController {
   )
   public ResponseEntity<ApiResponse<Map<String, Object>>> closeRoom(@PathVariable Long roomId) {
     log.info("[토론방 종료] 요청 수신 - roomId: {}", roomId);
-    
+
     try {
       debateService.closeDebateRoom(roomId);
-      
+
       Map<String, Object> response = new HashMap<>();
       response.put("roomId", roomId);
       response.put("message", "토론방이 종료되었습니다");
       response.put("timestamp", java.time.LocalDateTime.now().toString());
-      
+
       log.info("[토론방 종료] 성공 - roomId: {}", roomId);
       return ResponseEntity.ok(ApiResponse.success(response));
-      
+
     } catch (Exception e) {
       log.error("[토론방 종료] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
       return ResponseEntity.ok(ApiResponse.error("토론방 종료에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+
+  @GetMapping("/createDebate")
+  @Operation(
+          summary = "토론 시작",
+          description = "토론을 시작합니다."
+  )
+  public void createDebateRoom(@RequestParam String userEmail, @RequestParam Long roomId) {
+    try {
+
+      log.info("[토론 진행 시작]");
+
+      debateService.userJoinMatch(userEmail, roomId);
+
+      log.info("[토론 진행] 성공 ");
+
+    } catch (Exception e) {
+      log.error("[토론 진행] 실패 - 오류: {}", e.getMessage(), e);
+
     }
   }
 
