@@ -1,6 +1,6 @@
 package com.ssafya408.debate.domain.api.dto.room;
 
-import com.ssafya408.debate.domain.db.MatchType;
+import com.ssafya408.debate.domain.db.rdb.MatchType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import lombok.AllArgsConstructor;

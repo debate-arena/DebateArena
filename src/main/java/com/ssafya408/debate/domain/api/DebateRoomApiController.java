@@ -4,7 +4,7 @@ import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
 import com.ssafya408.debate.domain.api.dto.room.DebateRoomResponse;
 import com.ssafya408.debate.domain.api.service.DebateService;
 import com.ssafya408.debate.domain.common.dto.ApiResponse;
-import com.ssafya408.debate.domain.db.Topic;
+import com.ssafya408.debate.domain.db.rdb.Topic;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
