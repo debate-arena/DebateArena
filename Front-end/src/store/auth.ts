@@ -23,18 +23,20 @@ export const useAuthStore = defineStore('auth', () => {
     
     try {
       // 1. 먼저 인증 상태 확인
-      const isAuthValid = await authAPI.verifyAuth()
-      console.log('🔍 인증 상태 확인:', isAuthValid)
+      const authResult = await authAPI.verifyAuth()
+      console.log('🔍 인증 상태 확인:', authResult)
       
-      if (isAuthValid) {
+      if (authResult.success) {
         // 2. 인증된 경우에만 프로필 정보 조회
         const userData = await authAPI.getCurrentUser()
         console.log('🔍 프로필 정보 조회 성공:', userData)
         user.value = userData
         isAuthenticated.value = true
+        console.log('✅ 백엔드 메시지:', authResult.message)
       } else {
         // 3. 인증되지 않은 경우 상태 초기화
         console.log('🔍 인증되지 않음 - 상태 초기화')
+        console.log('❌ 백엔드 메시지:', authResult.message)
         user.value = null
         isAuthenticated.value = false
       }
@@ -115,6 +117,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // 임시 로그인 (테스트용)
+  const setTempLogin = () => {
+    console.log('🔍 임시 로그인 상태 설정')
+    user.value = {
+      id: 'temp-user',
+      email: 'test@example.com',
+      nickname: '테스트유저'
+    }
+    isAuthenticated.value = true
+    console.log('✅ 임시 로그인 완료:', user.value)
+  }
+
   return {
     // 상태
     user,
@@ -137,5 +151,6 @@ export const useAuthStore = defineStore('auth', () => {
     checkNickname,
     saveNickname,
     logout,
+    setTempLogin
   }
 }) 

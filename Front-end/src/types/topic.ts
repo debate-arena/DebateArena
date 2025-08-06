@@ -4,11 +4,11 @@ export interface Topic {
   title: string;      // 주제 제목/내용
   option1: string;    // 선택지 1 (예: 찬성 등)
   option2: string;    // 선택지 2 (예: 반대 등)
+  index: number;      // 서버 순서 인덱스 (0부터 시작)
 }
 
-// 5개 주제와 시작/종료 시각을 담는 세트 타입 (epoch ms)
+// 주제 세트 타입 (시간 정보는 currentSet에만 포함)
 export interface TopicSet {
-  topics: Topic[];      // 5개 주제 배열
-  startAtMs: number;    // 세트 시작 시각 (epoch ms)
-  endAtMs: number;      // 세트 종료 시각 (epoch ms)
+  topics: Topic[];      // 주제 배열
+  remainingTimeSeconds?: number;  // 남은 시간 (초) - currentSet에만 있음
 } 

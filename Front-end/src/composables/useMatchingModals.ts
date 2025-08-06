@@ -1,187 +1,223 @@
 import { ref, computed } from 'vue'
-import { useMatchingStore } from '@/store/matching'
+import type { Ref } from 'vue'
+
+export interface MatchModalData {
+  topicTitle: string
+  stanceText: string
+  mode: string
+  topicId: number
+}
+
+// 진영별 수락/거절 현황
+export interface StanceAcceptance {
+  option1: {
+    accept: number  // 찬성 진영 수락 수
+    reject: number  // 찬성 진영 거절 수
+  }
+  option2: {
+    accept: number  // 반대 진영 수락 수
+    reject: number  // 반대 진영 거절 수
+  }
+}
+
+export interface ModalState {
+  isStartModalOpen: boolean
+  isTimeoutModalOpen: boolean
+  isTopicChangeModalOpen: boolean
+  isHourWarningModalOpen: boolean
+  isMatchCompleteModalOpen: boolean
+  isLoginRequiredModalOpen: boolean
+}
 
 // 싱글톤 인스턴스
-let modalInstance: ReturnType<typeof createModalInstance> | null = null
+let instance: ReturnType<typeof createMatchingModals> | null = null
 
-function createModalInstance() {
-  const matchingStore = useMatchingStore()
-  
-  // 모달 상태 (직접 ref 사용)
-  const isStartModalOpen = ref(false)
-  const isMatchCompleteModalOpen = ref(false)
-  const isConnectingModalOpen = ref(false)
-  const isTimeoutModalOpen = ref(false)
-  const isHourWarningModalOpen = ref(false)
-  const isTopicChangeModalOpen = ref(false)
-  
-  // 모달 데이터
-  const matchInfo = ref<{
-    topicTitle: string
-    myStance: string
-    mode: string
-  }>({
-    topicTitle: '',
-    myStance: '',
-    mode: ''
+function createMatchingModals() {
+  // 모달 상태 관리
+  const modalState = ref<ModalState>({
+    isStartModalOpen: false,
+    isTimeoutModalOpen: false,
+    isTopicChangeModalOpen: false,
+    isHourWarningModalOpen: false,
+    isMatchCompleteModalOpen: false,
+    isLoginRequiredModalOpen: false
   })
-  
-  const roomInfo = ref<{
-    roomId: string
-    connectedUsers: number
-    totalUsers: number
-  }>({
-    roomId: '',
-    connectedUsers: 0,
-    totalUsers: 2
+
+  // 매칭 모달 데이터
+  const matchModalData = ref<MatchModalData>({
+    topicTitle: '',
+    stanceText: '',
+    mode: '',
+    topicId: 1
+  })
+
+  // 진영별 수락/거절 현황
+  const stanceAcceptance = ref<StanceAcceptance>({
+    option1: {
+      accept: 0,
+      reject: 0
+    },
+    option2: {
+      accept: 0,
+      reject: 0
+    }
+  })
+
+  // 전체 사용자 수 (모드에 따라)
+  const totalCount = computed(() => {
+    const mode = matchModalData.value.mode
+    return mode === '1:1' ? 2 : 4
   })
 
   // 모달 표시 함수들
   const showStartModal = () => {
-    console.log('🔍 showStartModal 호출됨')
-    isStartModalOpen.value = true
-    console.log('✅ start 모달 상태:', isStartModalOpen.value)
+    modalState.value.isStartModalOpen = true
   }
 
-  const showMatchCompleteModal = (topicTitle: string, myStance: string, mode: string) => {
-    console.log('🔍 showMatchCompleteModal 호출됨:', { topicTitle, myStance, mode })
-    matchInfo.value = { topicTitle, myStance, mode }
-    isMatchCompleteModalOpen.value = true
-    console.log('✅ matchComplete 모달 상태:', isMatchCompleteModalOpen.value)
-  }
-
-  const showConnectingModal = () => {
-    console.log('🔍 showConnectingModal 호출됨')
-    roomInfo.value = {
-      roomId: `debate_room_${Date.now()}`,
-      connectedUsers: 0,
-      totalUsers: 2
-    }
-    isConnectingModalOpen.value = true
-    console.log('✅ connecting 모달 상태:', isConnectingModalOpen.value)
+  const hideStartModal = () => {
+    modalState.value.isStartModalOpen = false
   }
 
   const showTimeoutModal = () => {
-    console.log('🔍 showTimeoutModal 호출됨')
-    isTimeoutModalOpen.value = true
-    console.log('✅ timeout 모달 상태:', isTimeoutModalOpen.value)
-  }
-
-  const showHourWarningModal = () => {
-    console.log('🔍 showHourWarningModal 호출됨')
-    isHourWarningModalOpen.value = true
-    console.log('✅ hourWarning 모달 상태:', isHourWarningModalOpen.value)
-  }
-
-  const showTopicChangeModal = () => {
-    console.log('🔍 showTopicChangeModal 호출됨')
-    isTopicChangeModalOpen.value = true
-    console.log('✅ topicChange 모달 상태:', isTopicChangeModalOpen.value)
-  }
-
-  // 모달 숨김 함수들
-  const hideStartModal = () => {
-    console.log('🔍 hideStartModal 호출됨')
-    isStartModalOpen.value = false
-  }
-
-  const hideMatchCompleteModal = () => {
-    console.log('🔍 hideMatchCompleteModal 호출됨')
-    isMatchCompleteModalOpen.value = false
-    if (matchingStore.isMatching) {
-      matchingStore.cancelMatching()
-    }
-  }
-
-  const hideConnectingModal = () => {
-    console.log('🔍 hideConnectingModal 호출됨')
-    isConnectingModalOpen.value = false
-    if (matchingStore.isMatching) {
-      matchingStore.cancelMatching()
-    }
+    modalState.value.isTimeoutModalOpen = true
   }
 
   const hideTimeoutModal = () => {
-    console.log('🔍 hideTimeoutModal 호출됨')
-    isTimeoutModalOpen.value = false
+    modalState.value.isTimeoutModalOpen = false
   }
 
-  const hideHourWarningModal = () => {
-    console.log('🔍 hideHourWarningModal 호출됨')
-    isHourWarningModalOpen.value = false
+  const showTopicChangeModal = () => {
+    modalState.value.isTopicChangeModalOpen = true
   }
 
   const hideTopicChangeModal = () => {
-    console.log('🔍 hideTopicChangeModal 호출됨')
-    isTopicChangeModalOpen.value = false
+    modalState.value.isTopicChangeModalOpen = false
   }
 
-  const hideAllModals = () => {
-    console.log('🔍 hideAllModals 호출됨')
-    isStartModalOpen.value = false
-    isMatchCompleteModalOpen.value = false
-    isConnectingModalOpen.value = false
-    isTimeoutModalOpen.value = false
-    isHourWarningModalOpen.value = false
-    isTopicChangeModalOpen.value = false
-    if (matchingStore.isMatching) {
-      matchingStore.cancelMatching()
+  const showHourWarningModal = () => {
+    modalState.value.isHourWarningModalOpen = true
+  }
+
+  const hideHourWarningModal = () => {
+    modalState.value.isHourWarningModalOpen = false
+  }
+
+  const showLoginRequiredModal = () => {
+    modalState.value.isLoginRequiredModalOpen = true
+  }
+
+  const hideLoginRequiredModal = () => {
+    modalState.value.isLoginRequiredModalOpen = false
+  }
+
+  const showMatchCompleteModal = (data: MatchModalData) => {
+    console.log('🔍 showMatchCompleteModal 호출됨')
+    console.log('🔍 입력 데이터:', data)
+    
+    // 데이터를 명시적으로 설정
+    matchModalData.value = {
+      topicTitle: data.topicTitle || '',
+      stanceText: data.stanceText || '',
+      mode: data.mode || '',
+      topicId: data.topicId || 1
+    }
+    console.log('🔍 모달 데이터 설정됨:', matchModalData.value)
+    
+    // 진영별 수락/거절 현황 초기화
+    stanceAcceptance.value = {
+      option1: {
+        accept: 0,
+        reject: 0
+      },
+      option2: {
+        accept: 0,
+        reject: 0
+      }
+    }
+    console.log('🔍 진영별 수락/거절 현황 초기화됨:', stanceAcceptance.value)
+    
+    // 모달 상태를 명시적으로 설정
+    modalState.value = {
+      ...modalState.value,
+      isMatchCompleteModalOpen: true
+    }
+    console.log('🔍 모달 상태 변경됨:', modalState.value.isMatchCompleteModalOpen)
+  }
+
+  const hideMatchCompleteModal = () => {
+    modalState.value.isMatchCompleteModalOpen = false
+    console.log('🔍 매칭 완료 모달 숨김')
+  }
+
+  // 진영별 수락/거절 현황 업데이트
+  const updateStanceAcceptance = (stance: string, accept: boolean) => {
+    console.log('🔍 updateStanceAcceptance 호출:', { 진영: stance, 수락: accept })
+    
+    if (stance === 'option1' || stance === 'option2') {
+      if (accept) {
+        stanceAcceptance.value[stance as 'option1' | 'option2'].accept++
+        console.log('✅ 진영별 수락 현황 업데이트 성공:', stanceAcceptance.value)
+      } else {
+        stanceAcceptance.value[stance as 'option1' | 'option2'].reject++
+        console.log('✅ 진영별 거절 현황 업데이트 성공:', stanceAcceptance.value)
+      }
+    } else {
+      console.warn('⚠️ 유효하지 않은 진영:', { stance, accept })
     }
   }
 
-  // 모달 열림 상태 확인
-  const isAnyModalOpen = computed(() => {
-    return isStartModalOpen.value || 
-           isMatchCompleteModalOpen.value || 
-           isConnectingModalOpen.value || 
-           isTimeoutModalOpen.value ||
-           isHourWarningModalOpen.value ||
-           isTopicChangeModalOpen.value
-  })
+  // 모든 모달 닫기
+  const hideAllModals = () => {
+    modalState.value = {
+      isStartModalOpen: false,
+      isTimeoutModalOpen: false,
+      isTopicChangeModalOpen: false,
+      isHourWarningModalOpen: false,
+      isMatchCompleteModalOpen: false,
+      isLoginRequiredModalOpen: false
+    }
+    // 진영별 수락/거절 현황 초기화
+    stanceAcceptance.value = {
+      option1: {
+        accept: 0,
+        reject: 0
+      },
+      option2: {
+        accept: 0,
+        reject: 0
+      }
+    }
+    console.log('🔍 hideAllModals - 진영별 수락/거절 현황 초기화됨')
+  }
 
   return {
-    // 모달 상태
-    isStartModalOpen,
-    isMatchCompleteModalOpen,
-    isConnectingModalOpen,
-    isTimeoutModalOpen,
-    isHourWarningModalOpen,
-    isTopicChangeModalOpen,
-    
-    // 모달 데이터
-    matchInfo,
-    roomInfo,
-    
-    // 모달 표시 함수
+    // 상태
+    modalState,
+    matchModalData,
+    stanceAcceptance,
+    totalCount,
+
+    // 모달 제어 함수들
     showStartModal,
-    showMatchCompleteModal,
-    showConnectingModal,
-    showTimeoutModal,
-    showHourWarningModal,
-    showTopicChangeModal,
-    
-    // 모달 숨김 함수
     hideStartModal,
-    hideMatchCompleteModal,
-    hideConnectingModal,
+    showTimeoutModal,
     hideTimeoutModal,
-    hideHourWarningModal,
+    showTopicChangeModal,
     hideTopicChangeModal,
-    hideAllModals,
-    
-    // 유틸리티
-    isAnyModalOpen
+    showHourWarningModal,
+    hideHourWarningModal,
+    showLoginRequiredModal,
+    hideLoginRequiredModal,
+    showMatchCompleteModal,
+    hideMatchCompleteModal,
+    updateStanceAcceptance,
+    hideAllModals
   }
 }
 
-/**
- * 매칭 모달 관리 Composable
- * - 모든 모달의 상태 관리
- * - 모달 표시/숨김 함수 제공
- */
 export function useMatchingModals() {
-  if (!modalInstance) {
-    modalInstance = createModalInstance()
+  if (!instance) {
+    instance = createMatchingModals()
   }
-  return modalInstance
+  return instance
 } 
