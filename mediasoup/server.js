@@ -16,8 +16,13 @@ let redisPublisher;
 let worker;
 const routers = new Map();
 const transports = new Map();
+const roomTransportSizeMap = new Map();
 const producers = new Map();
 const consumers = new Map();
+const producerTransportMap = new Map();
+const consumerTransportMap = new Map();
+const producerHasConsumer = new Map();
+const transportProducerMap = new Map();
 
 // Message handlers map
 const messageHandlers = new Map();
@@ -43,24 +48,21 @@ const mediaCodecs = [
 async function initializeRedis() {
     try {
         // Main Redis client
+        const redisPassword = process.env.REDIS_PASSWORD || '';
+        const redisHost = process.env.REDIS_HOST || 'redis';
+        const redisPort = process.env.REDIS_PORT || '6379';
         redisClient = redis.createClient({
-            host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT) || 6379,
-            password: process.env.REDIS_PASSWORD || undefined,
+            url: `redis://${redisPassword ? `:${redisPassword}@` : ''}${redisHost}:${redisPort}`,
         });
 
         // Subscriber client
         redisSubscriber = redis.createClient({
-            host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT) || 6379,
-            password: process.env.REDIS_PASSWORD || undefined,
+            url: `redis://${redisPassword ? `:${redisPassword}@` : ''}${redisHost}:${redisPort}`,
         });
 
         // Publisher client
         redisPublisher = redis.createClient({
-            host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT) || 6379,
-            password: process.env.REDIS_PASSWORD || undefined,
+            url: `redis://${redisPassword ? `:${redisPassword}@` : ''}${redisHost}:${redisPort}`,
         });
 
         await redisClient.connect();
@@ -77,6 +79,9 @@ async function initializeRedis() {
         await redisSubscriber.subscribe('mediasoup:producer:create', createProducer);
         await redisSubscriber.subscribe('mediasoup:consumer:create', createConsumer);
         await redisSubscriber.subscribe('mediasoup:consumer:resume', resumeConsumer);
+        await redisSubscriber.subscribe('mediasoup:transport:disconnect', disconnectTransport);
+        await redisSubscriber.subscribe('mediasoup:producer:mic:on', micOn);
+        await redisSubscriber.subscribe('mediasoup:producer:mic:off', micOff);
         
         console.log('✅ Subscribed to mediasoup:request channel');
 
@@ -91,6 +96,8 @@ async function initializeWorker() {
     worker = await mediasoup.createWorker({
         logLevel: process.env.MEDIASOUP_LOG_LEVEL || 'debug',
         logTags: ['info', 'ice', 'dtls', 'rtp', 'srtp', 'rtcp'],
+        rtcMinPort: process.env.MEDIASOUP_PORT_RANGE_MIN,
+        rtcMaxPort: process.env.MEDIASOUP_PORT_RANGE_MAX,
     });
 
     worker.on('died', () => {
@@ -154,6 +161,7 @@ async function createRouter(payload)  {
     if (!router) {
         router = await worker.createRouter({ mediaCodecs });
         routers.set(roomId, router);
+        roomTransportSizeMap.set(roomId, (roomTransportSizeMap.get(roomId) || 0));
         
         router.on('close', () => {
             console.log(`[Router] Router closed for room: ${roomId}`);
@@ -178,7 +186,9 @@ async function createRouter(payload)  {
 // Transport 생성 핸들러
 async function createTransport(payload) {
     payload = JSON.parse(payload);
-    const { roomId, isProducer,producerUserEmail } = payload;
+    const { roomId, isProducer,producerUserEmail,sessionId } = payload;
+    console.log("[createTransport] roomId:", roomId);
+    console.log("[createTransport] payload:", payload);
     const router = routers.get(roomId);
     
     if (!router) {
@@ -186,51 +196,81 @@ async function createTransport(payload) {
     }
     
     const transport = await router.createWebRtcTransport({
-        listenIps: [
+        // listenIps: [
+        //     {
+        //         ip: process.env.MEDIASOUP_LISTEN_IP || '0.0.0.0',
+        //         announcedIp: process.env.MEDIASOUP_ANNOUNCED_IP || '127.0.0.1',
+        //     }
+        // ],
+        listenInfos: [
             {
-                ip: process.env.MEDIASOUP_LISTEN_IP || '0.0.0.0',
-                announcedIp: process.env.MEDIASOUP_ANNOUNCED_IP || '127.0.0.1',
-            }
+                protocol: 'udp',                // 보통 WebRTC는 UDP
+                ip: process.env.MEDIASOUP_LISTEN_IP,                  // 로컬에서 바인딩할 인터페이스
+                announcedAddress:  process.env.MEDIASOUP_ANNOUNCED_IP,   // 클라이언트에 노출할 공인 IP (도메인 아님)
+                portRange: {
+                    min: parseInt(process.env.MEDIASOUP_PORT_RANGE_MIN) ,
+                    max: parseInt(process.env.MEDIASOUP_PORT_RANGE_MAX) 
+                },            
+            },
         ],
         enableUdp: true,
         enableTcp: true,
         preferUdp: true,
-        portRange: {
-            min: parseInt(process.env.MEDIASOUP_PORT_RANGE_MIN) || 40000,
-            max: parseInt(process.env.MEDIASOUP_PORT_RANGE_MAX) || 40100
-        },
-        // iceTransportPolicy: 'relay',
-        // iceServers: [
-        //     {
-        //         urls: ['turn:175.117.82.139:3478'],
-        //         username: 'testuser',
-        //         credential: 'testpass'
-        //     }
-        // ]
+
     });
     
     transports.set(transport.id, transport);
-    console.log(`[Transport created] - ID: ${transport.id}, Type: ${isProducer ? 'Producer' : 'Consumer'}`);
+    roomTransportSizeMap.set(roomId, roomTransportSizeMap.get(roomId) + 1);
+
+    console.log(`[Transport created] - ID: ${transport.id}, Type: ${isProducer ? 'Producer' : 'Consumer'}
+         RoomTransport:${roomTransportSizeMap.get(roomId)}`);
     
     transport.on('close', () => {
         console.log(`Transport closed - ID: ${transport.id}`);
-        cleanupTransport(transport.id, 'transport close');
     });
     
-    transport.on('dtlsstatechange', (dtlsState) => {
-        console.log(`DTLS state change - Transport ${transport.id}: ${dtlsState}`);
+    transport.on('dtlsstatechange', async(dtlsState) => {
+        console.log(`DTLS state change - Transport ${payload.userEmail}, ${dtlsState}`);
         if (dtlsState === 'failed') {
-            console.log(`❌ DTLS failed for transport ${transport.id}`);
-            cleanupTransport(transport.id, 'DTLS failed');
+            console.log(`DTLS failed for transport ${transport.id}`);
+            cleanupTransport(transport.id, null, roomId, 'DTLS failed');
+        }
+        if(dtlsState === 'connected'){
+            const connectedResponse = {
+                roomId : roomId,
+                isProducer: isProducer,
+                consumerUserEmail: payload.userEmail,
+                producerUserEmail: producerUserEmail
+            };
+            await redisPublisher.publish('mediasoup:transport:established', JSON.stringify(connectedResponse));
+            console.log(`DTLS connected for transport ${payload.userEmail}, ${payload.producerUserEmail}`);
+            console.log(`${JSON.stringify(connectedResponse)   }`);
+        }
+        if(dtlsState === 'closed'){
+            console.log(`DTLS closed for transport ${payload.userEmail}, ${payload.producerUserEmail}`);
         }
     });
     
-    transport.on('icestatechange', (iceState) => {
+    transport.on('icestatechange', async (iceState) => {
         console.log(`ICE state change - Transport ${transport.id}: ${iceState}`);
         if (iceState === 'failed') {
             console.log(`❌ ICE failed for transport ${transport.id}`);
-            cleanupTransport(transport.id, 'ICE failed');
+            cleanupTransport(transport.id, null, roomId, 'ICE failed');
         }
+        if (iceState === 'disconnected') {
+            const disconnectedResponse = {
+                roomId : roomId,
+                userEmail: payload.userEmail,
+                transportId: transport.id,
+                sessionId: sessionId
+            };
+            await redisPublisher.publish('mediasoup:transport:disconnected', JSON.stringify(disconnectedResponse));
+            console.log(`ICE disconnected for transport ${payload.userEmail}, ${payload.producerUserEmail}`);
+        }
+    });
+
+    transport.on('sctpstatechange', (connectionState) => {
+        console.log(`Connection state change - Transport ${transport.id}: ${connectionState}`);
     });
     
     console.log(`[Total active transports] : ${transports.size}`);
@@ -244,7 +284,8 @@ async function createTransport(payload) {
         iceCandidates: transport.iceCandidates,
         iceParameters: transport.iceParameters,
         isProducer,
-        producerUserEmail: producerUserEmail
+        producerUserEmail: producerUserEmail,
+        sessionId: sessionId
     };
 
 
@@ -252,25 +293,56 @@ async function createTransport(payload) {
 
 }
 
+async function disconnectTransport(payload) {
+    payload = JSON.parse(payload);
+    const { producerId, roomId , type,consumerId,transportId} = payload;
+    console.log(`[disconnectTransport] - producerId: ${producerId}, roomId: ${roomId}, type: ${type}, consumerId: ${consumerId}, transportId: ${transportId}`);
+    if(type === 'producer'){
+        cleanupProducer(producerId, roomId);
+    }else if(type === 'consumer'){
+        cleanupConsumer(consumerId, roomId);
+    }else{
+        transportId.forEach(transportIdvalue => {
+            cleanupTransport(transportIdvalue, roomId);
+        });
+    }
+
+    if(roomTransportSizeMap.get(roomId) === 0){
+        routers.get(roomId).close();
+        routers.delete(roomId);
+        roomTransportSizeMap.delete(roomId);
+        console.log(`routers 삭제 : ${roomId}`);
+    }
+
+    
+    console.log(`[Total active transports] : ${transports.size}`);
+    console.log(`[Total active producers] : ${producers.size}`);
+    console.log(`[Total active consumers] : ${consumers.size}`);
+    console.log(`[Total active routers] : ${routers.size}`);
+    console.log(`[Total active roomTransportSizeMap] : ${roomTransportSizeMap.get(roomId)}`);
+    console.log(`[Total active producerHasConsumer] : ${producerHasConsumer.size}`);
+}
+
 // Transport 연결 핸들러
 async function connectTransport(payload) {
     payload = JSON.parse(payload);
-    const { transportId, dtlsParameters,userEmail } = payload;
-    console.log(`[Connecting transport] - Transport ID: ${transportId}`);
+    const { transportId, dtlsParameters,userEmail,roomId } = payload;
+    console.log(`[Connecting transport] - Transport ID: ${userEmail}`);
     
     const transport = transports.get(transportId);
     if (!transport) {
         throw new Error(`Transport not found: ${transportId}`);
     }
-    
-    await transport.connect({ dtlsParameters });
-    console.log(`[Connecting transport] ID: ${transportId}`);
-    console.log(`[Connecting transport] DTLS state: ${transport.dtlsState}`);
-    console.log(`[Connecting transport] ICE state: ${transport.iceState}`); 
+    try{
+        await transport.connect({ dtlsParameters });
+    }catch(error){
+        console.error('Error connecting transport:', error);
+    }
 
     const response = {
         userEmail: userEmail,
-        connectedTransportId: transportId
+        connectedTransportId: transportId,
+        roomId: roomId
     };
 
     await redisPublisher.publish('mediasoup:transport:connected', JSON.stringify(response));
@@ -285,27 +357,33 @@ async function createProducer(payload) {
     
     const transport = transports.get(transportId);
     if (!transport) {
-        throw new Error(`Transport not found: ${transportId}`);
+        const response = {
+            userEmail: payload.userEmail,
+            error: "transport not found"
+        };
+        await redisPublisher.publish('mediasoup:producer:created', JSON.stringify(response));
+        console.log(`[createProducer] Transport not found: ${transportId}: ${transportId}`);
+        return;
+
     }
-    
-    const producer = await transport.produce({ kind, rtpParameters });
+    // TODO : 추후 삭제
+    paused = false;
+    const producer = await transport.produce({ 
+        kind, 
+        rtpParameters,
+        paused,
+     });
     producers.set(producer.id, producer);
+    producerTransportMap.set(producer.id, transportId);
+    addProducerToTransport(transportId, producer.id);
     
     console.log(`[Producer created] - ID: ${producer.id}, Kind: ${kind}`);
-    console.log(`[Producer stats] - Paused: ${producer.paused}, Kind: ${producer.kind}`);
+    console.log(`[Producer created] - Paused: ${producer.paused}, Kind: ${producer.kind}`);
     
-    producer.on('close', () => {
-        console.log(`Producer closed - ID: ${producer.id}`);
-        cleanupProducer(producer.id, 'producer close');
+    producer.on('transportclose', () => {
+        console.log(`Producer transportclose closed - ID: ${producer.id}`);
     });
     
-    producer.on('pause', () => {
-        console.log(`⏸Producer paused - ID: ${producer.id}`);
-    });
-    
-    producer.on('resume', () => {
-        console.log(`▶Producer resumed - ID: ${producer.id}`);
-    });
     
     console.log(`[Total active producers] : ${producers.size}`);
 
@@ -322,8 +400,8 @@ async function createProducer(payload) {
 // Consumer 생성 핸들러
 async function createConsumer(payload) {
     payload = JSON.parse(payload);
-    const { producerId, rtpCapabilities, transportId,producerUserEmail } = payload;
-    console.log(`[Creating consumer - Router , Producer: ${producerId}`);
+    const { producerId, rtpCapabilities, transportId,producerUserEmail,roomId } = payload;
+    console.log(`[Creating consumer ${producerId}`);
     
     // const router = routers.get(routerId);
     const producer = producers.get(producerId);
@@ -342,38 +420,44 @@ async function createConsumer(payload) {
     
     const transport = transports.get(transportId);
     if (!transport) {
-        throw new Error(`Transport not found: ${transportId}`);
+
+        const response = {
+            userEmail: payload.userEmail,
+            error: "transport not found"
+        };
+        await redisPublisher.publish('mediasoup:consumer:created', JSON.stringify(response));
+        console.log(`[createConsumer] Transport not found: ${transportId}`);
+        return;
+
     }
     
-    console.log("[Using transport] :", transport.id);
+    console.log("[Create Consumer] used :", transport.id);
     
+    // TODO : 추후 삭제
+    paused = false;
     const consumer = await transport.consume({
         producerId,
         rtpCapabilities,
-        paused: true,
+        paused,
     });
     
     consumers.set(consumer.id, consumer);
-    
+    consumerTransportMap.set(consumer.id, transportId);
+    addConsumerToProducer(producerId, consumer.id);
+
     console.log(`[Consumer created] - ID: ${consumer.id}, Kind: ${consumer.kind}`);
     console.log(`[Consumer stats] - Paused: ${consumer.paused}, Producer: ${producerId}`);
     
-    consumer.on('close', () => {
+    consumer.on('transportclose', () => {
         console.log(`Consumer closed - ID: ${consumer.id}`);
-        cleanupConsumer(consumer.id, 'consumer close');
-    });
-    
-    consumer.on('pause', () => {
-        console.log(`⏸Consumer paused - ID: ${consumer.id}`);
-    });
-    
-    consumer.on('resume', () => {
-        console.log(`▶Consumer resumed - ID: ${consumer.id}`);
     });
     
     consumer.on('producerclose', () => {
-        console.log(`📤 Producer closed for consumer - ID: ${consumer.id}`);
-        cleanupConsumer(consumer.id, 'producer closed');
+        console.log(`⏸Consumer paused - ID: ${consumer.id}`);
+    });
+    
+    consumer.on('producerresume', () => {
+        console.log(`▶Consumer resumed - ID: ${consumer.id}`);
     });
     
     console.log(`[Total active consumers] : ${consumers.size}`);
@@ -384,10 +468,55 @@ async function createConsumer(payload) {
         producerId: producerId,
         rtpParameters: consumer.rtpParameters,
         kind: consumer.kind,
-        producerUserEmail: producerUserEmail
+        producerUserEmail: producerUserEmail,
+        roomId: roomId
     };
 
     await redisPublisher.publish('mediasoup:consumer:created', JSON.stringify(response));
+}
+
+async function micOn(payload) {
+    payload = JSON.parse(payload);
+    const { producerId } = payload;
+
+    const producer = producers.get(producerId);
+
+    if (!producer) {
+        console.log(`[ERROR]Producer not found: ${producerId}`);
+        return;
+    }
+
+    console.log(`[micOn] Producer ${producerId} is on`);
+    producer.resume();
+
+    producerHasConsumer.get(producerId).forEach(consumerId => {
+        const consumer = consumers.get(consumerId);
+        if (consumer) {
+            consumer.resume();
+        }
+    });
+}
+
+async function micOff(payload) {
+    payload = JSON.parse(payload);
+    const { producerId } = payload;
+
+    const producer = producers.get(producerId);
+
+    if (!producer) {
+        console.log(`[ERROR]Producer not found: ${producerId}`);
+        return;
+    }
+
+    console.log(`[micOff] Producer ${producerId} is on`);
+    producer.pause();
+
+    producerHasConsumer.get(producerId).forEach(consumerId => {
+        const consumer = consumers.get(consumerId);
+        if (consumer) {
+            consumer.pause();
+        }
+    });
 }
 
 // Consumer resume 핸들러
@@ -407,103 +536,209 @@ async function resumeConsumer(payload) {
     return { success: true };
 }
 
-// 1단계: Transport 정리 함수
-function cleanupTransport(transportId, reason = 'connection lost') {
-    console.log(`🧹 Transport 정리 시작: ${transportId} (이유: ${reason})`);
-    
-    // 2단계: 해당 transport의 모든 producer 찾아서 삭제
-    const relatedProducers = [];
-    for (const [producerId, producer] of producers.entries()) {
-        if (producer.transport && producer.transport.id === transportId) {
-            relatedProducers.push(producerId);
-        }
-    }
-    
-    relatedProducers.forEach(producerId => {
-        console.log(`  📤 Producer 삭제: ${producerId}`);
-        const producer = producers.get(producerId);
-        if (producer && !producer.closed) {
-            producer.close();
-        }
-        producers.delete(producerId);
-    });
-    
-    // 3단계: 해당 transport의 모든 consumer 찾아서 삭제
-    const relatedConsumers = [];
-    for (const [consumerId, consumer] of consumers.entries()) {
-        if (consumer.transport && consumer.transport.id === transportId) {
-            relatedConsumers.push(consumerId);
-        }
-    }
-    
-    relatedConsumers.forEach(consumerId => {
-        console.log(`  📥 Consumer 삭제: ${consumerId}`);
-        const consumer = consumers.get(consumerId);
-        if (consumer && !consumer.closed) {
-            consumer.close();
-        }
-        consumers.delete(consumerId);
-    });
-    
-    // 4단계: Transport 자체 삭제
+// 1단계: Transport 정리 함수 
+function cleanupTransport(transportId,roomId,isEvent = false) {
+    console.log(`Transport 정리 시작: ${transportId} `);
+    // Transport 자체 삭제
     const transport = transports.get(transportId);
+    if(!transport){
+        console.log(`[cleanupTransport!] transport not found : ${transportId}`);
+        return;
+    }
     if (transport && !transport.closed) {
         transport.close();
+        roomTransportSizeMap.set(roomId, roomTransportSizeMap.get(roomId) - 1);
     }
+
     transports.delete(transportId);
-    
-    console.log(`✅ Transport 정리 완료: ${transportId} (Producer: ${relatedProducers.length}개, Consumer: ${relatedConsumers.length}개 삭제)`);
+}
+
+function cleanupProducer(producerId, roomId) {
+    const transportId = producerTransportMap.get(producerId);
+
+    if(producerId && producerId !== null){
+        // 1. 해당 producer를 구독하는 consumer 의 transport 찾아서 삭제
+        if(producerHasConsumer.has(producerId)){
+            producerHasConsumer.get(producerId).forEach(consumerId => {
+                const consumerTransportId = consumerTransportMap.get(consumerId);
+                const consumerTransport = transports.get(consumerTransportId);
+                if(consumerTransport && !consumerTransport.closed){
+                    consumerTransport.close();
+                    roomTransportSizeMap.set(roomId, roomTransportSizeMap.get(roomId) - 1);
+                    console.log(`consumerTransport 삭제 : ${consumerTransportId}`);
+                }
+                if(consumerTransport){
+                    transports.delete(consumerTransport.id);
+                }
+                if(consumerId){
+                    consumers.delete(consumerId);
+                    consumerTransportMap.delete(consumerId);
+                }
+            });
+        }
+        const producerTransportId = producerTransportMap.get(producerId);
+        const producerTransport = transports.get(producerTransportId);
+
+        // 2. 해당 producer를 사용하는 transport 삭제
+        if(producerTransport && !producerTransport.closed){
+            producerTransport.close();
+            roomTransportSizeMap.set(roomId, roomTransportSizeMap.get(roomId) - 1);
+            console.log(`producerTransport 삭제 : ${producerTransportId}`);
+        }
+
+        // 3. 해당 transport의 모든 producer 찾아서 삭제
+        transportProducerMap.get(transportId).forEach(producerId => {
+            producers.delete(producerId);
+            producerTransportMap.delete(producerId);
+        });
+        transports.delete(producerTransport.id);
+        transportProducerMap.delete(transportId);
+
+        // 4. 해당 producer를 구독하는 consumer 삭제
+        producerHasConsumer.delete(producerId);
+        
+    }
+
+    console.log(`[cleanup producer] - Transport ID: ${transportId}, Producer ID: ${producerId}, Room ID: ${roomId}`);
+}
+
+function addConsumerToProducer(producerId, consumerId) {
+    if (!producerHasConsumer.has(producerId)) {
+        producerHasConsumer.set(producerId, new Set());
+    }
+    producerHasConsumer.get(producerId).add(consumerId);
+}
+
+function addProducerToTransport(transportId, producerId) {
+    if (!transportProducerMap.has(transportId)) {
+        transportProducerMap.set(transportId, new Set());
+    }
+    transportProducerMap.get(transportId).add(producerId);
 }
 
 // Producer 정리 함수 (관련 Consumer들도 함께 정리)
-function cleanupProducer(producerId, reason = 'producer closed') {
-    console.log(`🧹 Producer 정리 시작: ${producerId} (이유: ${reason})`);
+// function cleanupProducer(producerId, reason = 'producer closed') {
+//     console.log(`🧹 Producer 정리 시작: ${producerId} (이유: ${reason})`);
     
-    // 해당 producer를 구독하는 모든 consumer 찾아서 삭제
-    const relatedConsumers = [];
-    for (const [consumerId, consumer] of consumers.entries()) {
-        if (consumer.producerId === producerId) {
-            relatedConsumers.push(consumerId);
-        }
-    }
+//     // 해당 producer를 구독하는 모든 consumer 찾아서 삭제
+//     const relatedConsumers = [];
+//     for (const [consumerId, consumer] of consumers.entries()) {
+//         if (consumer.producerId === producerId) {
+//             relatedConsumers.push(consumerId);
+//         }
+//     }
     
-    relatedConsumers.forEach(consumerId => {
-        console.log(`  📥 Consumer 삭제: ${consumerId}`);
-        const consumer = consumers.get(consumerId);
-        if (consumer && !consumer.closed) {
-            consumer.close();
-        }
-        consumers.delete(consumerId);
-    });
+//     relatedConsumers.forEach(consumerId => {
+//         console.log(`  📥 Consumer 삭제: ${consumerId}`);
+//         const consumer = consumers.get(consumerId);
+//         if (consumer && !consumer.closed) {
+//             consumer.close();
+//         }
+//         consumers.delete(consumerId);
+//     });
     
-    // Producer 자체 삭제
-    const producer = producers.get(producerId);
-    if (producer && !producer.closed) {
-        producer.close();
-    }
-    producers.delete(producerId);
+//     // Producer 자체 삭제
+//     const producer = producers.get(producerId);
+//     if (producer && !producer.closed) {
+//         producer.close();
+//     }
+//     producers.delete(producerId);
     
-    console.log(`✅ Producer 정리 완료: ${producerId} (Consumer: ${relatedConsumers.length}개 삭제)`);
-}
+//     console.log(`✅ Producer 정리 완료: ${producerId} (Consumer: ${relatedConsumers.length}개 삭제)`);
+// }
 
 // Consumer 정리 함수 (단순 삭제)
-function cleanupConsumer(consumerId, reason = 'consumer closed') {
-    console.log(`🧹 Consumer 정리: ${consumerId} (이유: ${reason})`);
-    
-    const consumer = consumers.get(consumerId);
-    if (consumer && !consumer.closed) {
-        consumer.close();
+function cleanupConsumer(consumerId, roomId) {
+    const transportId = consumerTransportMap.get(consumerId);
+    const transport = transports.get(transportId);
+    if(transport && !transport.closed){
+        transport.close();
+        console.log(`consumerTransport 삭제 : ${transportId}`);
+        roomTransportSizeMap.set(roomId, roomTransportSizeMap.get(roomId) - 1);
     }
+    producerHasConsumer.get(consumers.get(consumerId).producerId).delete(consumerId);
+    transports.delete(transportId);
     consumers.delete(consumerId);
-    
-    console.log(`✅ Consumer 정리 완료: ${consumerId}`);
+    consumerTransportMap.delete(consumerId);
+
+
 }
 
+
+// Producer pause/resume 테스트 시작
+function startProducerPauseResumeTest() {
+    let pauseResumeCounter = 0;
+    
+    console.log('🎮 Starting producer pause/resume test (every 10 seconds)');
+    
+    setInterval(async () => {
+        try {
+            pauseResumeCounter++;
+            
+            if (producers.size === 0) {
+                console.log(`⏱️ [${pauseResumeCounter}] No producers to pause/resume`);
+                return;
+            }
+
+            console.log(`\n🔄 [${pauseResumeCounter}] Starting pause/resume cycle for ${producers.size} producers`);
+            
+            // 1단계: 모든 producer 일시정지
+            console.log(`⏸️ Pausing all producers...`);
+            const pausePromises = [];
+            
+            for (const [producerId, producer] of producers.entries()) {
+                if (!producer.paused) {
+                    pausePromises.push(
+                        producer.pause()
+                            .then(() => console.log(`  ⏸️ Paused producer ${producerId} (${producer.kind})`))
+                            .catch(err => console.error(`  ❌ Failed to pause producer ${producerId}:`, err))
+                    );
+                } else {
+                    console.log(`  ⏸️ Producer ${producerId} (${producer.kind}) already paused`);
+                }
+            }
+            
+            await Promise.all(pausePromises);
+            console.log(`✅ All producers paused`);
+            
+            // 2초 대기 후 resume
+            setTimeout(async () => {
+                try {
+                    console.log(`▶️ Resuming all producers...`);
+                    const resumePromises = [];
+                    
+                    for (const [producerId, producer] of producers.entries()) {
+                        if (producer.paused) {
+                            resumePromises.push(
+                                producer.resume()
+                                    .then(() => console.log(`  ▶️ Resumed producer ${producerId} (${producer.kind})`))
+                                    .catch(err => console.error(`  ❌ Failed to resume producer ${producerId}:`, err))
+                            );
+                        } else {
+                            console.log(`  ▶️ Producer ${producerId} (${producer.kind}) already active`);
+                        }
+                    }
+                    
+                    await Promise.all(resumePromises);
+                    console.log(`✅ All producers resumed`);
+                    console.log(`🔄 [${pauseResumeCounter}] Pause/resume cycle completed\n`);
+                    
+                } catch (error) {
+                    console.error(`❌ Error during resume phase:`, error);
+                }
+            }, 2000); // 2초 후 resume
+            
+        } catch (error) {
+            console.error(`❌ Error during pause/resume cycle:`, error);
+        }
+    }, 10000); // 10초마다 실행
+}
 
 // 서버 초기화 및 시작
 async function startServer() {
     try {
         console.log('🚀 Starting MediaSoup SFU Server...');
+        console.log(`${process.env.REDIS_HOST || '127.0.0.1'}`);
         
         // Redis 및 MediaSoup 초기화
         await initializeRedis();
@@ -524,10 +759,13 @@ async function startServer() {
         console.log('=======================\n');
         
         // 5분마다 시스템 상태 로깅
-        // setInterval(logSystemStatus, 5 * 60 * 1000);
+        setInterval(logSystemStatus, 5000);
         
         // 초기 상태 로깅
         // logSystemStatus();
+
+        // 10초마다 모든 producer pause/resume 테스트
+        // startProducerPauseResumeTest();
 
     } catch (error) {
         console.error('❌ Server startup failed:', error);
@@ -638,14 +876,28 @@ startServer();
 // });
 
 // 주기적 시스템 상태 로깅
-// function logSystemStatus() {
-//     console.log('\n=== 📊 System Status ===');
-//     console.log(`🏠 Active Rooms: ${routers.size}`);
-//     console.log(`🚛 Active Transports: ${transports.size}`);
-//     console.log(`📤 Active Producers: ${producers.size}`);
-//     console.log(`📥 Active Consumers: ${consumers.size}`);
-//     console.log(`💾 Memory Usage: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
-//     console.log(`⏱️ Uptime: ${Math.round(process.uptime())}s`);
-//     console.log('========================\n');
-// }
+function logSystemStatus() {
+    console.log('\n=== 📊 System Status ===');
+    console.log(`💾 Memory Usage: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
+    console.log(`⏱️ Uptime: ${Math.round(process.uptime())}s`);
+    console.log('[Total active roomTransportSizeMap]:');
+    roomTransportSizeMap.forEach((value, key) => {
+      console.log(`  [${key}]: ${value}`);
+    });
+
+
+
+    console.log(`[Total active transports] : ${transports.size}`);
+    console.log(`[Total active producers] : ${producers.size}`);
+    console.log(`[Total active consumers] : ${consumers.size}`);
+    console.log(`[Total active routers] : ${routers.size}`);
+    console.log(`[Total active producerHasConsumer] : ${producerHasConsumer.size}`);
+    producerHasConsumer.forEach((value, key) => {
+        console.log(`  [${key}]: ${value.size}`);
+    });
+    console.log(`[Total active transportProducerMap] : ${transportProducerMap.size}`);
+    console.log(`[Total active consumerTransportMap] : ${consumerTransportMap.size}`);
+    console.log(`[Total active producerTransportMap] : ${producerTransportMap.size}`);
+    console.log('========================\n');
+}
 
