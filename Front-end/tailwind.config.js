@@ -67,9 +67,13 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // 토론방 커스텀 색상
-        'debate-left': "#FACC15",   // 좌측 진영 배경 (찬성) - 밝은 황색
-        'debate-right': "#B22222",  // 우측 진영 배경 (반대) - 밝은 적색
+        // 토론방 커스텀 색상 (북극/남극 테마)
+        'debate-left': "#F0F9FF",   // 북극곰 (쿨 화이트) - 아주 연한 얼음 하늘색
+        'debate-right': "#0B1224",  // 펭귄 (네이비 블랙) - 남극 밤하늘 네이비
+        'debate-random': "#C8D5E8", // 물범 (블루-그레이) - 푸른빛 도는 회색
+        // 모드 선택 색상
+        'mode-1v1': "#E0E7FF",      // 1vs1 - Indigo-100 (차가운 톤)
+        'mode-2v2': "#CFFAFE",      // 2vs2 - 청록색 (Cyan-100)
       },
       borderRadius: {
         lg: "var(--radius)",

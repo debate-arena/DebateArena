@@ -19,6 +19,25 @@ interface MatchingState {
 
   // 오류 상태
   error?: string
+
+  // 방 정보 (useMatchingState에서 통합)
+  roomInfo: {
+    roomId: string
+    totalUsers: number
+    connectedUsers: number
+  }
+
+  // 현재 매칭 ID
+  currentMatchId: string
+
+  // 수락 타이머 관련
+  acceptTimeLeft: number
+
+  // 현재 사용자의 position (0: 첫 번째, 1: 두 번째)
+  currentUserPosition: number
+
+  // 현재 사용자의 팀 정보 (서버에서 받은 팀 번호)
+  currentUserTeam: number
 }
 
 export const useMatchingStore = defineStore('matching', {
@@ -31,7 +50,16 @@ export const useMatchingStore = defineStore('matching', {
     elapsedTime: 0,
     estimatedWaitTime: undefined,
     matchResult: undefined,
-    error: undefined
+    error: undefined,
+    roomInfo: {
+      roomId: '',
+      totalUsers: 0,
+      connectedUsers: 0
+    },
+    currentMatchId: '',
+    acceptTimeLeft: 15,
+    currentUserPosition: 0,
+    currentUserTeam: 0 // 초기값 설정
   }),
 
   getters: {
@@ -66,7 +94,7 @@ export const useMatchingStore = defineStore('matching', {
       return Array.from(state.topicSelections.values()).map(selection => ({
         topicId: selection.topicId,
         stance: selection.stance,
-        modes: selection.modeOrder // modeOrder 사용
+        modes: Array.from(selection.modes) // Set을 Array로 변환
       }))
     },
 
@@ -84,6 +112,34 @@ export const useMatchingStore = defineStore('matching', {
     // 글로벌 진영이 선택되었는지 확인
     isGlobalStanceSelected: (state) => (stance: Stance) => {
       return state.globalStances.has(stance)
+    },
+
+    // WebSocket API 요청으로 변환
+    toMatchRequest: (state) => {
+      const choices: Array<{
+        matchType: number
+        matchTitle: number
+        choice: number
+      }> = []
+      
+      state.topicSelections.forEach(selection => {
+        selection.modes.forEach(mode => {
+          choices.push({
+            matchType: mode === '1:1' ? 0 : 1,
+            matchTitle: selection.topicIndex, // 서버 순서 인덱스 사용
+            choice: (() => {
+              switch (selection.stance) {
+                case 'option1': return 0  // pro (찬성)
+                case 'option2': return 1  // con (반대)
+                case 'random': return 2   // any (상관없음)
+                default: return 2
+              }
+            })()
+          })
+        })
+      })
+      
+      return { choices }
     }
   },
 
@@ -214,6 +270,10 @@ export const useMatchingStore = defineStore('matching', {
 
     // 새로운 주제 선택 생성
     createTopicSelection(topicId: number, stance: Stance) {
+      const topicSetStore = useTopicSetStore()
+      const topic = topicSetStore.currentSet?.topics.find(t => t.id === topicId)
+      const topicIndex = topic?.index ?? 0
+      
       const initialModes = new Set<PlayerMode>(this.globalModes)
       const modeOrder = Array.from(initialModes).sort((a, b) => {
         if (a === '1:1') return -1
@@ -223,6 +283,7 @@ export const useMatchingStore = defineStore('matching', {
       
       this.topicSelections.set(topicId, {
         topicId,
+        topicIndex,        // 서버 순서 인덱스 추가
         stance,
         modes: initialModes,
         modeOrder
@@ -232,9 +293,23 @@ export const useMatchingStore = defineStore('matching', {
     // 페이지 진입 시 모든 주제에 초기 선택 생성
     initializeTopicSelections(topicIds: number[]) {
       this.topicSelections.clear()
+      
+      // 글로벌 상태가 비어있으면 기본값 설정
+      if (this.globalModes.size === 0) {
+        this.globalModes = new Set(['1:1', '2:2'])
+      }
+      if (this.globalStances.size === 0) {
+        this.globalStances = new Set(['random'])
+      }
+      
       topicIds.forEach(topicId => {
+        const topicSetStore = useTopicSetStore()
+        const topic = topicSetStore.currentSet?.topics.find(t => t.id === topicId)
+        const topicIndex = topic?.index ?? 0
+        
         this.topicSelections.set(topicId, {
           topicId,
+          topicIndex,        // 서버 순서 인덱스 추가
           stance: Array.from(this.globalStances)[0] || 'random',
           modes: new Set(this.globalModes),
           modeOrder: Array.from(this.globalModes)
@@ -307,6 +382,128 @@ export const useMatchingStore = defineStore('matching', {
       this.topicSelections.clear()
       this.globalModes.clear()
       this.globalStances.clear()
+    },
+
+    // 진영을 API choice로 변환
+    convertStanceToChoice(stance: Stance): number {
+      switch (stance) {
+        case 'option1': return 0  // pro (찬성)
+        case 'option2': return 1  // con (반대)
+        case 'random': return 2   // any (상관없음)
+        default: return 2
+      }
+    },
+
+    // WebSocket 매칭 요청 전송
+    async sendMatchRequest() {
+      if (!this.canStartMatching) return
+      
+      const request = this.toMatchRequest
+      console.log('🎯 매칭 요청 전송:', request)
+      
+      // WebSocket으로 요청 전송
+      // stompClient.publish({
+      //   destination: '/pub/match/request',
+      //   body: JSON.stringify(request)
+      // })
+      
+      this.isMatching = true
+      this.status = 'waiting'
+      this.elapsedTime = 0
+      this.error = undefined
+    },
+
+    // useMatchingState에서 통합된 함수들
+    
+    // 매칭 상태 설정
+    setMatched() {
+      this.status = 'matched'
+    },
+
+    setConnecting() {
+      this.status = 'connecting'
+    },
+
+    clearError() {
+      this.error = undefined
+    },
+
+    // 방 정보 업데이트
+    updateRoomInfo(info: Partial<{ roomId: string; totalUsers: number; connectedUsers: number }>) {
+      this.roomInfo = { ...this.roomInfo, ...info }
+    },
+
+    resetRoomInfo() {
+      this.roomInfo = {
+        roomId: '',
+        totalUsers: 0,
+        connectedUsers: 0
+      }
+    },
+
+    // 매칭 ID 설정
+    setCurrentMatchId(matchId: string) {
+      this.currentMatchId = matchId
+    },
+
+    // 현재 사용자의 position 설정
+    setCurrentUserPosition(position: number) {
+      this.currentUserPosition = position
+    },
+
+    // 현재 사용자의 position 가져오기
+    getCurrentUserPosition(): number {
+      return this.currentUserPosition
+    },
+
+    // 현재 사용자의 팀 정보 설정
+    setCurrentUserTeam(team: number) {
+      this.currentUserTeam = team
+    },
+
+    // 현재 사용자의 팀 정보 가져오기
+    getCurrentUserTeam(): number {
+      return this.currentUserTeam
+    },
+
+    // 수락 타이머 관리
+    startAcceptTimer() {
+      this.acceptTimeLeft = 15
+      // 실제 타이머 로직은 별도 composable에서 관리
+    },
+
+    stopAcceptTimer() {
+      this.acceptTimeLeft = 0
+    },
+
+    resetAcceptTimer() {
+      this.acceptTimeLeft = 15
+    },
+
+    // 수락 타이머 업데이트
+    updateAcceptTimer() {
+      if (this.acceptTimeLeft > 0) {
+        this.acceptTimeLeft--
+        if (this.acceptTimeLeft === 0) {
+          // 타이머 만료 시 에러 설정
+          this.error = '수락 시간이 만료되었습니다.'
+        }
+      }
+    },
+
+    // 전체 상태 리셋
+    reset() {
+      this.isMatching = false
+      this.status = 'idle'
+      this.elapsedTime = 0
+      this.error = undefined
+      this.matchResult = undefined
+      this.estimatedWaitTime = undefined
+      this.currentMatchId = ''
+      this.acceptTimeLeft = 15
+      this.currentUserPosition = 0
+      this.currentUserTeam = 0 // 팀 정보도 리셋
+      this.resetRoomInfo()
     }
   }
 }) 

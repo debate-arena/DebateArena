@@ -1,42 +1,37 @@
 <template>
   <Card class="p-4">
-    <div class="space-y-4">
-      <h3 class="text-sm font-medium text-foreground">모든 주제에 적용됩니다</h3>
+    <div class="space-y-1">
+      <h2 class="text-lg font-semibold text-foreground text-center">모드 선택</h2>
       
       <!-- 모드 선택 -->
       <div class="space-y-2">
-        <h4 class="text-xs font-medium text-muted-foreground">인원수</h4>
-        <div class="flex gap-2">
-          <Checkbox 
-            v-model="modelMode1"
-          />
-          <label class="text-sm">1:1</label>
+        <p class="text-xs text-muted-foreground text-center">※ 최소 1개의 모드를 선택해주세요 ※</p>
+        <div class="flex gap-4">
+          <Button 
+            variant="outline"
+            size="lg"
+            @click="toggleMode1"
+            class="flex-1 h-12"
+            :class="{ 
+              'bg-mode-1v1 hover:bg-indigo-200 active:bg-indigo-300 text-mode-1v1 border-mode-1v1 ring-mode-1v1': modelMode1,
+              'bg-background hover:bg-accent': !modelMode1
+            }"
+          >
+            1:1
+          </Button>
           
-          <Checkbox 
-            v-model="modelMode2"
-          />
-          <label class="text-sm">2:2</label>
-        </div>
-      </div>
-      
-      <!-- 진영 선택 -->
-      <div class="space-y-2">
-        <h4 class="text-xs font-medium text-muted-foreground">진영</h4>
-        <div class="flex gap-2">
-          <Checkbox 
-            v-model="modelStance1"
-          />
-          <label class="text-sm">옵션1</label>
-          
-          <Checkbox 
-            v-model="modelStance2"
-          />
-          <label class="text-sm">옵션2</label>
-          
-          <Checkbox 
-            v-model="modelStanceRandom"
-          />
-          <label class="text-sm">상관없음</label>
+          <Button 
+            variant="outline"
+            size="lg"
+            @click="toggleMode2"
+            class="flex-1 h-12"
+            :class="{ 
+              'bg-mode-2v2 hover:bg-mode-2v2/90 text-mode-2v2 border-mode-2v2 ring-mode-2v2': modelMode2,
+              'bg-background hover:bg-accent': !modelMode2
+            }"
+          >
+            2:2
+          </Button>
         </div>
       </div>
     </div>
@@ -46,19 +41,18 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { Card } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
 import { useMatchingStore } from '@/store/matching'
 import { storeToRefs } from 'pinia'
-import type { Stance, PlayerMode } from '@/types/matching'
+import type { PlayerMode } from '@/types/matching'
 
 interface Emits {
   (e: 'global-mode-toggle', mode: PlayerMode): void
-  (e: 'global-stance-toggle', stance: Stance): void
 }
 
 const emit = defineEmits<Emits>()
 const matchingStore = useMatchingStore()
-const { globalModes, globalStances } = storeToRefs(matchingStore)
+const { globalModes } = storeToRefs(matchingStore)
 
 // v-model용 computed getter/setter
 const modelMode1 = computed({
@@ -83,42 +77,23 @@ const modelMode2 = computed({
     emit('global-mode-toggle', '2:2')
   }
 })
-const modelStance1 = computed({
-  get: () => globalStances.value.has('option1'),
-  set: (val: boolean) => {
-    if (val) matchingStore.setGlobalStance('option1')
-    emit('global-stance-toggle', 'option1')
-  }
-})
-const modelStance2 = computed({
-  get: () => globalStances.value.has('option2'),
-  set: (val: boolean) => {
-    if (val) matchingStore.setGlobalStance('option2')
-    emit('global-stance-toggle', 'option2')
-  }
-})
-const modelStanceRandom = computed({
-  get: () => globalStances.value.has('random'),
-  set: (val: boolean) => {
-    if (val) matchingStore.setGlobalStance('random')
-    emit('global-stance-toggle', 'random')
-  }
-})
+
+// 버튼 클릭 핸들러
+const toggleMode1 = () => {
+  modelMode1.value = !modelMode1.value
+}
+
+const toggleMode2 = () => {
+  modelMode2.value = !modelMode2.value
+}
 
 // 디버깅용 watch
 watch(globalModes, (val) => {
   console.log('글로벌 모드 변경:', Array.from(val))
 }, { immediate: true })
-watch(globalStances, (val) => {
-  console.log('글로벌 진영 변경:', Array.from(val))
-}, { immediate: true })
 
 // 강제로 computed 값 업데이트를 위한 watch
 watch(() => globalModes.value, () => {
-  // computed 값이 변경되도록 강제 업데이트
-}, { deep: true, immediate: true })
-
-watch(() => globalStances.value, () => {
   // computed 값이 변경되도록 강제 업데이트
 }, { deep: true, immediate: true })
 </script> 

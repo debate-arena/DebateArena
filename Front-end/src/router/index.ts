@@ -18,7 +18,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/LoginSuccess.vue'),
   },
   {
-    path: '/debate/:id',
+    path: '/debate-room/:id',
     name: 'DebateRoom',
     component: () => import('@/pages/DebateRoom.vue'),
   },

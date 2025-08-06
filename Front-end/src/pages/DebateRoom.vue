@@ -5,7 +5,7 @@
   >
     <!-- WebRTC 연결 중 화면 -->
     <div
-      v-if="webrtcState.isConnecting"
+      v-if="state.isConnecting"
       class="absolute inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center"
     >
       <div class="text-center">
@@ -41,22 +41,24 @@
 
         <!-- 상세 진행 상태 -->
         <div class="text-lg text-gray-300 mb-8">
-          {{ webrtcState.connectionStepText }}
+          {{ state.connectionStepText }}
         </div>
 
         <!-- 진행 단계 표시 -->
         <div class="flex justify-center items-center space-x-4 mb-8">
           <div
             v-for="(step, index) in [
+              'auth',
               'router',
-              'transport',
-              'producer',
+              'recv',
+              'send',
               'consumer',
+              'completed',
             ]"
             :key="step"
             :class="[
               'w-4 h-4 rounded-full transition-all duration-500',
-              getStepIndex(webrtcState.connectionStep) >= index
+              connectionStep === step
                 ? 'bg-blue-500'
                 : 'bg-gray-600',
             ]"
@@ -68,15 +70,15 @@
           <div class="text-xl text-white mb-6">참가자 연결 상태</div>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-12">
             <div
-              v-for="participant in webrtcState.participants"
-              :key="participant.id"
+              v-for="participant in state.participants"
+              :key="participant.producerUserEmail"
               class="flex flex-col items-center space-y-2"
             >
               <div class="relative">
                 <Avatar class="w-16 h-16">
                   <AvatarImage
-                    :src="participant.profileImage"
-                    :alt="participant.name"
+                    :src="participant.producerUserEmail"
+                    :alt="participant.producerUserEmail"
                   />
                 </Avatar>
                 <!-- 연결 상태 표시 -->
@@ -104,11 +106,11 @@
                 "
               >
                 {{
-                  participant.name.length > 8
-                    ? participant.name.slice(0, 8) +
+                  participant.producerUserEmail.length > 8
+                    ? participant.producerUserEmail.slice(0, 8) +
                       "\n" +
-                      participant.name.slice(8)
-                    : participant.name
+                      participant.producerUserEmail.slice(8)
+                    : participant.producerUserEmail
                 }}
               </span>
               <span
@@ -331,9 +333,9 @@
                       <Avatar
                         :class="[
                           'w-16 h-16 relative overflow-visible',
-                          participant.id === debateSession.currentSpeakerId
-                            ? 'speaking-glow'
-                            : '',
+                          // participant.id === debateSession.currentSpeakerId
+                          //   ? 'speaking-glow'
+                          //   : '',
                         ]"
                       >
                         <AvatarImage
@@ -406,9 +408,9 @@
                       <Avatar
                         :class="[
                           'w-16 h-16 relative overflow-visible',
-                          participant.id === debateSession.currentSpeakerId
-                            ? 'speaking-glow'
-                            : '',
+                          // participant.id === debateSession.currentSpeakerId
+                          //   ? 'speaking-glow'
+                          //   : '',
                         ]"
                       >
                         <AvatarImage
@@ -496,95 +498,8 @@
 
         <!-- STT 실시간 토론 내용 영역 (스크롤 가능) -->
         <Card class="flex flex-col min-h-0">
-          <!-- 채팅 헤더 -->
-          <CardHeader
-            class="flex flex-row items-center justify-between space-y-0"
-          >
-            <CardTitle class="text-xl">실시간 토론 내용</CardTitle>
-            <Badge
-              :variant="isConnected ? 'default' : 'destructive'"
-              class="flex items-center space-x-1"
-            >
-              <div
-                :class="[
-                  'w-2 h-2 rounded-full',
-                  isConnected ? 'bg-green-500' : 'bg-red-500',
-                ]"
-              ></div>
-              <span class="text-xs">
-                {{ isConnected ? "WS 연결됨" : "WS 연결 끊김" }}
-              </span>
-            </Badge>
-          </CardHeader>
 
           <!-- 현재 발언자 및 대기시간 표시 -->
-          <div class="mx-4 mb-4">
-            <Card
-              v-if="currentSpeakerInfo || debateSession.stage === 'transition'"
-              class="mb-4"
-              :class="{
-                'bg-blue-50 border-blue-200':
-                  debateSession.stage === 'speaking',
-                'bg-yellow-50 border-yellow-200':
-                  debateSession.stage === 'transition',
-              }"
-            >
-              <CardContent class="py-3">
-                <!-- 현재 발언 중 -->
-                <div
-                  v-if="
-                    debateSession.stage === 'speaking' && currentSpeakerInfo
-                  "
-                  class="flex items-center justify-between"
-                >
-                  <div class="flex items-center space-x-3">
-                    <Avatar class="w-10 h-10">
-                      <AvatarImage :src="currentSpeakerInfo.profileImage" />
-                    </Avatar>
-                    <div>
-                      <div class="font-medium">
-                        {{ currentSpeakerInfo.name }}
-                      </div>
-                      <div class="text-sm text-blue-600">현재 발언 중</div>
-                    </div>
-                  </div>
-                  <div class="text-right">
-                    <div class="text-2xl font-bold text-blue-600">
-                      {{ Math.floor(debateSession.remainingTime / 60) }}:{{
-                        String(debateSession.remainingTime % 60).padStart(
-                          2,
-                          "0"
-                        )
-                      }}
-                    </div>
-                    <div class="text-xs text-gray-500">남은 시간</div>
-                  </div>
-                </div>
-
-                <!-- 대기시간 표시 -->
-                <div
-                  v-else-if="debateSession.stage === 'transition'"
-                  class="flex items-center justify-center space-x-4"
-                >
-                  <div class="text-center">
-                    <div class="text-3xl font-bold text-yellow-600 mb-2">
-                      {{ debateSession.transitionTimeLeft }}
-                    </div>
-                    <div class="text-sm text-yellow-700">
-                      다음 발언자 준비 중...
-                    </div>
-                    <div
-                      v-if="isNextSpeaker"
-                      class="text-xs text-yellow-800 mt-1 font-medium"
-                    >
-                      곧 당신 차례입니다!
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
           <CardContent class="p-0">
             <!-- 메시지 영역 (스크롤 가능) -->
             <div
@@ -673,53 +588,6 @@
                 <div class="text-lg mb-2">🎤</div>
                 <div>토론이 시작되면 실시간 발언 내용이 여기에 표시됩니다.</div>
               </div>
-            </div>
-
-            <!-- 현재 발언자 표시 및 STT 실시간 결과 -->
-            <div
-              v-if="currentSpeakerInfo || currentInterimText"
-              class="mt-4 mx-6 mb-6"
-            >
-              <!-- 현재 발언자 표시 -->
-              <Card
-                v-if="currentSpeakerInfo"
-                class="bg-blue-50 border-blue-200 mb-3"
-              >
-                <CardContent class="">
-                  <div class="flex items-center space-x-2">
-                    <div
-                      class="w-2 h-2 bg-red-500 rounded-full animate-pulse"
-                    ></div>
-                    <span class="text-sm font-medium text-blue-800">
-                      {{ currentSpeakerInfo.name }}님이 발언 중입니다...
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <!-- STT 실시간 중간 결과 표시 -->
-              <Card
-                v-if="currentInterimText"
-                class="bg-yellow-50 border-yellow-200"
-              >
-                <CardContent class="pt-3">
-                  <div class="flex flex-col space-y-2">
-                    <div class="flex items-center justify-center space-x-2">
-                      <div
-                        class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"
-                      ></div>
-                      <span class="text-xs font-medium text-yellow-700">
-                        실시간 음성 인식 중...
-                      </span>
-                    </div>
-                    <div
-                      class="text-sm text-gray-700 bg-white p-2 rounded border-l-4 border-yellow-400"
-                    >
-                      {{ currentInterimText }}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </CardContent>
         </Card>
@@ -836,8 +704,8 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useDebateConnection } from "@/composables/useDebateConnection";
 import { useAuthStore } from "@/store/auth";
+import { useDebateStore } from "@/store/useDebateStore";
 import type {
   Speaker,
   DebateSession,
@@ -845,412 +713,32 @@ import type {
   STTMessage,
   SessionUpdateMessage,
 } from "@/types/debate";
+import { useWebRTCConnection } from "@/composables/useWebRTCConnection";
 
-// 라우트에서 roomId 가져오기
-const route = useRoute();
-const roomId = route.params.id as string;
-console.log('🔍 현재 토론방 ID:', roomId);
+// Debate Store 사용
+const debateStore = useDebateStore();
 
-const debateSession = ref<DebateSession>({
-  currentSpeakerId: null,
-  nextSpeakerId: null,
-  speakingTimeLimit: 60,
-  remainingTime: 60,
-  speakingOrder: [1, 2, 3, 4], // 발언 순서
-  currentOrderIndex: 0,
-  stage: "waiting",
-  transitionTimeLeft: 0,
+const {
+    // 상태
+    state,
+    connectionError,
+    roomId,
+    allParticipantsConnected,
+    connectionProgress,
+
+    // 사용자 정보
+    getCurrentUser,
+    config,
+
+    // 연결 관리
+    startWebRTCConnection,
+    disconnectWebRTC,
+} = useWebRTCConnection()
+
+const connectionStep = computed(() => {
+  console.log("connectionStep",state.connectionStep);
+  return state.connectionStep;
 });
-
-//STOMP 연결 관련 
-const authStore = useAuthStore();
-const { 
-  client, 
-  isConnected, 
-  isConnecting,
-  connectionError,
-  isTestMode,
-  getCurrentUser,
-  startConnection, 
-  stopConnection: disconnect,
-  joinRoom,
-  leaveRoom,
-  sendSignalingMessage,
-  sendDebateMessage,
-  // WebRTC 관련
-  participants,
-  isProducerTransportReady,
-  isMediasoupLoaded,
-  localVideoRef,
-  startProduce
-} = useDebateConnection();
-
-// 현재 사용자 ID (테스트 모드 지원)
-const currentUserId = ref(isTestMode ? 1 : (authStore.user?.id ? parseInt(authStore.user.id) : 1));
-
-// 발언권 확인
-const canSpeak = computed(() => {
-  return (
-    debateSession.value.currentSpeakerId === currentUserId.value &&
-    debateSession.value.stage === "speaking"
-  );
-});
-
-// WebRTC 상태 호환성을 위한 computed
-const webrtcState = computed(() => ({
-  isConnecting: isConnecting.value,
-  isConnected: isConnected.value,
-  connectionStep: isProducerTransportReady.value ? 'completed' : 'transport',
-  connectionStepText: isConnecting.value 
-    ? 'WebRTC 연결 중...' 
-    : isProducerTransportReady.value 
-      ? '연결 완료!' 
-      : 'MediaSoup 초기화 중...',
-  participants: participants.value.map(p => ({
-    id: p.producerUserEmail, // 이메일을 ID로 사용
-    name: p.producerUserEmail.split('@')[0], // 이메일에서 이름 추출
-    email: p.producerUserEmail,
-    profileImage: '/default-avatar.png',
-    connected: p.videoStream !== null
-  }))
-}));
-
-// 모든 참가자 연결 상태
-const allParticipantsConnected = computed(() => {
-  return participants.value.length > 0 && 
-         participants.value.every(p => p.videoStream !== null);
-});
-
-// WebRTC 연결 시작 (호환성)
-const startWebRTCConnection = async (participantsList: any[]) => {
-  console.log('🚀 WebRTC 연결 시작 (새로운 구현)');
-  
-  // 기존 연결이 없다면 STOMP 연결부터 시작
-  if (!isConnected.value) {
-    await startConnection();
-  }
-  
-  // 토론방 입장
-  joinRoom(roomId);
-  
-  return true;
-};
-
-// WebRTC 연결 해제 (호환성)
-const disconnectWebRTC = () => {
-  console.log('🔌 WebRTC 연결 해제 (새로운 구현)');
-  leaveRoom();
-};
-// 다음 발언자인지 확인
-const isNextSpeaker = computed(() => {
-  return debateSession.value.nextSpeakerId === currentUserId.value;
-});
-
-// 현재 발언자 정보
-const currentSpeakerInfo = computed(() => {
-  const speakerId = debateSession.value.currentSpeakerId;
-  if (!speakerId) return null;
-
-  const allParticipants = [...leftTeam.value, ...rightTeam.value];
-  return allParticipants.find((p) => p.id === speakerId);
-});
-
-// STOMP 메시지 핸들러들
-const handleSpeakerChange = (data: SpeakerChangeMessage) => {
-  debateSession.value.currentSpeakerId = data.currentSpeakerId;
-  debateSession.value.nextSpeakerId = data.nextSpeakerId;
-  debateSession.value.remainingTime = data.remainingTime;
-
-  if (data.transitionTimeLeft !== undefined) {
-    debateSession.value.transitionTimeLeft = data.transitionTimeLeft;
-    debateSession.value.stage = "transition";
-    startTransitionTimer();
-  } else if (data.currentSpeakerId) {
-    debateSession.value.stage = "speaking";
-  } else {
-    debateSession.value.stage = "waiting";
-  }
-
-  // 자동으로 STT 중지 (발언권이 없어진 경우)
-  if (!canSpeak.value && isSTTRecognizing.value) {
-    stopSTT();
-  }
-};
-
-const handleSTTResult = (data: STTMessage) => {
-  // 서버에서 오는 STT 결과를 메시지로 추가
-  const speakerInfo = [...leftTeam.value, ...rightTeam.value].find(
-    (p) => p.id === data.speakerId
-  );
-
-  if (speakerInfo) {
-    if (!data.isInterim) {
-      // 최종 결과만 메시지로 추가
-      messages.value.push({
-        id: messageIdCounter++,
-        text: data.text,
-        sender: speakerInfo.name,
-        timestamp: new Date(data.timestamp),
-        team: speakerInfo.id <= 2 ? "left" : "right", // 임시 로직
-        profileImage: speakerInfo.profileImage,
-      });
-    } else {
-      // 중간 결과는 실시간 표시용
-      currentInterimText.value = data.text;
-    }
-  }
-};
-
-const handleSessionUpdate = (data: SessionUpdateMessage) => {
-  debateSession.value.stage = data.stage;
-  debateSession.value.currentOrderIndex = data.currentOrderIndex;
-  debateSession.value.speakingOrder = data.speakingOrder;
-};
-
-// 3초 대기시간 타이머
-const transitionTimer = ref<number | null>(null);
-
-const startTransitionTimer = () => {
-  if (transitionTimer.value) {
-    clearInterval(transitionTimer.value);
-  }
-
-  transitionTimer.value = setInterval(() => {
-    debateSession.value.transitionTimeLeft--;
-    if (debateSession.value.transitionTimeLeft <= 0) {
-      clearInterval(transitionTimer.value!);
-      transitionTimer.value = null;
-      // 대기시간 종료 후 서버에서 자동으로 다음 발언자로 변경됨
-    }
-  }, 1000);
-};
-
-// STT 버튼 텍스트 결정 함수 제거됨 (자동 제어로 변경)
-
-// STOMP 구독 설정
-// roomId는 위에서 이미 정의됨
-
-const subscribeToDebateRoom = () => {
-  if (!client.value || !isConnected.value) {
-    console.warn('STOMP 클라이언트가 연결되지 않음');
-    return;
-  }
-
-  console.log('🔔 토론방 구독 시작...');
-
-  try {
-    // 발언 순서 변경 구독
-    client.value.subscribe(`/topic/debate/${roomId}/speaker`, (message) => {
-      const data = JSON.parse(message.body) as SpeakerChangeMessage;
-      console.log('👤 발언자 변경:', data);
-      handleSpeakerChange(data);
-    });
-
-    // STT 텍스트 실시간 수신
-    client.value.subscribe(`/topic/debate/${roomId}/stt`, (message) => {
-      const data = JSON.parse(message.body) as STTMessage;
-      console.log('🎤 STT 결과 수신:', data);
-      handleSTTResult(data);
-    });
-
-    // 토론 세션 상태 변경
-    client.value.subscribe(`/topic/debate/${roomId}/session`, (message) => {
-      const data = JSON.parse(message.body) as SessionUpdateMessage;
-      console.log('📊 세션 상태 변경:', data);
-      handleSessionUpdate(data);
-    });
-
-    console.log('✅ 토론방 구독 완료');
-  } catch (error) {
-    console.error('❌ 토론방 구독 실패:', error);
-  }
-};
-
-// STT 결과를 서버로 전송
-const sendSTTResult = (text: string, isInterim: boolean) => {
-  if (!isConnected.value) {
-    console.warn('STOMP 연결이 없음 - STT 결과 전송 실패');
-    return;
-  }
-
-  if (!canSpeak.value) {
-    console.warn('발언권이 없음 - STT 결과 전송 건너뛰기');
-    return;
-  }
-
-  try {
-    const sttData = {
-      speakerId: currentUserId.value,
-      text,
-      isInterim,
-      timestamp: Date.now(),
-    };
-
-    if (client.value) {
-      client.value.publish({
-        destination: `/app/debate/${roomId}/stt`,
-        body: JSON.stringify(sttData),
-        headers: {
-          'content-type': 'application/json'
-        }
-      });
-      
-      console.log('🎤 STT 결과 전송:', { text: text.substring(0, 50), isInterim });
-    }
-  } catch (error) {
-    console.error('❌ STT 결과 전송 실패:', error);
-  }
-};
-
-// STT 자동 시작 (서버에서 발언권 제어)
-const startSTT = () => {
-  if (!sttSupported.value) {
-    console.warn("이 브라우저는 음성 인식을 지원하지 않습니다.");
-    return;
-  }
-
-  // 이미 인식 중이면 먼저 중지
-  if (isSTTRecognizing.value) {
-    stopSTT();
-  }
-
-  recognition.value = initSTT();
-  if (!recognition.value) return;
-
-  try {
-    recognition.value.start();
-
-    // 서버에 발언 시작 알림
-    if (client.value) {
-      client.value.publish({
-        destination: `/app/debate/${roomId}/speaking/start`,
-        body: JSON.stringify({
-          speakerId: currentUserId.value,
-          timestamp: Date.now(),
-        }),
-      });
-    }
-  } catch (error) {
-    console.error("STT 시작 오류:", error);
-    isSTTRecognizing.value = false;
-  }
-};
-
-// STT 중지
-const stopSTT = () => {
-  if (recognition.value) {
-    isSTTRecognizing.value = false;
-    recognition.value.stop();
-  }
-
-  if (stopTimer.value) {
-    clearTimeout(stopTimer.value);
-    stopTimer.value = null;
-  }
-
-  currentInterimText.value = "";
-  currentFinalText.value = "";
-
-  // 서버에 발언 종료 알림
-  if (client.value && canSpeak.value) {
-    client.value.publish({
-      destination: `/app/debate/${roomId}/speaking/end`,
-      body: JSON.stringify({
-        speakerId: currentUserId.value,
-        timestamp: Date.now(),
-      }),
-    });
-  }
-
-  console.log("STT 음성 인식을 중지했습니다.");
-};
-
-// STT 지원 여부 확인
-const checkSTTSupport = () => {
-  const SpeechRecognition =
-    (window as any).SpeechRecognition ||
-    (window as any).webkitSpeechRecognition;
-  sttSupported.value = !!SpeechRecognition;
-  return SpeechRecognition;
-};
-
-// STT 초기화
-const initSTT = () => {
-  const SpeechRecognition = checkSTTSupport();
-  if (!SpeechRecognition) {
-    console.warn("이 브라우저는 Speech Recognition을 지원하지 않습니다.");
-    return null;
-  }
-
-  const recognitionInstance = new SpeechRecognition();
-  recognitionInstance.continuous = true;
-  recognitionInstance.interimResults = true;
-  recognitionInstance.lang = "ko-KR";
-  recognitionInstance.maxAlternatives = 1;
-
-  // 음성 인식 시작 이벤트
-  recognitionInstance.onstart = () => {
-    isSTTRecognizing.value = true;
-    console.log("STT 음성 인식을 시작합니다.");
-  };
-
-  // 음성 인식 결과 이벤트
-  recognitionInstance.onresult = (event: any) => {
-    let finalTranscript = "";
-    let interimTranscript = "";
-
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      const transcript = event.results[i][0].transcript;
-      if (event.results[i].isFinal) {
-        finalTranscript += transcript;
-      } else {
-        interimTranscript += transcript;
-      }
-    }
-
-    // 중간 결과는 실시간으로 서버에 전송
-    if (interimTranscript.trim()) {
-      sendSTTResult(interimTranscript.trim(), true);
-      currentInterimText.value = interimTranscript;
-    }
-
-    // 최종 결과도 서버에 전송
-    if (finalTranscript.trim()) {
-      sendSTTResult(finalTranscript.trim(), false);
-      currentInterimText.value = "";
-    }
-  };
-
-  // 음성 인식 오류 이벤트
-  recognitionInstance.onerror = (event: any) => {
-    console.error("STT 오류:", event.error);
-    if (event.error === "not-allowed") {
-      alert(
-        "마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요."
-      );
-    }
-  };
-
-  // 음성 인식 종료 이벤트
-  recognitionInstance.onend = () => {
-    console.log("STT 음성 인식이 종료되었습니다.");
-
-    if (isSTTRecognizing.value) {
-      console.log("STT 자동 재시작");
-      try {
-        recognitionInstance.start();
-      } catch (error) {
-        console.error("STT 재시작 오류:", error);
-        stopSTT();
-      }
-    } else {
-      currentInterimText.value = "";
-      currentFinalText.value = "";
-    }
-  };
-
-  return recognitionInstance;
-};
 
 // 토론 주제
 const debateSubject = ref("인간은 태생적으로 선하다?");
@@ -1290,8 +778,8 @@ const participantStates = ref<Record<number, "attack" | "defense" | null>>({
 });
 
 // 진영별 남은 시간
-const leftTeamTime = ref("05:30");
-const rightTeamTime = ref("04:15");
+const leftTeamTime = ref("01:00");
+const rightTeamTime = ref("00:00");
 
 // 메시지 관련 변수들
 const messages = ref<
@@ -1324,7 +812,7 @@ const PREPARATION_DURATION = 30 * 1000; // 30초
 
 // 준비시간 타이머 시작
 const startPreparationTimer = () => {
-  preparationTimeLeft.value = 3;
+  preparationTimeLeft.value = 30;
   isPreparationTime.value = true;
   if (preparationTimer.value) {
     clearInterval(preparationTimer.value);
@@ -1352,6 +840,27 @@ const stopPreparationTimer = () => {
   }
 };
 
+watch(
+  () => state.isConnecting,
+  (newVal, oldVal) => {
+    if (newVal && !oldVal) {
+      startPreparationTimer();
+    }
+  }
+)
+
+watch(
+  () => isPreparationTime.value,
+  () => {
+    if (isPreparationTime.value) {
+      startPreparationTimer();
+    } else {
+      stopPreparationTimer();
+    }
+  },
+  { immediate: true } // 수동으로 제어하므로 즉시 실행하지 않음
+);
+
 // 시청자 채팅 관련
 const audienceMessages = ref<
   Array<{
@@ -1370,193 +879,6 @@ const newChatMessage = ref("");
 let messageIdCounter = 0;
 let audienceMessageIdCounter = 0;
 let testMessageIndex = 0;
-
-// ScrollArea 강제 업데이트 함수
-const forceUpdateScrollArea = () => {
-  nextTick(() => {
-    // 메시지 ScrollArea 업데이트
-    if (messagesScrollArea.value) {
-      updateScrollAreaViewport(messagesScrollArea.value);
-    }
-
-    // 시청자 채팅 ScrollArea 업데이트
-    if (audienceChatScrollArea.value) {
-      updateScrollAreaViewport(audienceChatScrollArea.value);
-    }
-  });
-};
-
-// ScrollArea viewport 업데이트 헬퍼 함수
-const updateScrollAreaViewport = (scrollAreaRef: any) => {
-  if (!scrollAreaRef) return;
-
-  let viewport = null;
-
-  // 방법 1: data-slot 속성으로 찾기
-  viewport = scrollAreaRef.$el?.querySelector(
-    '[data-slot="scroll-area-viewport"]'
-  );
-
-  // 방법 2: class로 찾기 (backup)
-  if (!viewport) {
-    viewport = scrollAreaRef.$el?.querySelector(".size-full");
-  }
-
-  // 방법 3: 직접 scrollArea 엘리먼트에서 스크롤 시도
-  if (!viewport) {
-    viewport = scrollAreaRef.$el;
-  }
-
-  if (viewport) {
-    // 스크롤 영역 강제 업데이트를 위해 스크롤 이벤트 트리거
-    const scrollTop = viewport.scrollTop;
-    viewport.scrollTop = scrollTop + 1;
-    viewport.scrollTop = scrollTop;
-
-    // resize 이벤트 트리거
-    if (window.ResizeObserver) {
-      const resizeEvent = new Event("resize");
-      window.dispatchEvent(resizeEvent);
-    }
-  }
-};
-
-// UI 토글 함수
-const toggleDebateInfo = () => {
-  isAnimating.value = true;
-  isDebateInfoCollapsed.value = !isDebateInfoCollapsed.value;
-  setTimeout(() => {
-    isAnimating.value = false;
-    // 애니메이션 완료 후 스크롤바 업데이트
-    forceUpdateScrollArea();
-  }, 500);
-};
-
-// WebRTC 연결 단계 인덱스 반환
-const getStepIndex = (step: string): number => {
-  const steps = ["router", "transport", "producer", "consumer", "completed"];
-  return steps.indexOf(step);
-};
-
-// 발언자 이름으로 진영 판단 (실제로는 백엔드에서 진영 정보를 함께 보내야 함)
-const determineTeam = (speaker: string): "left" | "right" => {
-  const leftTeamMembers = leftTeam.value.map((member) => member.name);
-  const rightTeamMembers = rightTeam.value.map((member) => member.name);
-
-  if (leftTeamMembers.includes(speaker)) {
-    return "left";
-  } else if (rightTeamMembers.includes(speaker)) {
-    return "right";
-  }
-
-  // 기본값은 좌측 진영 (실제로는 더 정확한 로직 필요)
-  return "left";
-};
-
-// 발언자 이름으로 참가자 ID 찾기
-const findParticipantIdByName = (speaker: string): number | null => {
-  const allParticipants = [...leftTeam.value, ...rightTeam.value];
-  const participant = allParticipants.find((p) => p.name === speaker);
-  return participant ? participant.id : null;
-};
-
-// 참가자 상태 변경 함수들
-const setParticipantState = (
-  participantId: number,
-  state: "attack" | "defense" | null
-) => {
-  participantStates.value[participantId] = state;
-};
-
-const setParticipantAttack = (participantId: number) => {
-  participantStates.value[participantId] = "attack";
-};
-
-const setParticipantDefense = (participantId: number) => {
-  participantStates.value[participantId] = "defense";
-};
-
-const clearParticipantState = (participantId: number) => {
-  participantStates.value[participantId] = null;
-};
-
-// 모든 참가자 상태 초기화
-const clearAllParticipantStates = () => {
-  Object.keys(participantStates.value).forEach((id) => {
-    participantStates.value[Number(id)] = null;
-  });
-};
-
-// 채팅 스크롤을 맨 아래로 이동
-const scrollToBottom = () => {
-  nextTick(() => {
-    if (messagesScrollArea.value) {
-      // 여러 가지 방법으로 viewport를 찾아보기
-      let viewport = null;
-
-      // 방법 1: data-slot 속성으로 찾기
-      viewport = messagesScrollArea.value.$el?.querySelector(
-        '[data-slot="scroll-area-viewport"]'
-      );
-
-      // 방법 2: class로 찾기 (backup)
-      if (!viewport) {
-        viewport = messagesScrollArea.value.$el?.querySelector(".size-full");
-      }
-
-      // 방법 3: 직접 scrollArea 엘리먼트에서 스크롤 시도
-      if (!viewport) {
-        viewport = messagesScrollArea.value.$el;
-      }
-
-      if (viewport) {
-        console.log(
-          "Scrolling to bottom, scrollHeight:",
-          viewport.scrollHeight
-        );
-        viewport.scrollTop = viewport.scrollHeight;
-      } else {
-        console.log("Viewport not found");
-      }
-    }
-  });
-};
-
-// 시청자 채팅 스크롤을 맨 아래로 이동
-const scrollAudienceChatToBottom = () => {
-  nextTick(() => {
-    if (audienceChatScrollArea.value) {
-      // 여러 가지 방법으로 viewport를 찾아보기
-      let viewport = null;
-
-      // 방법 1: data-slot 속성으로 찾기
-      viewport = audienceChatScrollArea.value.$el?.querySelector(
-        '[data-slot="scroll-area-viewport"]'
-      );
-
-      // 방법 2: class로 찾기 (backup)
-      if (!viewport) {
-        viewport =
-          audienceChatScrollArea.value.$el?.querySelector(".size-full");
-      }
-
-      // 방법 3: 직접 scrollArea 엘리먼트에서 스크롤 시도
-      if (!viewport) {
-        viewport = audienceChatScrollArea.value.$el;
-      }
-
-      if (viewport) {
-        console.log(
-          "Scrolling audience chat to bottom, scrollHeight:",
-          viewport.scrollHeight
-        );
-        viewport.scrollTop = viewport.scrollHeight;
-      } else {
-        console.log("Audience viewport not found");
-      }
-    }
-  });
-};
 
 // 시간 포맷팅
 const formatTime = (date: Date) => {
@@ -1641,198 +963,6 @@ const addTestAudienceChat = () => {
   });
 };
 
-// 메시지가 추가될 때마다 자동으로 스크롤
-watch(
-  () => messages.value.length,
-  () => {
-    // 대안 방법: 마지막 메시지로 스크롤
-    nextTick(() => {
-      const lastMessage = messagesContainer.value?.lastElementChild;
-      if (lastMessage) {
-        lastMessage.scrollIntoView({ behavior: "smooth", block: "end" });
-      } else {
-        scrollToBottom();
-      }
-    });
-  },
-  { flush: "post" }
-);
-
-// 시청자 채팅이 추가될 때마다 자동으로 스크롤
-watch(
-  () => audienceMessages.value.length,
-  () => {
-    // 대안 방법: 마지막 채팅으로 스크롤
-    nextTick(() => {
-      const lastChat = audienceChatContainer.value?.lastElementChild;
-      if (lastChat) {
-        lastChat.scrollIntoView({ behavior: "smooth", block: "end" });
-      } else {
-        scrollAudienceChatToBottom();
-      }
-    });
-  },
-  { flush: "post" }
-);
-
-// 토론 정보 확장/축소 상태 변화 감지
-watch(
-  () => isDebateInfoCollapsed.value,
-  () => {
-    // 애니메이션이 완료될 때까지 대기 후 스크롤바 업데이트
-    setTimeout(() => {
-      forceUpdateScrollArea();
-    }, 550); // 애니메이션 시간(500ms)보다 약간 늦게
-  },
-  { flush: "post" }
-);
-
-// 준비시간 타이머 상태 변화 감지 (WebRTC 연결과 관계없이 수동 제어)
-watch(
-  () => isPreparationTime.value,
-  () => {
-    if (isPreparationTime.value) {
-      startPreparationTimer();
-    } else {
-      stopPreparationTimer();
-    }
-  },
-  { immediate: false } // 수동으로 제어하므로 즉시 실행하지 않음
-);
-
-// 발언권 변경 시 STT 자동 시작/중지
-watch(
-  () => canSpeak.value,
-  (newVal) => {
-    if (newVal) {
-      startSTT();
-    } else {
-      stopSTT();
-    }
-  },
-  { immediate: true } // 컴포넌트 마운트 시 즉시 실행
-);
-
-// resize 타이머 변수
-let resizeTimer: number | null = null;
-
-// resize 이벤트 핸들러
-const handleResize = () => {
-  // 디바운스를 위해 타이머 사용
-  if (resizeTimer) {
-    clearTimeout(resizeTimer);
-  }
-  resizeTimer = setTimeout(() => {
-    forceUpdateScrollArea();
-  }, 150);
-};
-
-// WebRTC 연결 시작
-const initializeWebRTCConnection = async () => {
-  try {
-    console.log("🚀 WebRTC 연결 시작...");
-
-    // 참가자 정보 (실제로는 서버에서 받아와야 함)
-    const participants = [
-      {
-        id: 1,
-        name: leftTeam.value[0].name,
-        email: "user1@example.com",
-        profileImage: leftTeam.value[0].profileImage,
-      },
-      {
-        id: 2,
-        name: leftTeam.value[1].name,
-        email: "user2@example.com",
-        profileImage: leftTeam.value[1].profileImage,
-      },
-      {
-        id: 3,
-        name: rightTeam.value[0].name,
-        email: "user3@example.com",
-        profileImage: rightTeam.value[0].profileImage,
-      },
-      {
-        id: 4,
-        name: rightTeam.value[1].name,
-        email: "user4@example.com",
-        profileImage: rightTeam.value[1].profileImage,
-      },
-    ];
-
-    await startWebRTCConnection(participants);
-    console.log("✅ WebRTC 연결 완료, 준비시간 시작");
-
-    // WebRTC 연결 완료 후 준비시간 시작
-    isPreparationTime.value = true;
-    startPreparationTimer();
-  } catch (error) {
-    console.error("❌ WebRTC 연결 실패:", error);
-    // WebRTC 연결에 실패해도 토론은 계속 진행 (fallback)
-    console.log("📢 WebRTC 없이 토론 진행");
-    isPreparationTime.value = true;
-    startPreparationTimer();
-  }
-};
-
-// 컴포넌트 마운트 시 초기화
-onMounted(async () => {
-  console.log('🚀 토론방 초기화 시작');
-  
-  // 테스트 모드 정보 출력
-  if (isTestMode) {
-    const testUser = getCurrentUser();
-    console.log('🧪 테스트 모드 활성화');
-    console.log('👤 테스트 사용자:', testUser);
-  }
-  
-  try {
-    // 1. 인증 상태 확인 (테스트 모드에서는 우회)
-    if (!isTestMode && !authStore.isLoggedIn) {
-      console.error('❌ 로그인이 필요합니다.');
-      return;
-    }
-
-    // 2. STOMP 연결 시작 (useDebateConnection에서 자동으로 처리됨)
-    console.log('🔌 STOMP 연결 시작...');
-    const connected = await startConnection();
-    
-    if (!connected) {
-      console.error('❌ STOMP 연결 실패:', connectionError.value);
-      return;
-    }
-
-    console.log('✅ STOMP 연결 성공');
-
-    // 2.1 시그널링 시작
-    console.log('🔌 시그널링 연결 시작...');
-    joinRoom(roomId);
-
-
-    // 3. 토론방 구독
-    subscribeToDebateRoom();
-    console.log('✅ 토론방 구독 완료');
-
-  } catch (error) {
-    console.error('💥 토론방 초기화 실패:', error);
-  }
-
-  // 4. STT 지원 여부 확인
-  checkSTTSupport();
-  console.log("STT 지원 여부:", sttSupported.value);
-
-  // 5. WebRTC 연결 시작 (STOMP 연결 후 시작)
-  initializeWebRTCConnection();
-
-  // 6. UI 이벤트 리스너 추가
-  window.addEventListener("resize", handleResize);
-
-  // 7. 개발용 테스트 메시지 (배포시 제거)
-  setTimeout(() => {
-    addMessages();
-  }, 10000);
-});
-
 const addMessages = () => {
   // 개발용: 테스트 메시지 자동 추가 (실제 배포시에는 제거)
   setTimeout(() => {
@@ -1867,31 +997,38 @@ const addMessages = () => {
   }
 };
 
+// 토론 정보 영역 토글 함수
+const toggleDebateInfo = () => {
+  isDebateInfoCollapsed.value = !isDebateInfoCollapsed.value;
+};
+
+// 컴포넌트 마운트 시 초기화
+onMounted(async () => {
+  console.log('🚀 토론방 초기화 시작');
+  
+  // TODO: 실제 사용자 정보와 방 정보로 대체
+  debateStore.setRoomId("11");
+  debateStore.setMyInfo("test@example.com", "L", true);
+  
+  // 예시 참가자 데이터 추가 (실제로는 서버에서 받아올 데이터)
+  debateStore.addParticipant({
+    email: "test@example.com",
+    team: "L",
+    isConnected: false,
+    isSpeaking: false
+  });
+  
+  startWebRTCConnection("11");
+
+});
+
 // 컴포넌트 언마운트 시 STOMP 연결 해제 및 정리
 onUnmounted(() => {
-  // STOMP 연결 해제
-  disconnect();
-
   // WebRTC 연결 해제
   disconnectWebRTC();
-
-  // 타이머들 정리
-  if (transitionTimer.value) {
-    clearInterval(transitionTimer.value);
-  }
-
-  // STT 정리
-  stopSTT();
-  stopPreparationTimer(); // 준비시간 타이머 정리
-
-  // resize 이벤트 리스너 제거
-  window.removeEventListener("resize", handleResize);
-
-  // 타이머 정리
-  if (resizeTimer) {
-    clearTimeout(resizeTimer);
-    resizeTimer = null;
-  }
+  
+  // 토론 상태 초기화 (방을 나갈 때는 resetAll 사용)
+  debateStore.resetDebateState();
 });
 </script>
 

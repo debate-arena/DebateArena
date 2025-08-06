@@ -1,16 +1,16 @@
 <template>
   <div class="min-h-screen bg-background">
-    <!-- 헤더 -->
-    <header class="border-b border-border bg-card">
-      <div class="container mx-auto px-6 py-4">
-        <div class="flex items-center justify-between">
-          <h1 class="text-xl font-semibold text-foreground">매칭</h1>
-          <Button variant="outline" @click="$router.push('/')">
-            홈으로
-          </Button>
-        </div>
-      </div>
-    </header>
+
+
+
+    <!-- 에러 메시지 표시 -->
+    <div v-if="matchingStore.error" class="fixed inset-0 flex items-center justify-center z-50">
+      <Alert class="max-w-md bg-background shadow-lg">
+        <AlertCircle class="h-4 w-4" />
+        <AlertTitle>알림</AlertTitle>
+        <AlertDescription>{{ matchingStore.error }}</AlertDescription>
+      </Alert>
+    </div>
 
     <!-- 메인 콘텐츠 -->
     <div class="container mx-auto px-6 py-8">
@@ -18,30 +18,30 @@
         <!-- 좌측: 매칭 선택 영역 -->
         <div class="flex-1 space-y-6">
           <!-- 주제 변경까지 남은 시간 -->
-          <Card class="p-4">
+          <Card class="p-4 h-24 flex items-center justify-center">
             <div class="text-center">
               <p class="text-sm text-muted-foreground">주제 변경까지 남은 시간</p>
-              <p class="text-2xl font-mono text-foreground">{{ formatTime(remainingTime) }}</p>
+              <p class="text-2xl font-mono text-foreground">{{ formatTime(topicSetStore.remainingTimeSeconds) }}</p>
             </div>
           </Card>
 
           <!-- 글로벌 선택 -->
           <PlayerCountSelection />
 
-          <!-- 주제 카드들 -->
-          <div class="space-y-4">
-            <TopicCard 
-              v-for="topic in topicSetStore.currentSet?.topics || []" 
-              :key="topic.id"
-              :topic="topic"
-            />
-          </div>
+                     <!-- 주제 카드들 -->
+           <div class="space-y-4">
+             <TopicCard 
+               v-for="topic in topicSetStore.currentSet?.topics || []" 
+               :key="topic.id"
+               :topic="topic"
+             />
+           </div>
         </div>
 
         <!-- 우측: 매칭 시작(요약/타이머) 영역 -->
         <div class="w-80 space-y-6">
           <!-- 매칭 시작 버튼 -->
-          <Card class="p-4">
+          <Card class="p-4 h-24 flex items-center justify-center">
             <div class="relative">
               <Button 
                 @click="handleStartMatching"
@@ -50,15 +50,18 @@
                 size="lg"
               >
                 <span v-if="!matchingStore.isMatching">매칭 시작</span>
+                <span v-else-if="matchingStore.status === 'matched' || matchingStore.status === 'connecting'">
+                  매칭 성사
+                </span>
                 <span v-else class="flex items-center gap-2">
                   <div class="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent"></div>
                   매칭 대기 중...
                 </span>
               </Button>
               
-              <!-- 취소 버튼 (매칭 중일 때만 표시) -->
+              <!-- 취소 버튼 (매칭 중일 때만 표시, 매칭 성사 시에는 숨김) -->
               <Button
-                v-if="matchingStore.isMatching"
+                v-if="matchingStore.isMatching && matchingStore.status !== 'matched' && matchingStore.status !== 'connecting'"
                 @click="handleCancelMatching"
                 variant="destructive"
                 size="sm"
@@ -99,219 +102,204 @@
               <div v-if="matchingStore.selectedTopicSelections.length === 0" class="text-sm text-muted-foreground">
                 선택된 주제가 없습니다
               </div>
-              <div v-else class="space-y-2">
-                <div 
-                  v-for="(item, index) in getSortedSelectedItems" 
-                  :key="index"
-                  class="text-sm"
+              <div v-else class="space-y-3">
+                <Card 
+                  v-for="selection in matchingStore.selectedTopicSelections" 
+                  :key="`${selection.topicId}-${selection.stance}`"
+                  class="p-3"
                 >
-                  <div class="text-foreground">
-                    {{ index + 1 }}) {{ getTopicTitle(item.topicId) }}: {{ getStanceText(item.topicId, item.stance) }}
+                  <div class="space-y-2">
+                    <div class="font-medium text-foreground">{{ getTopicTitle(selection.topicId) }}</div>
+                    <div class="text-sm space-y-2">
+                      <div class="flex items-center gap-2">
+                        <span class="font-medium text-muted-foreground">선택:</span>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          class="h-6 px-2 text-xs"
+                          :class="getStanceButtonClass(selection.stance)"
+                        >
+                          {{ getStanceText(selection.topicId, selection.stance) }}
+                        </Button>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="font-medium text-muted-foreground">모드:</span>
+                        <div class="flex gap-1">
+                          <Button 
+                            v-for="mode in sortModes(selection.modes)" 
+                            :key="mode"
+                            size="sm" 
+                            variant="outline"
+                            class="h-6 px-2 text-xs"
+                            :class="getModeButtonClass(mode)"
+                          >
+                            {{ mode }}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div class="text-muted-foreground ml-4">
-                    모드: {{ item.modes.join(', ') }}
-                  </div>
-                </div>
+                </Card>
               </div>
             </div>
           </Card>
 
-          <!-- 규칙/안내 -->
+          <!-- 게임 규칙 -->
           <Card class="p-4">
-            <div class="space-y-2">
-              <h3 class="text-sm font-medium text-foreground">규칙/안내</h3>
-              <ul class="text-xs text-muted-foreground space-y-1">
-                <li>• 주제는 여러 개 선택 가능</li>
-                <li>• 각 주제 내 진영은 단일 선택(찬성/반대/랜덤 中 1)</li>
-                <li>• 취소 시 전체 선택 초기화</li>
-              </ul>
+            <div class="space-y-3">
+              <h3 class="text-sm font-medium text-foreground">게임 규칙</h3>
+              <div class="text-xs space-y-2 text-muted-foreground">
+                                 <div class="space-y-1">
+                   <p class="font-medium">🎯 게임 진행</p>
+                   <p>1. 준비 (30초)</p>
+                   <p class="text-xs ml-2">– 주제를 빠르게 훑고, 내 주장의 핵심 아이디어를 쓱쓱 정리해요.</p>
+                   <p>2. 입장 발표 (각 1분)</p>
+                   <p class="text-xs ml-2">– 순서대로 돌아가며 1분 동안 내 입장을 솔직·담백하게 이야기해요.</p>
+                   <p>3. 공격 대상 선정 (30초)</p>
+                   <p class="text-xs ml-2">– "어떤 부분을 콕 집어 반박할까?" 30초 동안 고민해 보고 타깃을 골라요.</p>
+                   <p>4. 공격 (30초)</p>
+                   <p class="text-xs ml-2">– 선택한 주장에 대해 반박 포인트를 후려치듯 날려 봐요.</p>
+                   <p>5. 방어 (30초)</p>
+                   <p class="text-xs ml-2">– 공격받은 부분을 침착하게 수비하고, 내 논리를 다시 한번 단단히 다져요.</p>
+                   <p>6. 선택 재투표 (30초)</p>
+                   <p class="text-xs ml-2">– 2:2로 시작했다면, 토론 후 30초 동안 다시 어느 쪽을 지지할지 선택!</p>
+                   <p>7. AI 판정 (무승부 시)</p>
+                   <p class="text-xs ml-2">– 표 결과가 동률일 때만, AI가 논리 흐름·근거 제시 등을 보고 최종 승자를 골라 줘요.</p>
+                 </div>
+                
+                                 <div class="space-y-1">
+                   <p class="font-medium">⚠️ 주의사항</p>
+                   <p>1. 마이크를 허용해야 플레이가 가능해요</p>
+                                                           <p>2. <img src="/src/assets/images/profile/debate_random.png" class="inline w-4 h-4" alt="물범" /> 선택시 <img src="/src/assets/images/profile/debate_left.png" class="inline w-4 h-4" alt="북극곰" />, <img src="/src/assets/images/profile/debate_right.png" class="inline w-4 h-4" alt="펭귄" />가 랜덤으로 선택되요</p>
+                    <p>3. 발언 순서는 <img src="/src/assets/images/profile/debate_left.png" class="inline w-4 h-4" alt="북극곰" /> → <img src="/src/assets/images/profile/debate_right.png" class="inline w-4 h-4" alt="펭귄" /> 순서로 반복</p>
+                 </div>
+              </div>
             </div>
           </Card>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- 모달들 -->
-  <!-- 매칭 시작 확인 모달 -->
-  <Dialog v-model:open="isStartModalOpen" @update:open="handleStartModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">매칭 시작</DialogTitle>
-        <DialogDescription class="text-center">
-          선택한 주제와 모드로 매칭을 시작하시겠습니까?
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            선택된 주제: {{ matchingStore.selectedTopicCount }}개
-          </p>
-          <p class="text-sm text-muted-foreground">
-            선택된 모드: {{ getModeSummary() }}
-          </p>
-        </div>
-        
-        <div class="space-y-2">
-          <Button size="lg" class="w-full" @click="confirmStartMatching">매칭 시작</Button>
-          <Button variant="outline" size="lg" class="w-full" @click="cancelStartMatching">취소</Button>
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-
-  <!-- 매칭 성사 모달 -->
-  <Dialog v-model:open="isMatchCompleteModalOpen" @update:open="handleMatchCompleteModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">🎉 매칭 성사!</DialogTitle>
-        <DialogDescription class="text-center">
-          매칭이 성사되었습니다.
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            주제: {{ getTopicTitle(matchInfo.topicId) }}
-          </p>
-          <p class="text-sm text-muted-foreground">
-            진영: {{ getStanceText(matchInfo.topicId, matchInfo.stance) }}
-          </p>
-          <p class="text-sm text-muted-foreground">
-            모드: {{ matchInfo.mode }}
-          </p>
-        </div>
-        
-        <div class="space-y-2">
-          <Button size="lg" class="w-full" @click="acceptMatch">수락</Button>
-          <Button variant="outline" size="sm" class="w-full" @click="cancelAllMatches">모든 매칭 취소</Button>
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-
-  <!-- 연결 중 모달 -->
-  <Dialog v-model:open="isConnectingModalOpen" @update:open="handleConnectingModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">🔗 연결 중...</DialogTitle>
-        <DialogDescription class="text-center">
-          토론방에 연결하고 있습니다.
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            방 ID: {{ roomInfo.roomId }}
-          </p>
-          <p class="text-sm text-muted-foreground">
-            연결된 사용자: {{ roomInfo.connectedUsers }}/{{ roomInfo.totalUsers }}
-            {{ console.log('모달 렌더링:', roomInfo.connectedUsers) }}
-          </p>
-        </div>
-        
-        <!-- 연결 상태 표시 -->
-        <div class="flex justify-center gap-2">
-          <UserIcon
-            v-for="index in roomInfo.totalUsers"
-            :key="index"
-            :class="getIconClass(index) + ' text-2xl'"
-          />
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-
-  <!-- 타임아웃 모달 -->
-  <Dialog v-model:open="isTimeoutModalOpen" @update:open="handleTimeoutModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">⏰ 매칭 타임아웃</DialogTitle>
-        <DialogDescription class="text-center">
-          매칭 시간이 초과되었습니다.
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            다시 매칭을 시도하시겠습니까?
-          </p>
-        </div>
-        
-        <div class="space-y-2">
-          <Button size="lg" class="w-full" @click="restartMatching">다시 매칭하기</Button>
-          <Button variant="outline" size="lg" class="w-full" @click="handleTimeoutModalClose">취소</Button>
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-
-  <!-- 주제 변경으로 취소 알림 모달 -->
-  <Dialog v-model:open="isTopicChangeModalOpen" @update:open="handleTopicChangeModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">
-          ⏰ 주제 변경으로 인한 매칭 취소
-        </DialogTitle>
-        <DialogDescription class="text-center">
-          주제가 변경되어 매칭이 자동으로 취소되었습니다.
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            새로운 주제로 다시 매칭하시겠습니까?
-          </p>
-        </div>
-        
-        <div class="space-y-2">
-          <Button 
-            variant="outline" 
-            size="lg" 
-            class="w-full" 
-            @click="handleTopicChangeModalClose"
-          >
-            취소
+    <!-- 모달들 -->
+    <!-- 매칭 성사 모달 -->
+    <MatchingModal
+      :is-open="modals.modalState.value.isMatchCompleteModalOpen"
+      :topic-title="modals.matchModalData.value.topicTitle"
+      :stance-text="modals.matchModalData.value.stanceText"
+      :mode="modals.matchModalData.value.mode"
+      :topic-id="modals.matchModalData.value.topicId"
+      :total-count="modals.totalCount.value"
+      :time-left="matchingStore.acceptTimeLeft"
+      :is-connecting="matchingStore.status === 'connecting'"
+      :last-accepted-stance="lastAcceptedStance"
+      @accept="handleModalAccept"
+      @reject="handleModalReject"
+      @update:is-open="(value) => { if (!value) modals.hideMatchCompleteModal() }"
+    />
+    
+    <!-- 타임아웃 모달 -->
+    <Dialog v-model:open="modals.modalState.value.isTimeoutModalOpen" @update:open="handleTimeoutModalClose">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle class="text-center">⏰ 매칭 타임아웃</DialogTitle>
+          <DialogDescription class="text-center">
+            매칭 시간이 초과되었습니다. 다시 시도해주세요.
+          </DialogDescription>
+        </DialogHeader>
+        <div class="flex gap-2">
+          <Button @click="modals.hideTimeoutModal()" class="flex-1">
+            확인
           </Button>
         </div>
-      </div>
-    </DialogContent>
-  </Dialog>
+      </DialogContent>
+    </Dialog>
 
-  <!-- 주제 변경 경고 모달 -->
-  <Dialog v-model:open="isHourWarningModalOpen" @update:open="handleHourWarningModalClose">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle class="text-center">
-          ⚠️ 주제 변경 예정
-        </DialogTitle>
-        <DialogDescription class="text-center">
-          주제가 곧 변경됩니다.
-        </DialogDescription>
-      </DialogHeader>
-      
-      <div class="space-y-4">
-        <div class="text-center space-y-2">
-          <p class="text-sm text-muted-foreground">
-            주제 변경 후 10초가 지나면 모든 매칭이 자동으로 취소됩니다.
-          </p>
-          <p class="text-sm font-medium text-foreground">
-            계속 진행하시겠습니까?
-          </p>
-        </div>
+    <!-- 주제 변경으로 취소 알림 모달 -->
+    <Dialog v-model:open="modals.modalState.value.isTopicChangeModalOpen" @update:open="handleTopicChangeModalClose">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle class="text-center">
+            ⏰ 주제 변경으로 인한 매칭 취소
+          </DialogTitle>
+          <DialogDescription class="text-center">
+            주제가 변경되어 매칭이 자동으로 취소되었습니다.
+          </DialogDescription>
+        </DialogHeader>
         
-        <div class="space-y-2">
-          <Button size="lg" class="w-full" @click="confirmHourWarning">계속 진행</Button>
-          <Button variant="outline" size="lg" class="w-full" @click="hideHourWarningModal">취소</Button>
+        <div class="space-y-4">
+          <div class="text-center space-y-2">
+            <p class="text-sm text-muted-foreground">
+              새로운 주제로 다시 매칭하시겠습니까?
+            </p>
+          </div>
+          
+          <div class="space-y-2">
+            <Button 
+              variant="outline" 
+              size="lg" 
+              class="w-full" 
+              @click="handleTopicChangeModalClose"
+            >
+              취소
+            </Button>
+          </div>
         </div>
-      </div>
-    </DialogContent>
-  </Dialog>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 주제 변경 경고 모달 -->
+    <Dialog v-model:open="modals.modalState.value.isHourWarningModalOpen" @update:open="handleHourWarningModalClose">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle class="text-center">
+            ⚠️ 주제 변경 예정
+          </DialogTitle>
+          <DialogDescription class="text-center">
+            주제가 곧 변경됩니다.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div class="space-y-4">
+          <div class="text-center space-y-2">
+            <p class="text-sm text-muted-foreground">
+              현재 주제로 매칭을 시작하시겠습니까?
+            </p>
+          </div>
+          
+          <div class="space-y-2">
+            <Button size="lg" class="w-full" @click="confirmHourWarning">계속 진행</Button>
+            <Button variant="outline" size="lg" class="w-full" @click="modals.hideHourWarningModal()">취소</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 로그인 필요 모달 -->
+    <Dialog v-model:open="modals.modalState.value.isLoginRequiredModalOpen" @update:open="handleLoginRequiredModalClose">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle class="text-center">
+            🔐 로그인이 필요한 서비스입니다
+          </DialogTitle>
+          <DialogDescription class="text-center">
+            매칭을 시작하려면 로그인이 필요합니다.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div class="space-y-4">
+          <div class="text-center space-y-2">
+            <p class="text-sm text-muted-foreground">
+              Google 계정으로 로그인하여 매칭을 시작하세요.
+            </p>
+          </div>
+          
+          <div class="space-y-2">
+            <Button size="lg" class="w-full" @click="handleLoginRequiredModalClose">확인</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -319,136 +307,346 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useMatchingStore } from '@/store/matching'
 import { useTopicSetStore } from '@/store/topicSet'
-import { useMatchingModals } from '@/composables/useMatchingModals'
 import { useMatchingTimer } from '@/composables/useMatchingTimer'
 import { useMatchingActions } from '@/composables/useMatchingActions'
+
+import { useMatchingModals } from '@/composables/useMatchingModals'
 import { useWebSocket } from '@/composables/useWebSocket'
-import { formatEstimatedTime } from '@/utils/matching'
+import MatchingModal from '@/components/matching/MatchingModal.vue'
+import { formatEstimatedTime, sortModes } from '@/utils/matching'
 import PlayerCountSelection from '@/components/matching/PlayerCountSelection.vue'
 import TopicCard from '@/components/matching/TopicCard.vue'
-import type { Stance, PlayerMode } from '@/types/matching'
-import { UserIcon } from 'lucide-vue-next'
+import type { Stance, PlayerMode, WebSocketMessage } from '@/types/matching'
+import { UserIcon, AlertCircle } from 'lucide-vue-next'
+import { useThemeStore } from '@/store/theme'
+import { useAuthStore } from '@/store/auth'
+
+// 아이콘 import
+import debateLeftIcon from '@/assets/images/profile/debate_left.png'
+import debateRightIcon from '@/assets/images/profile/debate_right.png'
+import { CheckCircle } from 'lucide-vue-next'
+import type { MatchModalData } from '@/composables/useMatchingModals'
 
 const router = useRouter()
 const matchingStore = useMatchingStore()
 const topicSetStore = useTopicSetStore()
+const themeStore = useThemeStore()
+const authStore = useAuthStore()
+
+// 새로운 composable들 사용 (matchingState는 matchingStore로 통합)
+const modals = useMatchingModals()
+const actions = useMatchingActions()
+const webSocket = useWebSocket()
 
 // 타이머 관리
-const { startMatchingTimer, stopMatchingTimer } = useMatchingTimer()
+const { startMatchingTimer, stopMatchingTimer, startAcceptTimer, stopAcceptTimer } = useMatchingTimer()
 
 // 타이머 관련 함수들
 const remainingTime = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
+const lastAcceptedStance = ref<string | undefined>(undefined)
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60)
   const remainingSeconds = seconds % 60
   return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
-// 웹소켓 연결
-const connectWebSocket = () => {
-  console.log('🔌 WebSocket 연결 시도')
-}
-const disconnectWebSocket = () => {
-  console.log('🔌 WebSocket 연결 해제')
-}
-
-// 모달 관리
-const {
-  isStartModalOpen,
-  isMatchCompleteModalOpen,
-  isTimeoutModalOpen,
-  isConnectingModalOpen,
-  isTopicChangeModalOpen,
-  isHourWarningModalOpen,
-  showStartModal,
-  hideStartModal,
-  showMatchCompleteModal,
-  hideMatchCompleteModal,
-  showTimeoutModal,
-  hideTimeoutModal,
-  showConnectingModal,
-  hideConnectingModal,
-  showTopicChangeModal,
-  hideTopicChangeModal,
-  showHourWarningModal,
-  hideHourWarningModal
-} = useMatchingModals()
-
-// 매칭 액션 관리
-const { startMatching, cancelMatching } = useMatchingActions()
-
-// 연결 상태 관리
-const roomInfo = ref({
-  roomId: '',
-  totalUsers: 0,
-  connectedUsers: 0
-})
-
-let connectionInterval: ReturnType<typeof setInterval> | null = null
-
-// 연결 진행 시뮬레이션
-const simulateConnection = () => {
-  console.log('simulateConnection 시작:', JSON.stringify(roomInfo.value))
-  roomInfo.value = {
-    roomId: 'ROOM_' + Math.random().toString(36).substr(2, 9),
-    totalUsers: 4,
-    connectedUsers: 0
-  }
-  
-  connectionInterval = setInterval(() => {
-    if (roomInfo.value.connectedUsers < roomInfo.value.totalUsers) {
-      roomInfo.value.connectedUsers++
-      console.log('연결 인원 증가:', roomInfo.value.connectedUsers)
-    } else {
-      if (connectionInterval) {
-        clearInterval(connectionInterval)
-        connectionInterval = null
+// WebSocket 메시지 처리
+const handleWebSocketMessage = (data: WebSocketMessage) => {
+  switch (data.type) {
+    case 'MATCH_STATUS':
+      // 매칭 현황판 처리
+      console.log('📥 MATCH_STATUS 원본 데이터:', data)
+      
+      // status 확인 (성공/실패 구분)
+      if (data.status === 'error') {
+        console.error('❌ 매칭 현황 에러:', data.data?.message || '알 수 없는 에러')
+        break
       }
-      hideConnectingModal()
-      router.push('/debate')
-    }
-  }, 1000)
+      
+      // 성공인 경우에만 정상 처리
+      if (data.status === 'success') {
+        console.log('📥 MATCH_STATUS 파싱된 데이터:', data.data)
+        // 매칭 현황 처리 로직 (필요시 추가)
+      }
+      break
+      
+    case 'MATCH_INVITATION':
+      // 매칭 초대장 처리
+      console.log('📥 MATCH_INVITATION 원본 데이터:', data)
+      console.log('📥 MATCH_INVITATION data.data:', data.data)
+      
+      // status 확인 (성공/실패 구분)
+      if (data.status === 'error') {
+        console.error('❌ 매칭 초대장 에러:', data.data?.message || '알 수 없는 에러')
+        actions.handleError(data.data?.message || '매칭 초대장 처리 중 오류가 발생했습니다.')
+        break
+      }
+      
+      // 성공인 경우에만 정상 처리
+      if (data.status === 'success') {
+        // 백엔드에서 받은 실제 데이터 사용 (data.data가 실제 데이터)
+        const invitationData = data.data || {}
+        console.log('📥 MATCH_INVITATION 파싱된 invitationData:', invitationData)
+        
+        const matchId = invitationData.matchId
+        const invitationTopicId = invitationData.topicId
+        const invitationTeam = invitationData.team || 0
+        const invitationType = invitationData.type || 0
+        
+        console.log('📥 MATCH_INVITATION 추출된 값:', {
+          matchId,
+          topicId: invitationTopicId,
+          team: invitationTeam,
+          type: invitationType
+        })
+        
+        // 매칭 ID 저장
+        matchingStore.setCurrentMatchId(matchId)
+        
+        // 팀 정보 저장 (서버에서 받은 팀 번호)
+        matchingStore.setCurrentUserTeam(invitationTeam)
+        
+        // 서버 데이터를 UI 텍스트로 변환
+        const invitationMode = invitationType === 0 ? '1:1' : '2:2'
+        const invitationStance = invitationTeam === 0 ? 'option1' : 'option2'
+        const invitationTopicTitle = topicSetStore.currentSet?.topics.find(t => t.id === invitationTopicId)?.title || '매칭된 주제'
+        
+        // 매칭 초대장 모달 데이터 준비
+        const modalData: MatchModalData = {
+          topicTitle: invitationTopicTitle,
+          stanceText: invitationStance,
+          mode: invitationMode,
+          topicId: invitationTopicId
+        }
+        
+        // 매칭 초대장 모달 표시
+        modals.showMatchCompleteModal(modalData)
+        
+        // 수락 타이머 시작
+        matchingStore.startAcceptTimer()
+        startAcceptTimer()
+      }
+      break
+      
+    case 'ACCEPTANCE_STATUS':
+      // 다른 사람 응답 현황 처리 (내 수락도 포함)
+      console.log('📥 ACCEPTANCE_STATUS 원본 데이터:', data)
+      console.log('📥 ACCEPTANCE_STATUS data.data:', data.data)
+      
+      // status 확인 (성공/실패 구분)
+      if (data.status === 'error') {
+        console.error('❌ 응답 현황 에러:', data.data?.message || '알 수 없는 에러')
+        break
+      }
+      
+      // 성공인 경우에만 정상 처리
+      if (data.status === 'success') {
+        const accept = data.data?.accept
+        const team = data.data?.team || 0      // 서버에서 받은 팀 정보
+        const stance = team === 0 ? 'option1' : 'option2'  // 팀 정보로 진영 계산
+        
+        console.log('📥 ACCEPTANCE_STATUS 파싱된 값:', { accept, team, stance })
+        
+        // 수락/거절 모두 카운트 증가 및 stance 업데이트
+        matchingStore.updateRoomInfo({ connectedUsers: matchingStore.roomInfo.connectedUsers + 1 })
+        
+        if (accept) {
+          // 수락 처리
+          // 마지막 수락한 진영 정보 업데이트 (서버에서 받은 팀 정보 사용)
+          lastAcceptedStance.value = stance
+          
+          // 모달의 진영별 수락 현황 업데이트 (서버에서 받은 팀 정보 사용)
+          modals.updateStanceAcceptance(stance, accept)
+        } else {
+          // 거절 처리
+          // 모달의 진영별 거절 현황 업데이트 (서버에서 받은 팀 정보 사용)
+          modals.updateStanceAcceptance(stance, accept)
+        }
+      }
+      break
+      
+    case 'ERROR':
+      // 에러 처리
+      console.log('📥 ERROR 원본 데이터:', data)
+      
+      // status 확인 (성공/실패 구분)
+      if (data.status === 'error') {
+        console.error('❌ 매칭 에러 수신됨!')
+        actions.handleError(data.data?.message || '알 수 없는 에러')
+      }
+      break
+      
+    case 'MATCH_ADDITIONAL':
+      // 추가 경로 메시지 처리
+      console.log('📥 MATCH_ADDITIONAL 원본 데이터:', data)
+      
+      // status 확인 (성공/실패 구분)
+      if (data.status === 'error') {
+        console.error('❌ 추가 경로 에러:', data.data?.message || '알 수 없는 에러')
+        break
+      }
+      
+      // 성공인 경우에만 정상 처리
+      if (data.status === 'success') {
+        console.log('📥 MATCH_ADDITIONAL 파싱된 데이터:', data.data)
+        // 추가 경로 처리 로직 (필요시 추가)
+      }
+      break
+      
+    case 'MATCH_ALL_PERSONAL':
+      // 모든 개인 메시지 처리
+      console.log('📥 MATCH_ALL_PERSONAL 원본 데이터:', data)
+      
+      // status 확인 (성공/실패 구분)
+      if (data.status === 'error') {
+        console.error('❌ 개인 메시지 에러:', data.data?.message || '알 수 없는 에러')
+        break
+      }
+      
+      // 성공인 경우에만 정상 처리
+      if (data.status === 'success') {
+        console.log('📥 MATCH_ALL_PERSONAL 파싱된 데이터:', data.data)
+        // 개인 메시지 처리 로직 (필요시 추가)
+      }
+      break
+      
+    default:
+      console.log('⚠️ 알 수 없는 메시지 타입:', data.type)
+      break
+  }
 }
 
-// 연결 상태 가져오기
-const getConnectionStatus = () => {
-  const totalUsers = roomInfo.value.totalUsers
-  const connectedUsers = roomInfo.value.connectedUsers
-  const status = []
-  
-  for (let i = 0; i < totalUsers; i++) {
-    status.push(i < connectedUsers)
+// 매칭 시작 처리
+const handleStartMatching = async () => {
+  // 로그인 상태 확인
+  if (!authStore.isLoggedIn) {
+    modals.showLoginRequiredModal()
+    return
   }
   
-  return status
+  // 정각 5분 전(300초)인지 체크
+  if (remainingTime.value <= 300) {
+    modals.showHourWarningModal()
+  } else {
+    // 바로 매칭 시작
+    try {
+      // WebSocket 연결 및 메시지 핸들러 설정
+      await webSocket.connect()
+      
+      // 연결 성공 후 메시지 핸들러 설정
+      webSocket.handleMessage(handleWebSocketMessage)
+      
+      // 매칭 요청 전송
+      const request = matchingStore.toMatchRequest
+      webSocket.sendMatchRequest(request)
+      
+      // 상태 업데이트
+      matchingStore.startMatching()
+      
+      // 타이머 시작
+      startMatchingTimer(() => {
+        modals.showTimeoutModal()
+      })
+    } catch (error) {
+      console.error('❌ 매칭 시작 실패:', error)
+    }
+  }
 }
 
-// 정렬된 선택 목록 (주제 ID 순, 모드는 1:1이 앞에 오도록)
-const getSortedSelectedItems = computed(() => {
-  return matchingStore.selectedTopicSelections
-    .sort((a, b) => {
-      // 주제 ID로만 정렬 (모드는 이미 modeOrder로 관리됨)
-      return a.topicId - b.topicId
-    })
-})
+// 매칭 취소 처리
+const handleCancelMatching = () => {
+  matchingStore.cancelMatching()
+  stopMatchingTimer()
+  modals.hideAllModals()
+}
 
-// 예상 대기 시간
+// 모달 핸들러들
+const handleModalAccept = () => {
+  try {
+    // 서버에 수락 메시지 전송
+    const matchId = matchingStore.currentMatchId
+    if (matchId) {
+      // 서버에서 받은 실제 팀 정보 사용
+      const teamNumber = matchingStore.getCurrentUserTeam()
+      console.log('📤 매칭 수락 전송:', { matchId, accept: true, team: teamNumber })
+      webSocket.sendMatchAcceptance(matchId, true, teamNumber)
+    }
+    
+    // 타이머 정지
+    matchingStore.stopAcceptTimer()
+    stopAcceptTimer()
+    
+    // 프로그레스 바를 100%로 설정
+    matchingStore.acceptTimeLeft = 0
+  } catch (error) {
+    console.error('❌ 매칭 수락 처리 실패:', error)
+  }
+}
+
+const handleModalReject = () => {
+  try {
+    // 서버에 거절 메시지 전송
+    const matchId = matchingStore.currentMatchId
+    if (matchId) {
+      // 서버에서 받은 실제 팀 정보 사용
+      const teamNumber = matchingStore.getCurrentUserTeam()
+      console.log('📤 매칭 거절 전송:', { matchId, accept: false, team: teamNumber })
+      webSocket.sendMatchAcceptance(matchId, false, teamNumber)
+    }
+    
+    // 타이머 정지
+    matchingStore.stopAcceptTimer()
+    stopAcceptTimer()
+    
+    // 프로그레스 바를 100%로 설정
+    matchingStore.acceptTimeLeft = 0
+  } catch (error) {
+    console.error('❌ 매칭 거절 처리 실패:', error)
+  }
+}
+
+const handleTimeoutModalClose = () => {
+  modals.hideTimeoutModal()
+  stopMatchingTimer()
+  webSocket.disconnect()
+  matchingStore.reset()
+}
+
+const handleTopicChangeModalClose = () => {
+  console.log('handleTopicChangeModalClose 호출됨')
+  modals.hideTopicChangeModal()
+}
+
+const handleHourWarningModalClose = () => {
+  modals.hideHourWarningModal()
+}
+
+const handleLoginRequiredModalClose = () => {
+  modals.hideLoginRequiredModal()
+}
+
+// 주제 변경 경고 확인
+const confirmHourWarning = () => {
+  modals.hideHourWarningModal()
+  handleStartMatching()
+}
+
+// 유틸리티 함수들
 const getEstimatedTime = () => {
-  if (!matchingStore.isMatching) return '매칭 중...'
-  return formatEstimatedTime(Math.floor(matchingStore.elapsedTime / 60))
+  return formatEstimatedTime(matchingStore.elapsedTime)
 }
 
-// 주제 제목 가져오기
 const getTopicTitle = (topicId: number) => {
   const topic = matchingStore.getTopicById(topicId)
-  return topic?.title || `주제 ${topicId}`
+  return topic?.title || '알 수 없는 주제'
 }
 
-// 진영 텍스트 변환
 const getStanceText = (topicId: number, stance: Stance) => {
   const topic = matchingStore.getTopicById(topicId)
   if (!topic) return '알 수 없음'
@@ -461,141 +659,62 @@ const getStanceText = (topicId: number, stance: Stance) => {
   }
 }
 
-// 모드 요약
-const getModeSummary = () => {
-  const modes = Array.from(matchingStore.globalModes)
-  return modes.length > 0 ? modes.join(', ') : '미선택'
-}
-
-// 매칭 시작 처리
-const handleStartMatching = () => {
-  // 정각 5분 전(300초)인지 체크
-  if (remainingTime.value <= 300) {
-    showHourWarningModal()
-  } else {
-    // 바로 매칭 시작
-    const selections = matchingStore.selectedTopicSelections
-    startMatching(selections, handleTimeout)
-    startMatchingTimer(handleTimeout)
-    connectWebSocket()
+const getStanceButtonClass = (stance: Stance) => {
+  switch (stance) {
+    case 'option1':
+      return 'bg-debate-left hover:bg-debate-left/90 text-slate-800 border-debate-left'
+    case 'option2':
+      return 'bg-debate-right hover:bg-debate-right/90 text-white border-debate-right'
+    case 'random':
+      return 'bg-debate-random hover:bg-debate-random/90 text-slate-700 border-debate-random'
+    default:
+      return 'bg-background hover:bg-accent'
   }
 }
 
-// 매칭 취소 처리
-const handleCancelMatching = () => {
-  cancelMatching(stopMatchingTimer)
-  hideStartModal()
-  hideHourWarningModal()
-  
-  // WebSocket 연결 해제
-  disconnectWebSocket()
-}
-
-// 매칭 성사 처리
-const handleMatchSuccess = (result: any) => {
-  // This function is no longer used as per the new_code, but keeping it for now
-  // as it might be called from elsewhere or for future use.
-  // The new_code calls simulateConnection directly.
-}
-
-// 타임아웃 처리
-const handleTimeout = () => {
-  showTimeoutModal()
-}
-
-// 매칭 수락
-const acceptMatch = () => {
-  hideMatchCompleteModal()
-  showConnectingModal()
-  simulateConnection()
-}
-
-// 모든 매칭 취소
-const cancelAllMatches = () => {
-  hideMatchCompleteModal()
-  hideConnectingModal()
-  if (connectionInterval) {
-    clearInterval(connectionInterval)
-    connectionInterval = null
+const getModeButtonClass = (mode: PlayerMode) => {
+  switch (mode) {
+    case '1:1':
+      return 'bg-mode-1v1 hover:bg-indigo-200 active:bg-indigo-300 text-mode-1v1 border-mode-1v1 ring-mode-1v1'
+    case '2:2':
+      return 'bg-mode-2v2 hover:bg-mode-2v2/90 text-mode-2v2 border-mode-2v2 ring-mode-2v2'
+    default:
+      return 'bg-background hover:bg-accent'
   }
-  roomInfo.value = { roomId: '', totalUsers: 0, connectedUsers: 0 }
-  cancelMatching(stopMatchingTimer)
 }
 
-// 연결 모달 닫기
-const handleConnectingModalClose = () => {
-  hideConnectingModal()
-  matchingStore.cancelMatching()
-  stopMatchingTimer()
-  disconnectWebSocket()
-  if (connectionInterval) {
-    clearInterval(connectionInterval)
-    connectionInterval = null
-  }
-  roomInfo.value = { roomId: '', totalUsers: 0, connectedUsers: 0 }
-}
 
-// 주제 변경 경고 모달 닫기
-const handleHourWarningModalClose = () => {
-  hideHourWarningModal()
-  showStartModal()
-}
 
-function resetMatchingToInitial() {
-  // 모든 주제 id 추출
-  const topicIds = (topicSetStore.currentSet?.topics || []).map(t => t.id)
-  // 글로벌 상태 초기화
-  matchingStore.globalModes = new Set(['1:1', '2:2'])
-  matchingStore.globalStances = new Set(['random'])
-  // 각 주제도 동일하게 초기화
-  matchingStore.initializeTopicSelections(topicIds)
-}
-
-const handleTopicChangeModalClose = () => {
-  console.log('handleTopicChangeModalClose 호출됨')
-  hideTopicChangeModal()
-  matchingStore.cancelMatching()
-  matchingStore.isMatching = false
-  matchingStore.status = 'idle'
-  matchingStore.elapsedTime = 0
-  matchingStore.estimatedWaitTime = undefined
-  matchingStore.matchResult = undefined
-  matchingStore.error = undefined
-  matchingStore.clearAllSelections()
-  stopMatchingTimer()
-  disconnectWebSocket()
-  if (connectionInterval) {
-    clearInterval(connectionInterval)
-    connectionInterval = null
-  }
-  roomInfo.value = { roomId: '', totalUsers: 0, connectedUsers: 0 }
-  resetMatchingToInitial()
-}
-
-// 페이지 진입 시 초기화
+// 컴포넌트 마운트/언마운트
 onMounted(async () => {
-  console.log('📱 Matching 페이지 진입 - 초기화 시작')
+  console.log('🔍 Matching.vue 마운트됨')
   
   // 매칭 상태 초기화
   matchingStore.cancelMatching()
-  stopMatchingTimer()
-  disconnectWebSocket()
-  if (connectionInterval) {
-    clearInterval(connectionInterval)
-    connectionInterval = null
-  }
-  roomInfo.value = { roomId: '', totalUsers: 0, connectedUsers: 0 }
+  
+  console.log('🔍 초기화 후 매칭 스토어 상태:', {
+    isMatching: matchingStore.isMatching,
+    status: matchingStore.status,
+    elapsedTime: matchingStore.elapsedTime
+  })
   
   // 주제 정보 가져오기 후 초기화
+  console.log('📚 토픽 세트 가져오기 시작...')
   await topicSetStore.fetchTopicSets()
   const activeTopics = topicSetStore.currentSet?.topics || []
   console.log('📱 활성 주제:', activeTopics)
+  console.log('📱 토픽 세트 상태:', {
+    status: topicSetStore.status,
+    currentSet: topicSetStore.currentSet,
+    remainingTimeSeconds: topicSetStore.remainingTimeSeconds,
+    topicsCount: activeTopics.length
+  })
   
-  // 글로벌 상태를 먼저 설정
+  // 글로벌 상태를 기본값으로 설정
   matchingStore.globalModes = new Set(['1:1', '2:2'])
   matchingStore.globalStances = new Set(['random'])
   
-  // 주제별 초기 선택 생성 (글로벌 상태가 이미 설정된 상태에서)
+  // 주제별 초기 선택 생성
   matchingStore.initializeTopicSelections(activeTopics.map(topic => topic.id))
   
   // DOM 업데이트를 강제로 트리거
@@ -604,131 +723,85 @@ onMounted(async () => {
   console.log('📱 Matching 페이지 초기화 완료:', {
     globalModes: Array.from(matchingStore.globalModes),
     globalStances: Array.from(matchingStore.globalStances),
-    topicSelections: matchingStore.topicSelections
+    topicSelections: matchingStore.topicSelections,
+    isMatching: matchingStore.isMatching,
+    status: matchingStore.status
   })
   
-  // 웹소켓 연결 시도
-  connectWebSocket()
-})
-
-// Watch for currentSet changes to update remainingTime
-watch(
-  () => topicSetStore.currentSet,
-  (currentSet) => {
-    if (timer) clearInterval(timer)
-    if (currentSet && currentSet.endAtMs) {
-      const update = () => {
-        const now = Date.now()
-        const end = currentSet.endAtMs
-        const diff = end - now
-        const seconds = Math.max(0, Math.floor(diff / 1000))
-        remainingTime.value = seconds
-      }
-      update()
-      timer = setInterval(update, 1000)
-    } else {
-      remainingTime.value = 0
+  // 타이머 만료 감시
+  watch(() => matchingStore.error, (error) => {
+    if (error === '수락 시간이 만료되었습니다.') {
+      console.log('⏰ 타이머 만료로 모달 닫기')
+      modals.hideMatchCompleteModal()
+      matchingStore.clearError()
     }
-  },
-  { immediate: true }
-)
+  })
+  
+  // 모달 상태 감시
+  watch(() => modals.modalState.value.isMatchCompleteModalOpen, (isOpen) => {
+    console.log('🔍 모달 상태 변경 감지:', isOpen)
+    console.log('🔍 전체 모달 상태:', modals.modalState.value)
+    console.log('🔍 모달 데이터:', modals.matchModalData.value)
+    
+    // 모달이 열릴 때 추가 디버깅
+    if (isOpen) {
+      console.log('🎉 모달이 열렸습니다!')
+      console.log('🔍 모달 Props 확인:')
+      console.log('  - isOpen:', modals.modalState.value.isMatchCompleteModalOpen)
+      console.log('  - topicTitle:', modals.matchModalData.value.topicTitle)
+      console.log('  - stanceText:', modals.matchModalData.value.stanceText)
+      console.log('  - mode:', modals.matchModalData.value.mode)
+      console.log('  - topicId:', modals.matchModalData.value.topicId)
+      console.log('  - totalCount:', modals.totalCount.value)
+      console.log('  - timeLeft:', matchingStore.acceptTimeLeft)
+      console.log('  - isConnecting:', matchingStore.status === 'connecting')
+      
+      // 모달이 열릴 때 lastAcceptedStance 초기화
+      lastAcceptedStance.value = undefined
+      console.log('🔍 lastAcceptedStance 초기화됨')
+    }
+  })
+  
+  // 주제 변경 타이머 시작
+  startTopicChangeTimer()
+})
 
 onUnmounted(() => {
-  if (timer) clearInterval(timer)
-  cancelMatching(stopMatchingTimer)
-  disconnectWebSocket()
-  if (connectionInterval) {
-    clearInterval(connectionInterval)
+  console.log('🔍 Matching.vue 언마운트됨')
+  
+  // 타이머 정리
+  if (timer) {
+    clearInterval(timer)
+    timer = null
   }
+  
+  // WebSocket 연결 해제
+  webSocket.disconnect()
+  
+  // 상태 초기화
+  matchingStore.reset()
+  modals.hideAllModals()
 })
 
-// 디버깅용 watch
-watch(isMatchCompleteModalOpen, (newVal) => {
-  console.log('🔍 isMatchCompleteModalOpen changed:', newVal)
-})
-
-watch(isTimeoutModalOpen, (newVal) => {
-  console.log('🔍 isTimeoutModalOpen changed:', newVal)
-})
-
-watch(isHourWarningModalOpen, (newVal) => {
-  console.log('🔍 isHourWarningModalOpen changed:', newVal)
-})
-
-// 매칭 시작 취소
-const cancelStartMatching = () => {
-  hideStartModal()
-}
-
-// 매칭 시작 확인
-const confirmStartMatching = () => {
-  hideStartModal()
-  // 실제 매칭 시작 로직은 handleStartMatching에서 처리
-}
-
-// 주제 변경 경고 확인
-const confirmHourWarning = () => {
-  hideHourWarningModal()
-  const selections = matchingStore.selectedTopicSelections
-  startMatching(selections, handleTimeout)
-  startMatchingTimer(handleTimeout)
-  connectWebSocket()
-}
-
-// 매칭 시작 모달 닫기 핸들러
-const handleStartModalClose = (isOpen: boolean) => {
-  if (!isOpen) {
-    hideStartModal()
+// 주제 변경 타이머
+const startTopicChangeTimer = () => {
+  // 현재 주제 세트의 종료 시간 확인
+  if (topicSetStore.currentSet?.remainingTimeSeconds) {
+    const update = () => {
+      const remainingSeconds = topicSetStore.remainingTimeSeconds
+      remainingTime.value = Math.max(0, remainingSeconds)
+    }
+    update()
+    timer = setInterval(update, 1000)
+  } else {
+    // 기본값으로 10분 설정
+    remainingTime.value = 600
+    timer = setInterval(() => {
+      remainingTime.value--
+      if (remainingTime.value <= 0) {
+        remainingTime.value = 600
+      }
+    }, 1000)
   }
 }
-
-// 매칭 완료 모달 닫기 핸들러
-const handleMatchCompleteModalClose = () => {
-  hideMatchCompleteModal()
-  matchingStore.cancelMatching()
-  stopMatchingTimer()
-  disconnectWebSocket()
-  if (connectionInterval) {
-    clearInterval(connectionInterval)
-    connectionInterval = null
-  }
-  roomInfo.value = { roomId: '', totalUsers: 0, connectedUsers: 0 }
-}
-
-// 타임아웃 모달 닫기 핸들러
-const handleTimeoutModalClose = () => {
-  hideTimeoutModal()
-  matchingStore.cancelMatching()
-  stopMatchingTimer()
-  disconnectWebSocket()
-  if (connectionInterval) {
-    clearInterval(connectionInterval)
-    connectionInterval = null
-  }
-  roomInfo.value = { roomId: '', totalUsers: 0, connectedUsers: 0 }
-}
-
-// 다시 매칭하기
-const restartMatching = () => {
-  hideTimeoutModal()
-  handleStartMatching()
-}
-
-// 매칭 정보 (임시)
-const matchInfo = ref({
-  topicId: 1,
-  stance: 'option1' as Stance,
-  mode: '1:1' as PlayerMode,
-  topicTitle: 'AI 규제는 필요한가?',
-  myStance: '찬성'
-})
-
-const getIconClass = (index: number) => {
-  // index는 1부터 시작하므로 0부터 시작하는 인덱스로 변환
-  const iconIndex = index - 1
-  const active = iconIndex < roomInfo.value.connectedUsers
-  const cls = active ? 'text-green-500' : 'text-gray-400'
-  console.log(`아이콘 ${index} (인덱스 ${iconIndex}): connectedUsers=${roomInfo.value.connectedUsers}, active=${active}, class=${cls}`)
-  return cls
-}
-</script> 
+</script>

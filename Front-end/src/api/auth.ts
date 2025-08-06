@@ -1,11 +1,9 @@
 import axios from 'axios'
-
-// 환경 변수를 활용한 API URL 설정
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+import { config } from '@/config/env'
 
 // 인증 API 전용 axios 인스턴스
 const authAxios = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: config.MAIN_API_URL,  // 메인 서버 URL
   timeout: 10000,
   withCredentials: true, // 쿠키 포함
   headers: {
@@ -80,13 +78,21 @@ export interface AuthResponse {
 // 인증 관련 API 서비스
 export const authAPI = {
   // 인증 상태 확인
-  verifyAuth: async (): Promise<boolean> => {
+  verifyAuth: async (): Promise<{ success: boolean; message?: string }> => {
     try {
       const response = await authAxios.get('/api/auth/verify')
       const data = response.data
-      return data.status === 'success'
-    } catch (err) {
-      return false
+      console.log('🔐 인증 상태 확인 응답:', data)
+      return { 
+        success: data.status === 'success',
+        message: data.message || data.data || '인증 상태 확인 완료'
+      }
+    } catch (err: any) {
+      console.error('❌ 인증 상태 확인 실패:', err.response?.data || err.message)
+      return { 
+        success: false,
+        message: err.response?.data?.message || err.message || '인증 상태 확인 실패'
+      }
     }
   },
 
@@ -126,7 +132,7 @@ export const authAPI = {
 
   // OAuth2 로그인 URL 생성
   getOAuthUrl: (provider: 'google', next?: string): string => {
-    const baseUrl = `${API_BASE_URL}/oauth2/authorization/google`
+    const baseUrl = `${config.MAIN_API_URL}/oauth2/authorization/google`
     if (next) {
       return `${baseUrl}?next=${encodeURIComponent(next)}`
     }

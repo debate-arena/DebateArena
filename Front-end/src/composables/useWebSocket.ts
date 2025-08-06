@@ -1,99 +1,184 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
+import { Client } from '@stomp/stompjs'
+import type { WebSocketMessage, WebSocketMessageType } from '@/types/matching'
+import { useAuthStore } from '@/store/auth'
+import { config } from '@/config/env'
 
-/**
- * 웹소켓 연결 관리 Composable
- * - 페이지 진입 시 자동 연결
- * - 연결 상태 관리
- * - 메시지 송수신 처리
- */
-export function useWebSocket() {
-  const socket = ref<WebSocket | null>(null)
+export const useWebSocket = () => {
+  const stompClient = ref<Client | null>(null)
   const isConnected = ref(false)
-  const connectionError = ref<string | null>(null)
+  const authStore = useAuthStore()
 
-  // 웹소켓 연결
-  const connectWebSocket = () => {
-    // TODO: 웹소켓 연결 구현
-    // - 서버 URL 설정 (예: ws://localhost:8000/ws)
-    // - WebSocket 인스턴스 생성
-    // - 연결 이벤트 핸들러 등록 (onopen, onclose, onerror, onmessage)
-    // - 연결 상태 업데이트 (isConnected = true)
-    console.log('🔌 웹소켓 연결 시도')
-    
-    // 가상 연결 성공 시뮬레이션
-    setTimeout(() => {
-      isConnected.value = true
-      console.log('✅ 웹소켓 연결 성공')
-    }, 1000)
+  // WebSocket + STOMP 연결
+  const connect = () => {
+    return new Promise<void>((resolve, reject) => {
+      const client = new Client({
+        brokerURL: `${config.MATCH_WS_URL}/ws`,
+        heartbeatIncoming: 10000,
+        heartbeatOutgoing: 10000
+      })
+
+      // 인증 헤더 설정
+      const headers = {
+        'Authorization': `Bearer ${authStore.userEmail}` // 임시로 이메일 사용
+      }
+
+      client.onConnect = () => {
+        console.log('🔗 WebSocket + STOMP 연결 성공')
+        isConnected.value = true
+        stompClient.value = client
+        resolve()
+      }
+
+      client.onStompError = (error: any) => {
+        console.error('❌ WebSocket + STOMP 연결 실패:', error)
+        isConnected.value = false
+        reject(error)
+      }
+
+      client.activate()
+    })
   }
 
-  // 웹소켓 메시지 처리
-  const handleWebSocketMessage = (data: string) => {
-    // TODO: 메시지 타입별 처리 구현
-    // - JSON 파싱
-    // - 메시지 타입 확인 (MATCH_FOUND, MATCH_TIMEOUT, QUEUE_UPDATE, ERROR 등)
-    // - 타입별 적절한 핸들러 호출
-    // - 매칭 성사 시: 매칭 정보 업데이트, 성사 모달 표시
-    // - 타임아웃 시: 타임아웃 처리, 재시작 옵션 제공
-    // - 대기열 업데이트 시: 대기열 상태 업데이트
-    // - 에러 시: 에러 메시지 표시
-    console.log('📨 웹소켓 메시지 수신:', data)
+  // 연결 해제
+  const disconnect = () => {
+    if (stompClient.value && isConnected.value) {
+      stompClient.value.deactivate()
+      isConnected.value = false
+      stompClient.value = null
+      console.log('🔗 WebSocket + STOMP 연결 해제')
+    }
   }
 
   // 매칭 요청 전송
-  const sendMatchingRequest = (selections: any) => {
-    // TODO: 매칭 요청 전송 구현
-    // - 선택된 주제/진영/모드 정보를 JSON으로 직렬화
-    // - 서버에 매칭 요청 메시지 전송
-    // - 전송 성공/실패 여부 반환
-    console.log('📤 매칭 요청 전송:', selections)
-    return true
+  const sendMatchRequest = (request: any) => {
+    if (!stompClient.value || !isConnected.value) {
+      console.error('❌ STOMP 클라이언트가 연결되지 않음')
+      return
+    }
+
+    stompClient.value.publish({
+      destination: '/pub/match/request',
+      body: JSON.stringify(request)
+    })
+    console.log('📤 매칭 요청 전송:', request)
   }
 
-  // 매칭 취소 전송
-  const sendMatchingCancel = () => {
-    // TODO: 매칭 취소 전송 구현
-    // - 서버에 매칭 취소 요청 메시지 전송
-    // - 대기열에서 사용자 제거
-    // - 전송 성공/실패 여부 반환
-    console.log('❌ 매칭 취소 전송')
-    return true
+  // 매칭 수락/거절 전송
+  const sendMatchAcceptance = (matchId: string, accept: boolean, team: number) => {
+    if (!stompClient.value || !isConnected.value) {
+      console.error('❌ STOMP 클라이언트가 연결되지 않음')
+      return
+    }
+
+    stompClient.value.publish({
+      destination: '/pub/match/acceptance',
+      body: JSON.stringify({ matchId, accept, team })
+    })
+    console.log('📤 매칭 응답 전송:', { matchId, accept, team })
   }
 
-  // 웹소켓 연결 해제
-  const disconnectWebSocket = () => {
-    // TODO: 웹소켓 연결 해제 구현
-    // - WebSocket.close() 호출
-    // - 연결 상태 초기화 (isConnected = false)
-    // - 에러 상태 초기화
-    console.log('🔌 웹소켓 연결 해제')
+  // 메시지 핸들러 제거
+  const removeMessageHandler = () => {
+    if (stompClient.value && isConnected.value) {
+      // 모든 구독 해제
+      stompClient.value.unsubscribe('/sub/match/status')
+      stompClient.value.unsubscribe('/user/queue/match/personal')
+      stompClient.value.unsubscribe('/user/queue/match/acceptance/status')
+      stompClient.value.unsubscribe('/user/queue/error')
+      console.log('🔌 WebSocket 메시지 핸들러 제거됨')
+    }
   }
 
-  // 재연결 시도
-  const reconnectWebSocket = () => {
-    // TODO: 재연결 로직 구현
-    // - 기존 연결 해제
-    // - 일정 시간 후 재연결 시도 (지수 백오프)
-    // - 최대 재시도 횟수 제한
-    console.log('🔄 웹소켓 재연결 시도')
+  // 메시지 수신 처리
+  const handleMessage = (callback: (data: WebSocketMessage) => void) => {
+    if (!stompClient.value) {
+      console.error('❌ stompClient가 없음')
+      return
+    }
+    
+    if (!isConnected.value) {
+      console.error('❌ WebSocket이 연결되지 않음')
+      return
+    }
+    
+    // 1. 매칭 현황판 구독 (전체 공지)
+    stompClient.value.subscribe('/sub/match/status', (message) => {
+      try {
+        const data = JSON.parse(message.body)
+        console.log('📥 매칭 현황판 수신:', data)
+        callback({ type: 'MATCH_STATUS', status: data.status || 'success', data: data.data, message: data.message })
+      } catch (error) {
+        console.error('❌ 매칭 현황판 파싱 오류:', error)
+      }
+    })
+
+    // 2. 개인 알림 구독 (매칭 초대장)
+    stompClient.value.subscribe('/user/queue/match/acceptance', (message) => {
+      try {
+        const data = JSON.parse(message.body)
+        console.log('📥 매칭 초대장 원본 메시지:', message.body)
+        console.log('📥 매칭 초대장 파싱된 데이터:', data)
+        
+        // 이 경로는 매칭 초대장만 처리
+        callback({ type: 'MATCH_INVITATION', status: data.status || 'success', data: data.data, message: data.message })
+      } catch (error) {
+        console.error('❌ 매칭 초대장 파싱 오류:', error)
+      }
+    })
+
+    // 3. 다른 사람 응답 현황 구독 (실시간 피드백)
+    stompClient.value.subscribe('/user/queue/match/acceptance/status', (message) => {
+      try {
+        console.log('📥 다른 사람 응답 현황 원본 메시지:', message.body)
+        const parsedData = JSON.parse(message.body)
+        console.log('📥 다른 사람 응답 현황 파싱된 데이터:', parsedData)
+        
+        // 올바른 데이터 구조로 접근
+        const accept = parsedData.data?.accept
+        const team = parsedData.data?.team || 0
+        
+        console.log('📥 다른 사람 응답 현황 추출된 값:', { accept, team })
+        
+        // 콜백에 올바른 데이터 구조로 전달
+        callback({ 
+          type: 'ACCEPTANCE_STATUS', 
+          status: parsedData.status || 'success',
+          data: {
+            accept: accept,
+            team: team
+          },
+          message: parsedData.message
+        })
+      } catch (error) {
+        console.error('❌ 다른 사람 응답 현황 파싱 오류:', error)
+      }
+    })
+    
+    // 에러 구독
+    stompClient.value.subscribe('/user/queue/error', (message) => {
+      try {
+        const data = JSON.parse(message.body)
+        console.error('❌ 에러 수신:', data)
+        callback({ type: 'ERROR', status: data.status || 'error', data: data.data, message: data.message })
+      } catch (error) {
+        console.error('❌ 메시지 파싱 오류:', error)
+      }
+    })
   }
 
-  // 페이지 진입 시 자동 연결
-  onMounted(() => {
-    connectWebSocket()
-  })
-
-  // 페이지 이탈 시 연결 해제
+  // 컴포넌트 언마운트 시 연결 해제
   onUnmounted(() => {
-    disconnectWebSocket()
+    disconnect()
   })
 
   return {
     isConnected,
-    connectionError,
-    sendMatchingRequest,
-    sendMatchingCancel,
-    reconnectWebSocket,
-    disconnectWebSocket
+    connect,
+    disconnect,
+    sendMatchRequest,
+    sendMatchAcceptance,
+    handleMessage,
+    removeMessageHandler
   }
 } 

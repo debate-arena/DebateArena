@@ -1,10 +1,11 @@
 import axios from 'axios'
+import { config } from '@/config/env'
 
 // 매칭 API 전용 axios 인스턴스
 const matchingAxios = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: config.MATCH_API_URL,  // 매칭 서버 URL
   timeout: 10000,
-  withCredentials: true, // 쿠키 포함
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -34,6 +35,7 @@ matchingAxios.interceptors.response.use(
   }
 )
 
+// 타입 정의들 (기존 matching.ts에서 사용하던 타입들)
 export interface Topic {
   id: number
   title: string
@@ -43,8 +45,7 @@ export interface Topic {
 
 export interface TopicSet {
   topics: Topic[]
-  startAtMs: number
-  endAtMs: number
+  remainingTimeSeconds?: number
 }
 
 export interface TopicSetResponse {
@@ -55,31 +56,33 @@ export interface TopicSetResponse {
 
 // 매칭 관련 API 서비스
 export const matchingAPI = {
-  // 주제 세트 조회
-  getTopicSets: async (): Promise<TopicSetResponse> => {
-    const response = await matchingAxios.get('/api/matching/topics')
-    return response.data
+  // 매칭 요청 (HTTP API 사용 시)
+  sendMatchRequest: async (request: any) => {
+    const response = await matchingAxios.post('/api/match/request', request)
+    const data = response.data
+    if (data.status === 'error') {
+      throw new Error(data.message || '매칭 요청 실패')
+    }
+    return data
   },
 
-  // 매칭 시작
-  startMatching: async (data: {
-    topicId: number
-    playerMode: string
-    stance: string
-  }) => {
-    const response = await matchingAxios.post('/api/matching/start', data)
-    return response.data
+  // 매칭 응답 (HTTP API 사용 시)
+  sendMatchAcceptance: async (matchId: string, accept: boolean, team: number) => {
+    const response = await matchingAxios.post('/api/match/acceptance', { matchId, accept, team })
+    const data = response.data
+    if (data.status === 'error') {
+      throw new Error(data.message || '매칭 응답 실패')
+    }
+    return data
   },
 
-  // 매칭 취소
-  cancelMatching: async () => {
-    const response = await matchingAxios.post('/api/matching/cancel')
-    return response.data
-  },
-
-  // 매칭 상태 확인
-  getMatchingStatus: async () => {
-    const response = await matchingAxios.get('/api/matching/status')
-    return response.data
+  // 매칭 상태 조회
+  getMatchStatus: async () => {
+    const response = await matchingAxios.get('/api/match/status')
+    const data = response.data
+    if (data.status === 'error') {
+      throw new Error(data.message || '매칭 상태 조회 실패')
+    }
+    return data
   }
 } 

@@ -1,6 +1,6 @@
 <template>
   <Dialog v-model:open="isOpen" @update:open="handleClose">
-    <DialogContent class="sm:max-w-md">
+    <DialogContent class="sm:max-w-md no-backdrop">
       <DialogHeader>
         <DialogTitle class="text-center">로그인</DialogTitle>
         <DialogDescription class="text-center">
