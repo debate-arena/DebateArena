@@ -16,5 +16,5 @@
 ## backend
 - 백엔드 관련 작업
 
-## ai_serer
+## ai_server
 - AI 관련 작업용
