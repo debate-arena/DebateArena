@@ -4,6 +4,7 @@ export interface Topic {
   title: string;      // 주제 제목/내용
   option1: string;    // 선택지 1 (예: 찬성 등)
   option2: string;    // 선택지 2 (예: 반대 등)
+  index: number;      // 서버 순서 인덱스 (0부터 시작)
 }
 
 // 주제 세트 타입 (시간 정보는 currentSet에만 포함)

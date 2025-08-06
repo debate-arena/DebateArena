@@ -61,11 +61,12 @@ export const useTopicSetStore = defineStore('topicSet', {
         
         // 서버 응답을 클라이언트 타입으로 변환
         const convertServerTopics = (serverTopics: any[]) => {
-          return serverTopics.map(topic => ({
+          return serverTopics.map((topic, index) => ({
             id: topic.id,
             title: topic.topicText,
             option1: topic.firstOption,
-            option2: topic.secondOption
+            option2: topic.secondOption,
+            index: index    // 서버 순서 인덱스 (0부터 시작)
           }));
         };
 

@@ -11,6 +11,20 @@ export type Stance = 'option1' | 'option2' | 'random'
 // 매칭 상태
 export type MatchingStatus = 'idle' | 'waiting' | 'matching' | 'connecting' | 'completed' | 'timeout' | 'cancelled' | 'matched' | 'error'
 
+// WebSocket 메시지 타입
+export type WebSocketMessageType = 'MATCH_STATUS' | 'MATCH_INVITATION' | 'ACCEPTANCE_STATUS' | 'ERROR' | 'MATCH_ADDITIONAL' | 'MATCH_ALL_PERSONAL'
+
+// WebSocket 메시지 상태
+export type WebSocketMessageStatus = 'success' | 'error' | 'warning' | 'info'
+
+// WebSocket 메시지 인터페이스
+export interface WebSocketMessage {
+  type: WebSocketMessageType
+  status: WebSocketMessageStatus
+  data?: any
+  message?: string
+}
+
 // 주제 정보 (매칭 페이지용)
 export interface Topic {
   id: number
@@ -27,6 +41,7 @@ export interface Topic {
 // 주제 선택 정보
 export interface TopicSelection {
   topicId: number
+  topicIndex: number  // 서버 순서 인덱스 (0부터 시작)
   stance: Stance
   modes: Set<PlayerMode>
   modeOrder: PlayerMode[] // 모드 선택 순서 관리

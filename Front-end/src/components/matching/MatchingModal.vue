@@ -196,7 +196,7 @@
                 stroke="#3b82f6" 
                 stroke-width="8"
                 stroke-linecap="round"
-                :stroke-dasharray="`${(30 - timeLeft) / 30 * 283} 283`"
+                :stroke-dasharray="`${(15 - timeLeft) / 15 * 283} 283`"
                 transform="rotate(-90 50 50)"
                 class="transition-all duration-1000"
               />
@@ -213,9 +213,9 @@
               :src="runIcon" 
               class="absolute w-12 h-12 animate-pulse"
               :style="{ 
-                left: `${50 + (40 * Math.cos((30 - timeLeft) / 30 * 2 * Math.PI - Math.PI/2))}%`,
-                top: `${50 + (40 * Math.sin((30 - timeLeft) / 30 * 2 * Math.PI - Math.PI/2))}%`,
-                transform: `translate(-50%, -50%) rotate(${(30 - timeLeft) / 30 * 360}deg)`
+                left: `${50 + (40 * Math.cos((15 - timeLeft) / 15 * 2 * Math.PI - Math.PI/2))}%`,
+                top: `${50 + (40 * Math.sin((15 - timeLeft) / 15 * 2 * Math.PI - Math.PI/2))}%`,
+                transform: `translate(-50%, -50%) rotate(${(15 - timeLeft) / 15 * 360}deg)`
               }"
               alt="진행 중"
             />
@@ -305,7 +305,7 @@ const props = withDefaults(defineProps<Props>(), {
   mode: '1:1',
   topicId: 1,
   totalCount: 0,
-  timeLeft: 30,
+  timeLeft: 15,
   isConnecting: false,
   lastAcceptedStance: undefined
 })

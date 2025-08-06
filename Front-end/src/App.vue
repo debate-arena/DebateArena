@@ -146,7 +146,7 @@ const googleIcon = computed(() => {
             <Button variant="ghost" size="sm" @click="$router.push('/matching')">
               매칭
             </Button>
-            <Button variant="ghost" size="sm" @click="$router.push('/debate')">
+            <Button variant="ghost" size="sm" @click="$router.push('/debate-room')">
               토론방
             </Button>
             

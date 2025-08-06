@@ -35,6 +35,9 @@ interface MatchingState {
 
   // 현재 사용자의 position (0: 첫 번째, 1: 두 번째)
   currentUserPosition: number
+
+  // 현재 사용자의 팀 정보 (서버에서 받은 팀 번호)
+  currentUserTeam: number
 }
 
 export const useMatchingStore = defineStore('matching', {
@@ -54,8 +57,9 @@ export const useMatchingStore = defineStore('matching', {
       connectedUsers: 0
     },
     currentMatchId: '',
-    acceptTimeLeft: 30,
-    currentUserPosition: 0
+    acceptTimeLeft: 15,
+    currentUserPosition: 0,
+    currentUserTeam: 0 // 초기값 설정
   }),
 
   getters: {
@@ -122,7 +126,7 @@ export const useMatchingStore = defineStore('matching', {
         selection.modes.forEach(mode => {
           choices.push({
             matchType: mode === '1:1' ? 0 : 1,
-            matchTitle: selection.topicId - 1, // API는 0부터 시작
+            matchTitle: selection.topicIndex, // 서버 순서 인덱스 사용
             choice: (() => {
               switch (selection.stance) {
                 case 'option1': return 0  // pro (찬성)
@@ -266,6 +270,10 @@ export const useMatchingStore = defineStore('matching', {
 
     // 새로운 주제 선택 생성
     createTopicSelection(topicId: number, stance: Stance) {
+      const topicSetStore = useTopicSetStore()
+      const topic = topicSetStore.currentSet?.topics.find(t => t.id === topicId)
+      const topicIndex = topic?.index ?? 0
+      
       const initialModes = new Set<PlayerMode>(this.globalModes)
       const modeOrder = Array.from(initialModes).sort((a, b) => {
         if (a === '1:1') return -1
@@ -275,6 +283,7 @@ export const useMatchingStore = defineStore('matching', {
       
       this.topicSelections.set(topicId, {
         topicId,
+        topicIndex,        // 서버 순서 인덱스 추가
         stance,
         modes: initialModes,
         modeOrder
@@ -294,8 +303,13 @@ export const useMatchingStore = defineStore('matching', {
       }
       
       topicIds.forEach(topicId => {
+        const topicSetStore = useTopicSetStore()
+        const topic = topicSetStore.currentSet?.topics.find(t => t.id === topicId)
+        const topicIndex = topic?.index ?? 0
+        
         this.topicSelections.set(topicId, {
           topicId,
+          topicIndex,        // 서버 순서 인덱스 추가
           stance: Array.from(this.globalStances)[0] || 'random',
           modes: new Set(this.globalModes),
           modeOrder: Array.from(this.globalModes)
@@ -442,9 +456,19 @@ export const useMatchingStore = defineStore('matching', {
       return this.currentUserPosition
     },
 
+    // 현재 사용자의 팀 정보 설정
+    setCurrentUserTeam(team: number) {
+      this.currentUserTeam = team
+    },
+
+    // 현재 사용자의 팀 정보 가져오기
+    getCurrentUserTeam(): number {
+      return this.currentUserTeam
+    },
+
     // 수락 타이머 관리
     startAcceptTimer() {
-      this.acceptTimeLeft = 30
+      this.acceptTimeLeft = 15
       // 실제 타이머 로직은 별도 composable에서 관리
     },
 
@@ -453,7 +477,7 @@ export const useMatchingStore = defineStore('matching', {
     },
 
     resetAcceptTimer() {
-      this.acceptTimeLeft = 30
+      this.acceptTimeLeft = 15
     },
 
     // 수락 타이머 업데이트
@@ -476,8 +500,9 @@ export const useMatchingStore = defineStore('matching', {
       this.matchResult = undefined
       this.estimatedWaitTime = undefined
       this.currentMatchId = ''
-      this.acceptTimeLeft = 30
+      this.acceptTimeLeft = 15
       this.currentUserPosition = 0
+      this.currentUserTeam = 0 // 팀 정보도 리셋
       this.resetRoomInfo()
     }
   }

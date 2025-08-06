@@ -1,6 +1,6 @@
 <template>
   <Dialog v-model:open="isOpen" @update:open="handleClose" :escape-key-down="false">
-    <DialogContent class="sm:max-w-md no-backdrop" :close-button="false" :close-on-overlay-click="false">
+    <DialogContent class="sm:max-w-md no-backdrop">
       <DialogHeader>
         <DialogTitle class="text-center">닉네임 설정</DialogTitle>
         <DialogDescription class="text-center">

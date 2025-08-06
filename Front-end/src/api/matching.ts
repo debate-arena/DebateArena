@@ -59,18 +59,30 @@ export const matchingAPI = {
   // 매칭 요청 (HTTP API 사용 시)
   sendMatchRequest: async (request: any) => {
     const response = await matchingAxios.post('/api/match/request', request)
-    return response.data
+    const data = response.data
+    if (data.status === 'error') {
+      throw new Error(data.message || '매칭 요청 실패')
+    }
+    return data
   },
 
   // 매칭 응답 (HTTP API 사용 시)
-  sendMatchAcceptance: async (matchId: string, accept: boolean, stance: number) => {
-    const response = await matchingAxios.post('/api/match/acceptance', { matchId, accept, stance })
-    return response.data
+  sendMatchAcceptance: async (matchId: string, accept: boolean, team: number) => {
+    const response = await matchingAxios.post('/api/match/acceptance', { matchId, accept, team })
+    const data = response.data
+    if (data.status === 'error') {
+      throw new Error(data.message || '매칭 응답 실패')
+    }
+    return data
   },
 
   // 매칭 상태 조회
   getMatchStatus: async () => {
     const response = await matchingAxios.get('/api/match/status')
-    return response.data
+    const data = response.data
+    if (data.status === 'error') {
+      throw new Error(data.message || '매칭 상태 조회 실패')
+    }
+    return data
   }
 } 
