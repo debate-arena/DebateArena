@@ -1,16 +1,23 @@
 package com.ssafya408.debate.domain.api.service;
 
+import com.ssafya408.debate.domain.api.dto.debate.SpeakerOrder;
+import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
+import com.ssafya408.debate.domain.api.dto.room.WebRTCStatus;
 import com.ssafya408.debate.domain.api.dto.stt.BattleSTTRequest;
 import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
 import com.ssafya408.debate.domain.api.dto.stt.STTMessage;
 import com.ssafya408.debate.domain.api.dto.stt.OpinionSTTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.ai.BroadcastResponse;
+import com.ssafya408.debate.domain.db.cache.DebateRedisInfo;
+import com.ssafya408.debate.domain.db.cache.DebateRedisRepository;
 import com.ssafya408.debate.domain.db.rdb.DebateRoom;
 import com.ssafya408.debate.domain.db.rdb.DebateRoomRepository;
+import com.ssafya408.debate.domain.db.rdb.MatchType;
 import com.ssafya408.debate.domain.db.rdb.Topic;
 import com.ssafya408.debate.domain.db.rdb.TopicRepository;
 import jakarta.annotation.PostConstruct;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,6 +31,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class DebateService {
   private final DebateRoomRepository debateRoomRepository;
+  private final DebateRedisRepository debateRedisRepository;
   private final TopicRepository topicRepository;
   private Map<Long, RoomManager> roomInfos;
   private final SimpMessagingTemplate template;
@@ -134,11 +142,15 @@ public class DebateService {
 
       RoomManager roomManager = RoomManager.generateRoomManager(
           created.getId(),
+          created.getMathType(),
           req.getTopicId(),
           req.getFirstTeam(),
           req.getSecondTeam());
-
       roomInfos.put(created.getId(), roomManager);
+      
+      // Redis에 토론방 정보 저장
+      this.saveDebateInfoAtCache(roomManager, topic);
+      
       log.info("토론방 생성 완료: roomId={}, topicId={}, matchType={}", 
           created.getId(), req.getTopicId(), req.getMatchType());
       
@@ -149,12 +161,100 @@ public class DebateService {
     }
   }
 
+  private void saveDebateInfoAtCache(RoomManager debateRoom, Topic topic) {
+    List<SpeakerOrder> firstTeam=new ArrayList<>();
+    List<SpeakerOrder> secondTeam=new ArrayList<>();
+    List<String> first = debateRoom.getFirstTeam();
+    List<String> second = debateRoom.getSecondTeam();
+    for(int i=0;i<first.size();i++){
+      firstTeam.add(new SpeakerOrder(i,first.get(i)));
+    }
+
+    for(int i=0;i<second.size();i++){
+      secondTeam.add(new SpeakerOrder(i,second.get(i)));
+    }
+
+    DebateRedisInfo debateRedisInfo = DebateRedisInfo.builder()
+        .roomId(debateRoom.getRoomId())
+        .type(MatchType.toInteger(debateRoom.getType()))
+        .topicId(topic.getId())
+        .topicText(topic.getTopicText())
+        .firstOption(topic.getFirstOption())
+        .secondOption(topic.getSecondOption())
+        .status(RoomStatus.CONNECTING)
+        .webRTCStatus(WebRTCStatus.CONNECTING)
+        .firstTeam(firstTeam)
+        .secondTeam(secondTeam)
+        .build();
+
+    debateRedisRepository.save(debateRoom.getRoomId(), debateRedisInfo);
+  }
+
   // 사용 가능한 Topic 목록 조회
   public List<Topic> getAvailableTopics() {
     return topicRepository.findAll();
   }
 
+  // Redis에서 토론방 정보 조회
+  public DebateRedisInfo getDebateRoomInfo(Long roomId) {
+    try {
+      return debateRedisRepository.findByRoomId(roomId);
+    } catch (Exception e) {
+      log.error("토론방 정보 조회 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return null;
+    }
+  }
 
+  // 토론방 상태 업데이트
+  public void updateRoomStatus(Long roomId, RoomStatus status) {
+    try {
+      debateRedisRepository.updateRoomStatus(roomId, status);
+      log.info("토론방 상태 업데이트 - roomId: {}, status: {}", roomId, status);
+    } catch (Exception e) {
+      log.error("토론방 상태 업데이트 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+    }
+  }
+
+  // WebRTC 상태 업데이트
+  public void updateWebRTCStatus(Long roomId, WebRTCStatus status) {
+    try {
+      debateRedisRepository.updateWebRTCStatus(roomId, status);
+      log.info("WebRTC 상태 업데이트 - roomId: {}, status: {}", roomId, status);
+    } catch (Exception e) {
+      log.error("WebRTC 상태 업데이트 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+    }
+  }
+
+  // 토론방 존재 여부 확인
+  public boolean isRoomExists(Long roomId) {
+    return debateRedisRepository.exists(roomId);
+  }
+
+  // 모든 활성 토론방 조회
+  public java.util.Set<String> getActiveRoomIds() {
+    return debateRedisRepository.findAllActiveRoomIds();
+  }
+
+  // 토론방 TTL 연장 (토론이 진행 중일 때)
+  public void extendRoomTTL(Long roomId) {
+    debateRedisRepository.extendTTL(roomId, java.time.Duration.ofHours(2));
+    log.info("토론방 TTL 연장 - roomId: {}", roomId);
+  }
+
+  // 토론방 종료 시 정리
+  public void closeDebateRoom(Long roomId) {
+    try {
+      // 메모리에서 제거
+      roomInfos.remove(roomId);
+      
+      // Redis에서 제거 (또는 상태만 변경)
+      updateRoomStatus(roomId, RoomStatus.FINISH);
+      
+      log.info("토론방 종료 - roomId: {}", roomId);
+    } catch (Exception e) {
+      log.error("토론방 종료 처리 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+    }
+  }
 
 //  public void generateDebateRoom(List<String> debaters) {
 //  }

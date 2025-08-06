@@ -3,6 +3,7 @@ package com.ssafya408.debate.domain.api.service;
 import com.ssafya408.debate.domain.api.dto.stt.STTMessage;
 import com.ssafya408.debate.domain.api.dto.stt.ai.BroadcastResponse;
 import com.ssafya408.debate.domain.common.dto.ApiResponse;
+import com.ssafya408.debate.domain.db.rdb.MatchType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ public class RoomManager {
 
   private Long roomId;
   private Long topicId;
+  private MatchType type;
   private int playerCount;
   private List<String> firstTeam;
   private List<String> secondTeam;
@@ -23,9 +25,10 @@ public class RoomManager {
   // 공방전 데이터 어떻게?
   private List<Map<String, STTMessage>> battles; //공방전 의견 {질문, 답변} 형식
 
-  private RoomManager(Long roomId, Long topicId,
+  private RoomManager(Long roomId, MatchType type, Long topicId,
       List<String> firstTeam,List<String> secondTeam) {
     this.roomId=roomId;
+    this.type=type;
     this.topicId=topicId;
     this.firstTeam = firstTeam;
     this.secondTeam = secondTeam;
@@ -38,11 +41,11 @@ public class RoomManager {
     }
   }
 
-  public static RoomManager generateRoomManager(Long roomId,Long topicId,
+  public static RoomManager generateRoomManager(Long roomId,MatchType type,Long topicId,
       List<String> firstTeam,
       List<String> secondTeam) {
 
-    return new RoomManager(roomId,topicId,firstTeam,secondTeam);
+    return new RoomManager(roomId,type,topicId,firstTeam,secondTeam);
   }
 
 
