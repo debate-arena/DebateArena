@@ -8,9 +8,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import lombok.Getter;
+import lombok.Setter;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 @Getter
+@Setter
 public class RoomManager {
 
   private Long roomId;
@@ -18,7 +20,11 @@ public class RoomManager {
   private int playerCount;
   private List<String> firstTeam;
   private List<String> secondTeam;
-  private TreeMap<String, STTMessage> opinions; //각 사용자의 stt 텍스트가 저장됨
+  private TreeMap<String, STTMessage> opinions; //각 사용자의 stt 텍스트가 저장됨v
+  private int currentOpinionIndex = 0;
+  private int currentBattleIndex = 0;
+  private String status="opinion";
+  private String turn = "team1";
 
   // 공방전 데이터 어떻게?
   private List<Map<String, STTMessage>> battles; //공방전 의견 {질문, 답변} 형식
@@ -63,4 +69,19 @@ public class RoomManager {
 public String getTotalSTT(String user) {
   return null;
 }
+  public int getCurrentIndex() {
+    if(status.equals("opinion")){
+      return currentOpinionIndex;
+    }else{
+      return currentBattleIndex;
+    }
+  }
+
+  public boolean isFinished() {
+    if (status.equals("opinion")){
+      return currentOpinionIndex == playerCount;
+    }else{
+      return currentBattleIndex == playerCount;
+    }
+  }
 }

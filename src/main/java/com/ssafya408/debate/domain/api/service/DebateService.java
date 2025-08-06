@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ import org.springframework.stereotype.Service;
 public class DebateService {
   private final DebateRoomRepository debateRoomRepository;
   private final TopicRepository topicRepository;
+  private final RestClient.Builder builder;
   private Map<Long, RoomManager> roomInfos;
   private final SimpMessagingTemplate template;
   private Integer OPINION=0;
@@ -162,6 +164,7 @@ public class DebateService {
   }
 
   public void userJoinMatch(String user, Long roomId) {
+    log.info("[userJoinMatch] 입장");
     // TODO : 입장 전 권한 체크하는 로직 (Redis) 구현 필요
     beforeGameStartQueue
             .computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet())
@@ -169,8 +172,11 @@ public class DebateService {
 
     if(roomInfos.get(roomId).getPlayerCount()
             ==beforeGameStartQueue.get(roomId).size()){
+      log.info("[토론 시작]");
       // TODO : Redis에서 WebRTCStatue 확인
-      scheduleService.gameStart(roomId);
+      beforeGameStartQueue.get(roomId);
+      RoomManager roomManager= roomInfos.get(roomId);
+      scheduleService.gameStart(roomManager);
     }
 
     log.info("사용자 {}가 방 {}에 참여했습니다.", user, roomId);

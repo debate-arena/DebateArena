@@ -17,11 +17,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -162,6 +158,26 @@ public class DebateRoomApiController {
       Map<String, String> errorRes = new HashMap<>();
       errorRes.put("error", "토론방 생성에 실패했습니다: " + e.getMessage());
       return ResponseEntity.ok(ApiResponse.error("토론방 생성에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+  @GetMapping("/createDebate")
+  @Operation(
+          summary = "토론 시작",
+          description = "토론을 시작합니다."
+  )
+  public void createDebateRoom(@RequestParam String userEmail, @RequestParam Long roomId) {
+    try {
+
+      log.info("[토론 진행 시작]");
+
+      debateService.userJoinMatch(userEmail, roomId);
+
+      log.info("[토론 진행] 성공 ");
+
+    } catch (Exception e) {
+      log.error("[토론 진행] 실패 - 오류: {}", e.getMessage(), e);
+
     }
   }
 

@@ -10,14 +10,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Configuration
 public class RedisMessageListenerConfig {
-    @Bean
-    public TaskScheduler taskScheduler() {
-        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(10);
-        scheduler.setThreadNamePrefix("debate-scheduler-");
-        scheduler.initialize();
-        return scheduler;
-    }
 
     @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer(
