@@ -6,7 +6,7 @@ class RequestInput(BaseModel):
     text: str
 
 class ResponseOutput(BaseModel):
-    result: str
+    result: dict
 
 class STTRequest(BaseModel):
     user_id: str
@@ -17,7 +17,6 @@ class STTRequest(BaseModel):
 # 공방전에서 사용하는 모델들
 class AttackdefenseInput(BaseModel):
     topic: str
-    target: str
     key: dict
 
 class AttackDefenseOutput(BaseModel):
