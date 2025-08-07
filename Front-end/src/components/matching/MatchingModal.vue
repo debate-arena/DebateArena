@@ -349,46 +349,78 @@ watch(() => props.isOpen, (isOpen) => {
     localHasAccepted.value = false
     localHasRejected.value = false
     // 모달이 열릴 때 stanceCounts 초기화 (computed로 자동 계산됨)
-    console.log('🔍 MatchingModal - 모달 열림, 카운트 초기화:', stanceCounts.value)
   }
 })
 
 // 타이머가 끝났을 때 거절 상태로 설정
 watch(() => props.timeLeft, (timeLeft) => {
   if (timeLeft === 0 && !localHasAccepted.value && !localHasRejected.value) {
-    console.log('⏰ 타이머 만료 - 거절 상태로 설정하여 모달 유지')
     localHasRejected.value = true
   }
 })
 
 // props.lastAcceptedStance 변화 감지하여 카운트 업데이트
 // watch(() => props.lastAcceptedStance, (newStance, oldStance) => {
-//   console.log('🔍 MatchingModal - lastAcceptedStance 변화 감지:', {
-//     이전값: oldStance,
-//     새값: newStance
-//   })
-  
 //   if (newStance && (newStance === 'option1' || newStance === 'option2')) {
-//     console.log('🔍 MatchingModal - 마지막 수락한 진영 감지:', newStance)
 //     const beforeCount = acceptedCounts.value[newStance as 'option1' | 'option2']
 //     acceptedCounts.value[newStance as 'option1' | 'option2']++
 //     const afterCount = acceptedCounts.value[newStance as 'option1' | 'option2']
-//     console.log('🔍 수락 카운트 업데이트:', {
-//       진영: newStance,
-//       이전카운트: beforeCount,
-//       새카운트: afterCount,
-//       전체카운트: acceptedCounts.value
-//     })
 //   }
 // })
 
 const currentTopic = computed(() => {
-  return topicSetStore.currentSet?.topics.find(topic => topic.id === props.topicId)
+  // topicId가 유효한지 확인
+  if (!props.topicId || props.topicId <= 0) {
+    console.warn('⚠️ 유효하지 않은 topicId:', props.topicId)
+    return null
+  }
+  
+  // 토픽 ID 타입 변환 (string -> number 또는 number -> number)
+  const topicId = typeof props.topicId === 'string' ? parseInt(props.topicId) : props.topicId
+  
+  const topic = topicSetStore.currentSet?.topics.find(topic => topic.id === topicId)
+  
+  if (!topic) {
+    console.warn('⚠️ topicId로 주제를 찾을 수 없음:', {
+      originalTopicId: props.topicId,
+      convertedTopicId: topicId,
+      availableTopics: topicSetStore.currentSet?.topics.map(t => ({ id: t.id, title: t.title })) || []
+    })
+  }
+  
+  return topic
 })
 
-// 선택지 이름 가져오기
-const option1Name = computed(() => currentTopic.value?.option1 || '선택1')
-const option2Name = computed(() => currentTopic.value?.option2 || '선택2')
+// 선택지 이름 가져오기 (fallback 로직 추가)
+const option1Name = computed(() => {
+  if (currentTopic.value?.option1) {
+    return currentTopic.value.option1
+  }
+  
+  // fallback: props.stanceText를 기반으로 기본값 제공
+  if (props.stanceText === 'option1') {
+    return '찬성'
+  } else if (props.stanceText === 'option2') {
+    return '반대'
+  }
+  
+  return '선택1'
+})
+
+const option2Name = computed(() => {
+  if (currentTopic.value?.option2) {
+    return currentTopic.value.option2
+  }
+  
+  // fallback: props.stanceText를 기반으로 기본값 제공
+  if (props.stanceText === 'option1') {
+    return '반대'
+  } else if (props.stanceText === 'option2') {
+    return '찬성'
+  }
+  
+  return '선택2'
+})
 
 // 모드에 따른 아이콘 수 계산
 const getIconCountByMode = (mode: string) => {
@@ -420,19 +452,8 @@ const stanceCounts = computed(() => {
     }
   }
   
-  console.log('🔍 stanceCounts 계산:', {
-    stanceAcceptance: modals.stanceAcceptance.value,
-    iconCount: iconCount.value,
-    counts
-  })
-  
   return counts
 })
-
-
-
-
-
 
 const getStanceButtonClass = (stance: string) => {
   if (stance === 'option1') {
@@ -461,24 +482,16 @@ const getModeTextClass = (mode: string) => {
 }
 
 const handleAccept = () => {
-  console.log('🔍 MatchingModal - 수락 버튼 클릭됨')
-  
   // 로컬 상태를 true로 설정
   localHasAccepted.value = true
-  console.log('✅ localHasAccepted 상태 변경됨:', localHasAccepted.value)
-  console.log('✅ hasAccepted computed 값:', hasAccepted.value)
   
   // 수락 이벤트만 emit하고 모달은 닫지 않음
   emit('accept')
 }
 
 const handleReject = () => {
-  console.log('🔍 MatchingModal - 거절 버튼 클릭됨')
-  
   // 로컬 상태를 true로 설정
   localHasRejected.value = true
-  console.log('✅ localHasRejected 상태 변경됨:', localHasRejected.value)
-  console.log('✅ hasRejected computed 값:', hasRejected.value)
   
   // 거절 이벤트만 emit하고 모달은 닫지 않음
   emit('reject')

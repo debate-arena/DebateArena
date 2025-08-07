@@ -111,9 +111,6 @@ function createMatchingModals() {
   }
 
   const showMatchCompleteModal = (data: MatchModalData) => {
-    console.log('🔍 showMatchCompleteModal 호출됨')
-    console.log('🔍 입력 데이터:', data)
-    
     // 데이터를 명시적으로 설정
     matchModalData.value = {
       topicTitle: data.topicTitle || '',
@@ -121,7 +118,6 @@ function createMatchingModals() {
       mode: data.mode || '',
       topicId: data.topicId || 1
     }
-    console.log('🔍 모달 데이터 설정됨:', matchModalData.value)
     
     // 진영별 수락/거절 현황 초기화
     stanceAcceptance.value = {
@@ -134,32 +130,25 @@ function createMatchingModals() {
         reject: 0
       }
     }
-    console.log('🔍 진영별 수락/거절 현황 초기화됨:', stanceAcceptance.value)
     
     // 모달 상태를 명시적으로 설정
     modalState.value = {
       ...modalState.value,
       isMatchCompleteModalOpen: true
     }
-    console.log('🔍 모달 상태 변경됨:', modalState.value.isMatchCompleteModalOpen)
   }
 
   const hideMatchCompleteModal = () => {
     modalState.value.isMatchCompleteModalOpen = false
-    console.log('🔍 매칭 완료 모달 숨김')
   }
 
   // 진영별 수락/거절 현황 업데이트
   const updateStanceAcceptance = (stance: string, accept: boolean) => {
-    console.log('🔍 updateStanceAcceptance 호출:', { 진영: stance, 수락: accept })
-    
     if (stance === 'option1' || stance === 'option2') {
       if (accept) {
         stanceAcceptance.value[stance as 'option1' | 'option2'].accept++
-        console.log('✅ 진영별 수락 현황 업데이트 성공:', stanceAcceptance.value)
       } else {
         stanceAcceptance.value[stance as 'option1' | 'option2'].reject++
-        console.log('✅ 진영별 거절 현황 업데이트 성공:', stanceAcceptance.value)
       }
     } else {
       console.warn('⚠️ 유효하지 않은 진영:', { stance, accept })
@@ -187,7 +176,6 @@ function createMatchingModals() {
         reject: 0
       }
     }
-    console.log('🔍 hideAllModals - 진영별 수락/거절 현황 초기화됨')
   }
 
   return {
