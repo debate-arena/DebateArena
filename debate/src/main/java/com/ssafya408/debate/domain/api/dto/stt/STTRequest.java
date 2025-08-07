@@ -8,7 +8,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class  STTRequest {
-  private Long roomId;
-
   private String text;
 }

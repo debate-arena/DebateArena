@@ -81,9 +81,8 @@ public class DebateService {
 
     log.info("테스트용 Topic 데이터 생성 완료. 총 {}개 생성됨", topicRepository.count());
   }
-  public void broadcastSTTMessage(String user, STTRequest req) {
+  public void broadcastSTTMessage(String user, Long  roomId, STTRequest req) {
     String text=req.getText();
-    Long roomId = req.getRoomId();
     RoomManager roomManager = roomInfos.get(roomId);
 
     log.info("STT 메시지 브로드캐스트 시작 - 사용자: {}, 방ID: {}, 텍스트: {}", user, roomId, text);
@@ -108,9 +107,8 @@ public class DebateService {
   public void saveTextToKafka() {
   }
 
-  public void processOpinionSTTMessage(String user, OpinionSTTRequest req) {
+  public void processOpinionSTTMessage(String user, Long roomId, OpinionSTTRequest req) {
     String text=req.getText();
-    Long roomId = req.getRoomId();
     RoomManager roomManager = roomInfos.get(roomId);
 
     log.info("의견 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}", user, roomId);
@@ -129,8 +127,8 @@ public class DebateService {
 
   }
 
-  public void processBattleSTTMessage(String user, BattleSTTRequest request) {
-    log.info("배틀 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}", user, request.getRoomId());
+  public void processBattleSTTMessage(String user,Long roomId, BattleSTTRequest request) {
+    log.info("배틀 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}", user, roomId);
     // TODO: 배틀 STT 메시지 처리 로직 구현 필요
     log.info("배틀 STT 메시지 처리 완료 - 사용자: {}", user);
   }
