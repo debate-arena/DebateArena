@@ -113,14 +113,13 @@ public class DebateService {
     Long roomId = req.getRoomId();
     RoomManager roomManager = roomInfos.get(roomId);
 
-    log.info("의견 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}, 순서: {}", user, roomId, req.getOrder());
+    log.info("의견 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}", user, roomId);
 
     if (roomManager == null) {
       log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
       return;
     }
 
-    Integer order = req.getOrder();
 
     STTMessage texts = roomManager.getOpinions().getOrDefault(user,
         STTMessage.initializeSTTMessage(user));
@@ -128,10 +127,6 @@ public class DebateService {
 
     log.info("의견 STT 메시지 저장 완료 - 사용자: {}, 현재 누적 텍스트 길이: {}", user, texts.getJoinedText().length());
 
-//    //만약 가장 마지막 텍스트라면 text를 종합하여 AI 쪽에 전송한다
-//    if (order.equals(0)) {
-//
-//    }
   }
 
   public void processBattleSTTMessage(String user, BattleSTTRequest request) {
