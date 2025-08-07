@@ -26,6 +26,7 @@ async def summarize_first_half(input_data: STTRequest) -> str:
     
     이 발언의 핵심 주장을 한국어로 반드시 최소 150자 이상, 반드시 최대 {max_text_len}자 이내로 요약해 주세요.
     150자를 채우기 위해 없는 내용을 추가하지 말고 최대한 주어진 텍스트 내에서 가공하여 내용의 핵심을 요약해 주세요.
+    공격적인 발언이 있는 경우 비속어가 아니라면 요약본에 무조건 추가해주세요.
     """
     
     payload = {
@@ -53,7 +54,7 @@ async def summarize_first_half(input_data: STTRequest) -> str:
 # 공방전에서 들어온 텍스트 요약
 async def summarize_second_half(input_data: AttackdefenseInput):
     topic = input_data.topic
-    data = input_data.data
+    data = input_data.key
     
     attack_id = data["attack"]["user_id"]
     attack_position = data["attack"]["position"]
