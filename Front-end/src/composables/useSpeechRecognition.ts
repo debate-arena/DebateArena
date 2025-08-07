@@ -18,11 +18,11 @@ export function useStt(stompClientRef: any, roomId: any, config = {}) {
   /* ──────────────── 기본 설정 ─────────────── */
   const cfg = {
     lang: 'ko-KR',
-    maxChars: 300,
-    maxWords: 50,
-    maxLatencyMs: 3500,
-    silenceMs: 1200,
-    sentencePunct: /[.?!…]|[。！？]|[\.]{2,}$/,
+  maxChars: 300,
+  maxWords: 50,
+  maxLatencyMs: 3500,
+  silenceMs: 1200,
+  sentencePunct: /[.?!…]|[。！？]|[\.]{2,}$/,
     autoSend: true,
     ...config,
   };

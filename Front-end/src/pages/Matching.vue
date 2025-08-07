@@ -28,14 +28,14 @@
           <!-- 글로벌 선택 -->
           <PlayerCountSelection />
 
-                     <!-- 주제 카드들 -->
-           <div class="space-y-4">
-             <TopicCard 
-               v-for="topic in topicSetStore.currentSet?.topics || []" 
-               :key="topic.id"
-               :topic="topic"
-             />
-           </div>
+          <!-- 주제 카드들 -->
+          <div class="space-y-4">
+            <TopicCard 
+              v-for="topic in topicSetStore.currentSet?.topics || []" 
+              :key="topic.id"
+              :topic="topic"
+            />
+          </div>
         </div>
 
         <!-- 우측: 매칭 시작(요약/타이머) 영역 -->
@@ -149,34 +149,39 @@
             <div class="space-y-3">
               <h3 class="text-sm font-medium text-foreground">게임 규칙</h3>
               <div class="text-xs space-y-2 text-muted-foreground">
-                                 <div class="space-y-1">
-                   <p class="font-medium">🎯 게임 진행</p>
-                   <p>1. 준비 (30초)</p>
-                   <p class="text-xs ml-2">– 주제를 빠르게 훑고, 내 주장의 핵심 아이디어를 쓱쓱 정리해요.</p>
-                   <p>2. 입장 발표 (각 1분)</p>
-                   <p class="text-xs ml-2">– 순서대로 돌아가며 1분 동안 내 입장을 솔직·담백하게 이야기해요.</p>
-                   <p>3. 공격 대상 선정 (30초)</p>
-                   <p class="text-xs ml-2">– "어떤 부분을 콕 집어 반박할까?" 30초 동안 고민해 보고 타깃을 골라요.</p>
-                   <p>4. 공격 (30초)</p>
-                   <p class="text-xs ml-2">– 선택한 주장에 대해 반박 포인트를 후려치듯 날려 봐요.</p>
-                   <p>5. 방어 (30초)</p>
-                   <p class="text-xs ml-2">– 공격받은 부분을 침착하게 수비하고, 내 논리를 다시 한번 단단히 다져요.</p>
-                   <p>6. 선택 재투표 (30초)</p>
-                   <p class="text-xs ml-2">– 2:2로 시작했다면, 토론 후 30초 동안 다시 어느 쪽을 지지할지 선택!</p>
-                   <p>7. AI 판정 (무승부 시)</p>
-                   <p class="text-xs ml-2">– 표 결과가 동률일 때만, AI가 논리 흐름·근거 제시 등을 보고 최종 승자를 골라 줘요.</p>
-                 </div>
+                <div class="space-y-1">
+                  <p class="font-medium">🎯 게임 진행</p>
+                  <p>1. 준비 (30초)</p>
+                  <p class="text-xs ml-2">– 주제를 빠르게 훑고, 내 주장의 핵심 아이디어를 쓱쓱 정리해요.</p>
+                  <p>2. 입장 발표 (각 1분)</p>
+                  <p class="text-xs ml-2">– 순서대로 돌아가며 1분 동안 내 입장을 솔직·담백하게 이야기해요.</p>
+                  <p>3. 공격 대상 선정 (30초)</p>
+                  <p class="text-xs ml-2">– "어떤 부분을 콕 집어 반박할까?" 30초 동안 고민해 보고 타깃을 골라요.</p>
+                  <p>4. 공격 (30초)</p>
+                  <p class="text-xs ml-2">– 선택한 주장에 대해 반박 포인트를 후려치듯 날려 봐요.</p>
+                  <p>5. 방어 (30초)</p>
+                  <p class="text-xs ml-2">– 공격받은 부분을 침착하게 수비하고, 내 논리를 다시 한번 단단히 다져요.</p>
+                  <p>6. 선택 재투표 (30초)</p>
+                  <p class="text-xs ml-2">– 2:2로 시작했다면, 토론 후 30초 동안 다시 어느 쪽을 지지할지 선택!</p>
+                  <p>7. AI 판정 (무승부 시)</p>
+                  <p class="text-xs ml-2">– 표 결과가 동률일 때만, AI가 논리 흐름·근거 제시 등을 보고 최종 승자를 골라 줘요.</p>
+                </div>
                 
-                                 <div class="space-y-1">
-                   <p class="font-medium">⚠️ 주의사항</p>
-                   <p>1. 마이크를 허용해야 플레이가 가능해요</p>
-                                                           <p>2. <img src="/src/assets/images/profile/debate_random.png" class="inline w-4 h-4" alt="물범" /> 선택시 <img src="/src/assets/images/profile/debate_left.png" class="inline w-4 h-4" alt="북극곰" />, <img src="/src/assets/images/profile/debate_right.png" class="inline w-4 h-4" alt="펭귄" />가 랜덤으로 선택되요</p>
-                    <p>3. 발언 순서는 <img src="/src/assets/images/profile/debate_left.png" class="inline w-4 h-4" alt="북극곰" /> → <img src="/src/assets/images/profile/debate_right.png" class="inline w-4 h-4" alt="펭귄" /> 순서로 반복</p>
-                 </div>
+                <div class="space-y-1">
+                  <p class="font-medium">⚠️ 주의사항</p>
+                  <p>1. 마이크를 허용해야 플레이가 가능해요</p>
+                  <p>2. <img src="/src/assets/images/profile/debate_random.png" class="inline w-4 h-4" alt="물범" /> 선택시 <img src="/src/assets/images/profile/debate_left.png" class="inline w-4 h-4" alt="북극곰" />, <img src="/src/assets/images/profile/debate_right.png" class="inline w-4 h-4" alt="펭귄" />가 랜덤으로 선택되요</p>
+                  <p>3. 발언 순서는 <img src="/src/assets/images/profile/debate_left.png" class="inline w-4 h-4" alt="북극곰" /> → <img src="/src/assets/images/profile/debate_right.png" class="inline w-4 h-4" alt="펭귄" /> 순서로 반복</p>
+                </div>
               </div>
             </div>
           </Card>
         </div>
+      </div>
+
+      <!-- 하단: 게임 통계 패널 -->
+      <div class="mt-8">
+        <GameStatsPanel />
       </div>
     </div>
 
@@ -331,6 +336,7 @@ import debateLeftIcon from '@/assets/images/profile/debate_left.png'
 import debateRightIcon from '@/assets/images/profile/debate_right.png'
 import { CheckCircle } from 'lucide-vue-next'
 import type { MatchModalData } from '@/composables/useMatchingModals'
+import GameStatsPanel from '@/components/matching/GameStatsPanel.vue'
 
 const router = useRouter()
 const matchingStore = useMatchingStore()

@@ -1,54 +1,58 @@
 <template>
   <div class="p-4 border border-border rounded-lg bg-card min-h-[180px] flex flex-col justify-center" :class="{ 'opacity-60': !hasIndividualSelection }">
-    <h3 class="text-2xl font-semibold text-foreground mb-6 text-center" :class="{ 'text-muted-foreground': !hasIndividualSelection }">{{ topic.title }}</h3>
-    
-         <!-- 진영 선택 -->
-     <div class="flex gap-3">
-       <Button 
-         variant="outline"
-         size="lg"
-         @click="handleStanceSelect('option1')"
-         class="flex-1 h-12"
-         :class="{ 
-           'bg-debate-left hover:bg-debate-left/90 text-slate-800': getStanceVariant('option1') === 'default',
-           'bg-background hover:bg-accent': getStanceVariant('option1') === 'outline'
-         }"
-       >
-         <img v-if="getStanceVariant('option1') === 'default'" :src="debateLeftIcon" class="w-6 h-6 mr-2" alt="viking" />
-         {{ topic.option1 }}
-       </Button>
-       <Button 
-         variant="outline"
-         size="lg"
-         @click="handleStanceSelect('option2')"
-         class="flex-1 h-12"
-         :class="{ 
-           'bg-debate-right hover:bg-debate-right/90 text-white': getStanceVariant('option2') === 'default',
-           'bg-background hover:bg-accent': getStanceVariant('option2') === 'outline'
-         }"
-       >
-         <img v-if="getStanceVariant('option2') === 'default'" :src="debateRightIcon" class="w-6 h-6 mr-2" alt="gladiator" />
-         {{ topic.option2 }}
-       </Button>
-       <Button 
-         variant="outline"
-         size="lg"
-         @click="handleStanceSelect('random')"
-         class="flex-1 h-12"
-         :class="{ 
-           'bg-debate-random hover:bg-debate-random/90 text-slate-700': getStanceVariant('random') === 'default',
-           'bg-background hover:bg-accent': getStanceVariant('random') === 'outline'
-         }"
-       >
-         <img 
-           v-if="getStanceVariant('random') === 'default'" 
-           :src="debateRandomIcon" 
-           class="w-6 h-6 mr-2 transition-all duration-300" 
-           alt="dice" 
-         />
-         상관없음
-       </Button>
-     </div>
+    <div class="space-y-4">
+      <!-- 주제 제목 -->
+      <div class="text-center">
+        <h3 class="text-2xl font-semibold text-foreground" :class="{ 'text-muted-foreground': !hasIndividualSelection }">{{ topic.title }}</h3>
+      </div>
+      
+      <!-- 진영 선택 -->
+      <div class="space-y-2">
+        <div class="flex gap-3">
+          <Button 
+            variant="outline"
+            size="lg"
+            @click="handleStanceSelect('option1')"
+            class="flex-1 h-12"
+            :class="{ 
+              'bg-stance-option1 hover:bg-stance-option1/90 text-stance-option1 border-stance-option1 ring-stance-option1': getStanceVariant('option1') === 'default',
+              'bg-background hover:bg-accent': getStanceVariant('option1') === 'outline'
+            }"
+          >
+            <img src="/src/assets/images/profile/debate_left.png" class="w-6 h-6 mr-2" alt="북극곰" />
+            찬성
+          </Button>
+          
+          <Button 
+            variant="outline"
+            size="lg"
+            @click="handleStanceSelect('option2')"
+            class="flex-1 h-12"
+            :class="{ 
+              'bg-stance-option2 hover:bg-stance-option2/90 text-stance-option2 border-stance-option2 ring-stance-option2': getStanceVariant('option2') === 'default',
+              'bg-background hover:bg-accent': getStanceVariant('option2') === 'outline'
+            }"
+          >
+            <img src="/src/assets/images/profile/debate_right.png" class="w-6 h-6 mr-2" alt="펭귄" />
+            반대
+          </Button>
+          
+          <Button 
+            variant="outline"
+            size="lg"
+            @click="handleStanceSelect('random')"
+            class="flex-1 h-12"
+            :class="{ 
+              'bg-stance-random hover:bg-stance-random/90 text-stance-random border-stance-random ring-stance-random': getStanceVariant('random') === 'default',
+              'bg-background hover:bg-accent': getStanceVariant('random') === 'outline'
+            }"
+          >
+            <img src="/src/assets/images/profile/debate_random.png" class="w-6 h-6 mr-2" alt="물범" />
+            상관없음
+          </Button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 

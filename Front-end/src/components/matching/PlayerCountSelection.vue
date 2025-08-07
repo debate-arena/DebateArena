@@ -1,8 +1,6 @@
 <template>
   <Card class="p-4">
     <div class="space-y-1">
-      <h2 class="text-lg font-semibold text-foreground text-center">모드 선택</h2>
-      
       <!-- 모드 선택 -->
       <div class="space-y-2">
         <p class="text-xs text-muted-foreground text-center">※ 최소 1개의 모드를 선택해주세요 ※</p>
@@ -26,7 +24,7 @@
             @click="toggleMode2"
             class="flex-1 h-12"
             :class="{ 
-              'bg-mode-2v2 hover:bg-mode-2v2/90 text-mode-2v2 border-mode-2v2 ring-mode-2v2': modelMode2,
+              'bg-mode-2v2 hover:bg-indigo-200 active:bg-indigo-300 text-mode-2v2 border-mode-2v2 ring-mode-2v2': modelMode2,
               'bg-background hover:bg-accent': !modelMode2
             }"
           >
