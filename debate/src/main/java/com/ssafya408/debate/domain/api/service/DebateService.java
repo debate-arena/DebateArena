@@ -85,14 +85,20 @@ public class DebateService {
     RoomManager roomManager = roomInfos.get(roomId);
 
     log.info("STT 메시지 브로드캐스트 시작 - 사용자: {}, 방ID: {}, 텍스트: {}", user, roomId, text);
+    log.debug("현재 메모리에 있는 방 개수: {}", roomInfos.size());
+    log.debug("요청된 방ID {}에 대한 RoomManager 존재 여부: {}", roomId, roomManager != null);
     
     if (roomManager == null) {
       log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
+      log.error("현재 활성 방 목록: {}", roomInfos.keySet());
       return;
     }
 
     //모든 사용자들에게 STT 내용을 broadcast 한다
-    roomManager.broadcastSTTMessage(template, BroadcastResponse.builder().user(user).text(req.getText()).build());
+    BroadcastResponse broadcastResponse = BroadcastResponse.builder().user(user).text(req.getText()).build();
+    log.info("브로드캐스트할 메시지 생성 완료 - 사용자: {}, 텍스트: {}", user, text);
+    
+    roomManager.broadcastSTTMessage(template, broadcastResponse);
     log.info("STT 메시지 브로드캐스트 완료 - 방ID: {}", roomId);
   }
 
@@ -110,17 +116,21 @@ public class DebateService {
     String text=req.getText();
     RoomManager roomManager = roomInfos.get(roomId);
 
-    log.info("의견 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}", user, roomId);
+    log.info("의견 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}, 텍스트: {}", user, roomId, text);
 
     if (roomManager == null) {
       log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
+      log.error("현재 활성 방 목록: {}", roomInfos.keySet());
       return;
     }
 
+    log.info("의견 텍스트 저장 시작 - 사용자: {}", user);
     roomManager.saveOpinionText(user,req);
-
-    log.info("의견 STT 메시지 저장 완료 >>> 사용자: {}, 현재 텍스트: {}", user, roomManager.getSpeakerTotalOpinion(user));
-
+    
+    String totalOpinion = roomManager.getSpeakerTotalOpinion(user);
+    log.info("의견 STT 메시지 저장 완료 - 사용자: {}", user);
+    log.debug("현재 누적된 의견 텍스트 - 사용자: {}, 텍스트: {}", user, totalOpinion);
+    log.debug("현재 방의 참가자 수: {}", roomManager.getPlayerCount());
   }
 
   public String finalizeOpinionTurnContent(RoomManager roomManager) {
@@ -133,24 +143,22 @@ public class DebateService {
   public void processBattleSTTMessage(String user, Long roomId, STTRequest request) {
     RoomManager roomManager = roomInfos.get(roomId);
     
+    log.info("배틀 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}, 텍스트: {}", user, roomId, request.getText());
+
+    if (roomManager == null) {
+      log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
+      log.error("현재 활성 방 목록: {}", roomInfos.keySet());
+      return;
+    }
+    
+    log.info("배틀 텍스트 저장 시작 - 사용자: {}", user);
     //텍스트를 현재 사람에 저장한다
     roomManager.saveBattleText(request);
+    log.info("배틀 텍스트 저장 완료 - 사용자: {}", user);
 
   }
 
-  public void finalizeBattleTurnContent(RoomManager roomManager) {
-    STTAttackDefense currentTotalSTTBattle = roomManager.getCurrentTotalSTTBattle();
 
-    String attackMessage = currentTotalSTTBattle.getAttackTotalMessage();
-    String defenseMessage = currentTotalSTTBattle.getDefenseTotalMessage();
-
-    log.info("배틀 STT 메시지 종합 시작 - 공격자 발화 >>> {}, 방어자 발화: {}", attackMessage, defenseMessage);
-
-    //AI
-
-    //Kafka
-
-  }
   public Long generateDebateRoom(DebateParticipantRequest req) {
     try {
       Topic topic = topicRepository.findById(req.getTopicId())
@@ -224,22 +232,41 @@ public class DebateService {
     }
   }
   public void userJoinMatch(String user, Long roomId) {
-    log.info("[userJoinMatch] 입장");
+    log.info("=== 사용자 토론방 입장 처리 시작 ===");
+    log.info("입장 요청 - 사용자: {}, 방ID: {}", user, roomId);
+    
     // TODO : 입장 전 권한 체크하는 로직 (Redis) 구현 필요
-    beforeGameStartQueue
-            .computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet())
-            .add(user);
+    log.debug("입장 대기 큐에 사용자 추가 - 사용자: {}", user);
+    
+    Set<String> roomQueue = beforeGameStartQueue.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet());
+    roomQueue.add(user);
+    
+    log.info("현재 입장 대기 중인 사용자 수: {}", roomQueue.size());
+    log.debug("대기 중인 사용자 목록: {}", roomQueue);
+    
+    RoomManager roomManager = roomInfos.get(roomId);
+    if (roomManager == null) {
+      log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
+      log.error("현재 활성 방 목록: {}", roomInfos.keySet());
+      return;
+    }
+    
+    int expectedPlayerCount = roomManager.getPlayerCount();
+    int currentJoinedCount = roomQueue.size();
+    
+    log.info("토론방 입장 현황 - 예상 참가자: {}, 현재 입장: {}", expectedPlayerCount, currentJoinedCount);
 
-    if(roomInfos.get(roomId).getPlayerCount()
-            ==beforeGameStartQueue.get(roomId).size()){
-      log.info("[토론 시작]");
+    if (expectedPlayerCount == currentJoinedCount) {
+      log.info("=== 모든 참가자 입장 완료 - 토론 시작 ===");
       // TODO : Redis에서 WebRTCStatue 확인
-      beforeGameStartQueue.get(roomId);
-      RoomManager roomManager= roomInfos.get(roomId);
+      log.info("토론 게임 시작 스케줄링 - 방ID: {}", roomId);
       scheduleService.gameStart(roomManager);
+    } else {
+      log.info("토론 시작 대기 중 - 추가로 {}명의 참가자가 필요합니다", expectedPlayerCount - currentJoinedCount);
     }
 
     log.info("사용자 {}가 방 {}에 참여했습니다.", user, roomId);
+    log.info("=== 사용자 토론방 입장 처리 완료 ===");
   }
 
 
@@ -294,6 +321,32 @@ public class DebateService {
     }
   }
 
+  // 토론 턴 진행 (currentOpinionIndex 또는 currentBattleIndex 증가)
+  public Map<String, Object> advanceDebateTurn(Long roomId) {
+    log.info("=== 토론 턴 진행 시작 ===");
+    log.info("요청된 방ID: {}", roomId);
+    
+    RoomManager roomManager = roomInfos.get(roomId);
+    if (roomManager == null) {
+      log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
+      log.error("현재 활성 방 목록: {}", roomInfos.keySet());
+      throw new RuntimeException("토론방을 찾을 수 없습니다: " + roomId);
+    }
+
+    String currentSpeaker = roomManager.getCurrentSpeaker();
+    log.info("발화자 >>> {}", currentSpeaker);
+
+    if (roomManager.getStatus() == RoomStatus.OPINION) {
+      String speakerTotalOpinion = roomManager.getSpeakerTotalOpinion(currentSpeaker);
+      log.info("턴 종료 | 발화자 전체 내용: {}", speakerTotalOpinion);
+
+    } else {
+      STTAttackDefense battleContent = roomManager.getCurrentTotalSTTBattle();
+      log.info("배틀 STT 메시지 종합 시작 - 공격자 발화 >>> {}, 방어자 발화: {}", battleContent.getAttack(), battleContent.getDefense());
+
+    }
+    return roomManager.advanceTurn();
+  }
 //  public void generateDebateRoom(List<String> debaters) {
 //  }
 }

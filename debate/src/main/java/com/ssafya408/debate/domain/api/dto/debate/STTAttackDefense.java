@@ -11,10 +11,14 @@ public class STTAttackDefense {
   private STTMessage attack;
   private STTMessage defense;
 
-  public STTAttackDefense(String attackUser, String defenseUser) {
+  public STTAttackDefense(String attackUser) {
     attack= STTMessage.initializeSTTMessage(attackUser);
-    defense = STTMessage.initializeSTTMessage(defenseUser);
   }
+
+  public void setDefenseUser(String defenseUser) {
+    defense= STTMessage.initializeSTTMessage(defenseUser);
+  }
+
 
   public void addSTTTextAtAttack(STTRequest request) {
     attack.addText(request.getText());

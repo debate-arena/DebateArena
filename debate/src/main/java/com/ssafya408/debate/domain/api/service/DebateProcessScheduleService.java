@@ -2,6 +2,7 @@ package com.ssafya408.debate.domain.api.service;
 
 import com.ssafya408.debate.domain.api.dto.debate.DebateTurn;
 import com.ssafya408.debate.domain.api.dto.control.MediaControlInfo;
+import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -47,7 +48,7 @@ public class DebateProcessScheduleService {
     private void startOpinionTurn(RoomManager roomManager) {
         if (roomManager.isFinished()) {
             log.info("[1페이즈 종료]");
-            roomManager.setStatus("battle");
+            roomManager.setStatus(RoomStatus.BATTLE);
             return;
         }
         log.info("[발언 시작] {}",roomManager.getRoomId() );

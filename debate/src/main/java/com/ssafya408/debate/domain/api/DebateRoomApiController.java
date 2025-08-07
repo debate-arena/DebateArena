@@ -354,6 +354,50 @@ public class DebateRoomApiController {
   }
 
 
+  @PostMapping("/{roomId}/advance-turn")
+  @Operation(
+    summary = "토론 턴 진행",
+    description = "토론방의 현재 턴(currentOpinionIndex 또는 currentBattleIndex)을 다음 순서로 진행시킵니다."
+  )
+  @ApiResponses(value = {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+      responseCode = "200",
+      description = "턴 진행 성공",
+      content = @Content(
+        mediaType = "application/json",
+        examples = @ExampleObject(
+          name = "성공 예시",
+          value = """
+            {
+              "status": "success",
+              "data": {
+                "roomId": 1,
+                "currentStatus": "opinion",
+                "currentIndex": 2,
+                "isFinished": false,
+                "message": "턴이 성공적으로 진행되었습니다"
+              }
+            }
+            """
+        )
+      )
+    )
+  })
+  public ResponseEntity<ApiResponse<Map<String, Object>>> advanceTurn(@PathVariable Long roomId) {
+    log.info("[토론 턴 진행] 요청 수신 - roomId: {}", roomId);
+    
+    try {
+      Map<String, Object> result = debateService.advanceDebateTurn(roomId);
+      
+      log.info("[토론 턴 진행] 성공 - roomId: {}, result: {}", roomId, result);
+      return ResponseEntity.ok(ApiResponse.success(result));
+      
+    } catch (Exception e) {
+      log.error("[토론 턴 진행] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("턴 진행에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
   @GetMapping("/createDebate")
   @Operation(
           summary = "토론 시작",
