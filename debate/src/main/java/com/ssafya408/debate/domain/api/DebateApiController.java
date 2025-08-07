@@ -18,8 +18,8 @@ public class DebateApiController {
   @MessageMapping("/debate/stt/opinion")
   public void receiveOpinionSTTMessage(Principal principal, OpinionSTTRequest request) {
     String user = principal.getName();
-    log.info("의견 STT 메시지 수신 - 사용자: {}, 방ID: {}, 순서: {}, 텍스트: {}", 
-        user, request.getRoomId(), request.getOrder(), request.getText());
+    log.info("의견 STT 메시지 수신 - 사용자: {}, 방ID: {}, 텍스트: {}",
+        user, request.getRoomId(),  request.getText());
     
     debateService.broadcastSTTMessage(user,request);
     debateService.processOpinionSTTMessage(user, request);
