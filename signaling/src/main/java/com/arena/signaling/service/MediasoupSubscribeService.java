@@ -34,9 +34,9 @@ public class MediasoupSubscribeService {
     }
 
     public void createdTransport(CreatedTransportDto createdTransportDto) {
+
         if(createdTransportDto.isProducer()){
             createdTransportDto.setType("producerTransportCreated");
-            roomManageService.addParticipant(createdTransportDto);
         }else{
             createdTransportDto.setType("consumerTransportCreated");
         }
@@ -57,23 +57,15 @@ public class MediasoupSubscribeService {
     }
 
     public void createdProducer(CreatedProducerDto createdProducerDto) {
-
-        if(createdProducerDto.getError() != null){
-            messagingTemplate.convertAndSendToUser(
-                    createdProducerDto.getUserEmail(),
-                    "/queue/producer",
-                    createdProducerDto
-            );
-
-            return;
-        }
+        roomManageService.addParticipant(createdProducerDto);
+        messagingTemplate.convertAndSendToUser(
+                createdProducerDto.getUserEmail(),
+                "/queue/producer",
+                createdProducerDto
+        );
 
         Long roomId = createdProducerDto.getRoomId();
         String userEmail = createdProducerDto.getUserEmail();
-
-
-        // 1. Update participant info
-        roomManageService.updateParticipantProducerInfo(createdProducerDto);
 
         // 2. 본인에게 알림
         messagingTemplate.convertAndSendToUser(
@@ -113,11 +105,6 @@ public class MediasoupSubscribeService {
     }
 
     public void createdConsumer(CreatedConsumerDto createdConsumerDto) {
-
-        if(createdConsumerDto.getError() == null){
-            roomManageService.updateParticipantConsumerInfo(createdConsumerDto);
-        }
-
         messagingTemplate.convertAndSendToUser(
             createdConsumerDto.getUserEmail (),
             "/queue/consumer",

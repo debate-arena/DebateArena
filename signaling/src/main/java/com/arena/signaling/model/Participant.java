@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -12,12 +13,13 @@ import java.util.Map;
 public class Participant {
     private String producerUserEmail;
     private String producerId;
-    private List<String> transportIds;
-    private Long team;
-    private Long turn;
-    private Map<String,Boolean> consumerConnectedStatus;
-    private Map<String,String> consumerIdMap;
 
     @JsonProperty
     private Boolean isProducerConnected;
+
+    private Boolean producerConnectedStatus;
+    private Map<String,Boolean> consumerConnectedStatus;
+
+    public void setConsumerConnectedStatus(HashMap<String, Boolean> consumerConnectedStatus) {
+    }
 }
