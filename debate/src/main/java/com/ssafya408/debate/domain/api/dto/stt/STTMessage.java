@@ -1,5 +1,6 @@
 package com.ssafya408.debate.domain.api.dto.stt;
 
+import com.ssafya408.debate.domain.api.dto.debate.DebateTurn;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Builder;
@@ -8,6 +9,7 @@ import lombok.Getter;
 @Getter
 public class STTMessage {
   private String user;
+  private DebateTurn turn;
   private List<String> texts;
 
   private STTMessage(String user) {

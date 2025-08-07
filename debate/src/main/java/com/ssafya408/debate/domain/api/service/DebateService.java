@@ -1,11 +1,10 @@
 package com.ssafya408.debate.domain.api.service;
 
+import com.ssafya408.debate.domain.api.dto.debate.STTAttackDefense;
 import com.ssafya408.debate.domain.api.dto.debate.SpeakerOrder;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
 import com.ssafya408.debate.domain.api.dto.room.WebRTCStatus;
-import com.ssafya408.debate.domain.api.dto.stt.BattleSTTRequest;
 import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
-import com.ssafya408.debate.domain.api.dto.stt.STTMessage;
 import com.ssafya408.debate.domain.api.dto.stt.OpinionSTTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.ai.BroadcastResponse;
@@ -118,21 +117,40 @@ public class DebateService {
       return;
     }
 
+    roomManager.saveOpinionText(user,req);
 
-    STTMessage texts = roomManager.getOpinions().getOrDefault(user,
-        STTMessage.initializeSTTMessage(user));
-    texts.addText(text);
-
-    log.info("의견 STT 메시지 저장 완료 - 사용자: {}, 현재 누적 텍스트 길이: {}", user, texts.getJoinedText().length());
+    log.info("의견 STT 메시지 저장 완료 >>> 사용자: {}, 현재 텍스트: {}", user, roomManager.getSpeakerTotalOpinion(user));
 
   }
 
-  public void processBattleSTTMessage(String user,Long roomId, BattleSTTRequest request) {
-    log.info("배틀 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}", user, roomId);
-    // TODO: 배틀 STT 메시지 처리 로직 구현 필요
-    log.info("배틀 STT 메시지 처리 완료 - 사용자: {}", user);
+  public String finalizeOpinionTurnContent(RoomManager roomManager) {
+    String currentSpeaker = roomManager.getCurrentSpeaker();
+
+    return roomManager.getSpeakerTotalOpinion(currentSpeaker);
   }
 
+
+  public void processBattleSTTMessage(String user, Long roomId, STTRequest request) {
+    RoomManager roomManager = roomInfos.get(roomId);
+    
+    //텍스트를 현재 사람에 저장한다
+    roomManager.saveBattleText(request);
+
+  }
+
+  public void finalizeBattleTurnContent(RoomManager roomManager) {
+    STTAttackDefense currentTotalSTTBattle = roomManager.getCurrentTotalSTTBattle();
+
+    String attackMessage = currentTotalSTTBattle.getAttackTotalMessage();
+    String defenseMessage = currentTotalSTTBattle.getDefenseTotalMessage();
+
+    log.info("배틀 STT 메시지 종합 시작 - 공격자 발화 >>> {}, 방어자 발화: {}", attackMessage, defenseMessage);
+
+    //AI
+
+    //Kafka
+
+  }
   public Long generateDebateRoom(DebateParticipantRequest req) {
     try {
       Topic topic = topicRepository.findById(req.getTopicId())

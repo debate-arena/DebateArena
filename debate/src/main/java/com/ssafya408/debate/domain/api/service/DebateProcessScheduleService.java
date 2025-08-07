@@ -57,15 +57,8 @@ public class DebateProcessScheduleService {
 
         int currentIndex = getRoomManager(roomManager).getCurrentOpinionIndex();
         DebateTurn turn = roomManager.getTurn();
-        String speaker;
+        String speaker=roomManager.getCurrentSpeaker();
 
-        if(turn.equals(DebateTurn.TEAM1)){
-            speaker = roomManager.getFirstTeam().get(currentIndex/2);
-            roomManager.setTurn(DebateTurn.TEAM2);
-        }else{
-            speaker = roomManager.getSecondTeam().get(currentIndex/2);
-            roomManager.setTurn(DebateTurn.TEAM1);
-        }
         roomManager.setCurrentOpinionIndex(++currentIndex);
 
         MediaControlInfo mediaControlInfo = MediaControlInfo.builder()
