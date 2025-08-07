@@ -12,7 +12,7 @@ export type Stance = 'option1' | 'option2' | 'random'
 export type MatchingStatus = 'idle' | 'waiting' | 'matching' | 'connecting' | 'completed' | 'timeout' | 'cancelled' | 'matched' | 'error'
 
 // WebSocket 메시지 타입
-export type WebSocketMessageType = 'MATCH_STATUS' | 'MATCH_INVITATION' | 'ACCEPTANCE_STATUS' | 'ERROR' | 'MATCH_ADDITIONAL' | 'MATCH_ALL_PERSONAL'
+export type WebSocketMessageType = 'MATCH_STATUS' | 'MATCH_INVITATION' | 'ACCEPTANCE_STATUS' | 'ERROR' | 'MATCH_ADDITIONAL' | 'MATCH_ALL_PERSONAL' | 'MATCH_RESULT'
 
 // WebSocket 메시지 상태
 export type WebSocketMessageStatus = 'success' | 'error' | 'warning' | 'info'
@@ -23,6 +23,19 @@ export interface WebSocketMessage {
   status: WebSocketMessageStatus
   data?: any
   message?: string
+}
+
+// 매칭 결과 데이터 타입 (새로 추가)
+export interface MatchResultData {
+  status: 'success' | 'fail' | 'error'
+  data: {
+    roomId: number | null
+    message?: string
+  }
+}
+
+export interface DebateRoomResponse {
+  roomId: number | null
 }
 
 // 주제 정보 (매칭 페이지용)

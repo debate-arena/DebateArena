@@ -337,11 +337,6 @@ export const useMatchingStore = defineStore('matching', {
       this.matchResult = undefined
       this.error = undefined
       // clearAllSelections()는 주제 변경으로 인한 취소에서만 호출
-      console.log('cancelMatching 내부 상태:', {
-        isMatching: this.isMatching,
-        status: this.status,
-        elapsedTime: this.elapsedTime
-      })
     },
 
     updateTimer() {
@@ -399,7 +394,6 @@ export const useMatchingStore = defineStore('matching', {
       if (!this.canStartMatching) return
       
       const request = this.toMatchRequest
-      console.log('🎯 매칭 요청 전송:', request)
       
       // WebSocket으로 요청 전송
       // stompClient.publish({

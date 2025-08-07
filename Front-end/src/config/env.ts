@@ -9,4 +9,8 @@ export const config = {
   // 매칭 서버 (매칭, WebSocket)
   MATCH_API_URL: import.meta.env.VITE_MATCH_API_URL || 'http://localhost:8081',
   MATCH_WS_URL: import.meta.env.VITE_MATCH_WS_URL || 'ws://localhost:8081',
+  
+  // STT 서버 (음성 인식, WebSocket)
+  STT_API_URL: import.meta.env.VITE_STT_API_URL || 'http://localhost:8082',
+  STT_WS_URL: import.meta.env.VITE_STT_WS_URL || 'ws://localhost:8082',
 } 

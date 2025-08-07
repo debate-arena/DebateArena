@@ -24,14 +24,14 @@ export const useWebSocket = () => {
       }
 
       client.onConnect = () => {
-        console.log('🔗 WebSocket + STOMP 연결 성공')
+        console.log('🔗 WebSocket 연결 성공')
         isConnected.value = true
         stompClient.value = client
         resolve()
       }
 
       client.onStompError = (error: any) => {
-        console.error('❌ WebSocket + STOMP 연결 실패:', error)
+        console.error('❌ WebSocket 연결 실패:', error)
         isConnected.value = false
         reject(error)
       }
@@ -46,7 +46,6 @@ export const useWebSocket = () => {
       stompClient.value.deactivate()
       isConnected.value = false
       stompClient.value = null
-      console.log('🔗 WebSocket + STOMP 연결 해제')
     }
   }
 
@@ -61,7 +60,6 @@ export const useWebSocket = () => {
       destination: '/pub/match/request',
       body: JSON.stringify(request)
     })
-    console.log('📤 매칭 요청 전송:', request)
   }
 
   // 매칭 수락/거절 전송
@@ -75,7 +73,6 @@ export const useWebSocket = () => {
       destination: '/pub/match/acceptance',
       body: JSON.stringify({ matchId, accept, team })
     })
-    console.log('📤 매칭 응답 전송:', { matchId, accept, team })
   }
 
   // 메시지 핸들러 제거
@@ -85,8 +82,8 @@ export const useWebSocket = () => {
       stompClient.value.unsubscribe('/sub/match/status')
       stompClient.value.unsubscribe('/user/queue/match/personal')
       stompClient.value.unsubscribe('/user/queue/match/acceptance/status')
+      stompClient.value.unsubscribe('/user/queue/match/acceptance/result')
       stompClient.value.unsubscribe('/user/queue/error')
-      console.log('🔌 WebSocket 메시지 핸들러 제거됨')
     }
   }
 
@@ -106,7 +103,6 @@ export const useWebSocket = () => {
     stompClient.value.subscribe('/sub/match/status', (message) => {
       try {
         const data = JSON.parse(message.body)
-        console.log('📥 매칭 현황판 수신:', data)
         callback({ type: 'MATCH_STATUS', status: data.status || 'success', data: data.data, message: data.message })
       } catch (error) {
         console.error('❌ 매칭 현황판 파싱 오류:', error)
@@ -117,10 +113,6 @@ export const useWebSocket = () => {
     stompClient.value.subscribe('/user/queue/match/acceptance', (message) => {
       try {
         const data = JSON.parse(message.body)
-        console.log('📥 매칭 초대장 원본 메시지:', message.body)
-        console.log('📥 매칭 초대장 파싱된 데이터:', data)
-        
-        // 이 경로는 매칭 초대장만 처리
         callback({ type: 'MATCH_INVITATION', status: data.status || 'success', data: data.data, message: data.message })
       } catch (error) {
         console.error('❌ 매칭 초대장 파싱 오류:', error)
@@ -130,15 +122,11 @@ export const useWebSocket = () => {
     // 3. 다른 사람 응답 현황 구독 (실시간 피드백)
     stompClient.value.subscribe('/user/queue/match/acceptance/status', (message) => {
       try {
-        console.log('📥 다른 사람 응답 현황 원본 메시지:', message.body)
         const parsedData = JSON.parse(message.body)
-        console.log('📥 다른 사람 응답 현황 파싱된 데이터:', parsedData)
         
         // 올바른 데이터 구조로 접근
         const accept = parsedData.data?.accept
         const team = parsedData.data?.team || 0
-        
-        console.log('📥 다른 사람 응답 현황 추출된 값:', { accept, team })
         
         // 콜백에 올바른 데이터 구조로 전달
         callback({ 
@@ -152,6 +140,34 @@ export const useWebSocket = () => {
         })
       } catch (error) {
         console.error('❌ 다른 사람 응답 현황 파싱 오류:', error)
+      }
+    })
+
+    // 4. 매칭 결과 구독 (새로 추가)
+    stompClient.value.subscribe('/user/queue/match/acceptance/result', (message) => {
+      console.log('🎯 /user/queue/match/acceptance/result 구독으로 메시지 수신됨!')
+      console.log('📥 매칭 결과 원본 메시지:', message.body)
+      
+      try {
+        const data = JSON.parse(message.body)
+        console.log('📥 매칭 결과 파싱된 데이터:', data)
+        console.log('📥 매칭 결과 데이터 구조:', {
+          status: data.status,
+          data: data.data,
+          message: data.message,
+          hasRoomId: !!(data.data?.roomId || data.roomId)
+        })
+        
+        // 매칭 결과 데이터 전달
+        callback({ 
+          type: 'MATCH_RESULT', 
+          status: data.status || 'success', 
+          data: data.data, 
+          message: data.message 
+        })
+      } catch (error) {
+        console.error('❌ 매칭 결과 파싱 오류:', error)
+        console.error('❌ 파싱 실패한 원본 메시지:', message.body)
       }
     })
     
@@ -173,6 +189,7 @@ export const useWebSocket = () => {
   })
 
   return {
+    stompClient,
     isConnected,
     connect,
     disconnect,

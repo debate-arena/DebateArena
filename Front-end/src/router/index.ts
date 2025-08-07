@@ -20,7 +20,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/debate-room/:id',
     name: 'DebateRoom',
-    component: () => import('@/pages/DebateRoom.vue'),
+    component: () => import('@/components/SpeechRecognitionDemo.vue'),
   },
 ]
 

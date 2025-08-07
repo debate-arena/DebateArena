@@ -10,10 +10,10 @@ export default defineConfig({
   server: {
     port: 3000,
     host: '0.0.0.0',
-    https: {
-      key: fs.readFileSync('./localhost-key.pem'),
-      cert: fs.readFileSync('./localhost-cert.pem'),
-    },
+    // https: {
+    //   key: fs.readFileSync('./localhost-key.pem'),
+    //   cert: fs.readFileSync('./localhost-cert.pem'),
+    // },
   },
   resolve: {
     alias: {

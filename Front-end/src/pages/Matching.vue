@@ -361,9 +361,6 @@ const handleWebSocketMessage = (data: WebSocketMessage) => {
   switch (data.type) {
     case 'MATCH_STATUS':
       // 매칭 현황판 처리
-      console.log('📥 MATCH_STATUS 원본 데이터:', data)
-      
-      // status 확인 (성공/실패 구분)
       if (data.status === 'error') {
         console.error('❌ 매칭 현황 에러:', data.data?.message || '알 수 없는 에러')
         break
@@ -371,17 +368,12 @@ const handleWebSocketMessage = (data: WebSocketMessage) => {
       
       // 성공인 경우에만 정상 처리
       if (data.status === 'success') {
-        console.log('📥 MATCH_STATUS 파싱된 데이터:', data.data)
         // 매칭 현황 처리 로직 (필요시 추가)
       }
       break
       
     case 'MATCH_INVITATION':
       // 매칭 초대장 처리
-      console.log('📥 MATCH_INVITATION 원본 데이터:', data)
-      console.log('📥 MATCH_INVITATION data.data:', data.data)
-      
-      // status 확인 (성공/실패 구분)
       if (data.status === 'error') {
         console.error('❌ 매칭 초대장 에러:', data.data?.message || '알 수 없는 에러')
         actions.handleError(data.data?.message || '매칭 초대장 처리 중 오류가 발생했습니다.')
@@ -392,19 +384,11 @@ const handleWebSocketMessage = (data: WebSocketMessage) => {
       if (data.status === 'success') {
         // 백엔드에서 받은 실제 데이터 사용 (data.data가 실제 데이터)
         const invitationData = data.data || {}
-        console.log('📥 MATCH_INVITATION 파싱된 invitationData:', invitationData)
         
         const matchId = invitationData.matchId
         const invitationTopicId = invitationData.topicId
         const invitationTeam = invitationData.team || 0
         const invitationType = invitationData.type || 0
-        
-        console.log('📥 MATCH_INVITATION 추출된 값:', {
-          matchId,
-          topicId: invitationTopicId,
-          team: invitationTeam,
-          type: invitationType
-        })
         
         // 매칭 ID 저장
         matchingStore.setCurrentMatchId(matchId)
@@ -415,14 +399,29 @@ const handleWebSocketMessage = (data: WebSocketMessage) => {
         // 서버 데이터를 UI 텍스트로 변환
         const invitationMode = invitationType === 0 ? '1:1' : '2:2'
         const invitationStance = invitationTeam === 0 ? 'option1' : 'option2'
-        const invitationTopicTitle = topicSetStore.currentSet?.topics.find(t => t.id === invitationTopicId)?.title || '매칭된 주제'
+        
+        // 토픽 ID 타입 변환 (string -> number 또는 number -> number)
+        const topicId = typeof invitationTopicId === 'string' ? parseInt(invitationTopicId) : invitationTopicId
+        const invitationTopicTitle = topicSetStore.currentSet?.topics.find(t => t.id === topicId)?.title || '매칭된 주제'
+        
+        console.log('🔍 매칭 초대장 데이터:', {
+          matchId,
+          invitationTopicId,
+          topicId,
+          invitationTeam,
+          invitationType,
+          invitationMode,
+          invitationStance,
+          invitationTopicTitle,
+          availableTopics: topicSetStore.currentSet?.topics.map(t => ({ id: t.id, title: t.title })) || []
+        })
         
         // 매칭 초대장 모달 데이터 준비
         const modalData: MatchModalData = {
           topicTitle: invitationTopicTitle,
           stanceText: invitationStance,
           mode: invitationMode,
-          topicId: invitationTopicId
+          topicId: topicId
         }
         
         // 매칭 초대장 모달 표시
@@ -436,10 +435,6 @@ const handleWebSocketMessage = (data: WebSocketMessage) => {
       
     case 'ACCEPTANCE_STATUS':
       // 다른 사람 응답 현황 처리 (내 수락도 포함)
-      console.log('📥 ACCEPTANCE_STATUS 원본 데이터:', data)
-      console.log('📥 ACCEPTANCE_STATUS data.data:', data.data)
-      
-      // status 확인 (성공/실패 구분)
       if (data.status === 'error') {
         console.error('❌ 응답 현황 에러:', data.data?.message || '알 수 없는 에러')
         break
@@ -450,8 +445,6 @@ const handleWebSocketMessage = (data: WebSocketMessage) => {
         const accept = data.data?.accept
         const team = data.data?.team || 0      // 서버에서 받은 팀 정보
         const stance = team === 0 ? 'option1' : 'option2'  // 팀 정보로 진영 계산
-        
-        console.log('📥 ACCEPTANCE_STATUS 파싱된 값:', { accept, team, stance })
         
         // 수락/거절 모두 카운트 증가 및 stance 업데이트
         matchingStore.updateRoomInfo({ connectedUsers: matchingStore.roomInfo.connectedUsers + 1 })
@@ -473,9 +466,6 @@ const handleWebSocketMessage = (data: WebSocketMessage) => {
       
     case 'ERROR':
       // 에러 처리
-      console.log('📥 ERROR 원본 데이터:', data)
-      
-      // status 확인 (성공/실패 구분)
       if (data.status === 'error') {
         console.error('❌ 매칭 에러 수신됨!')
         actions.handleError(data.data?.message || '알 수 없는 에러')
@@ -484,9 +474,6 @@ const handleWebSocketMessage = (data: WebSocketMessage) => {
       
     case 'MATCH_ADDITIONAL':
       // 추가 경로 메시지 처리
-      console.log('📥 MATCH_ADDITIONAL 원본 데이터:', data)
-      
-      // status 확인 (성공/실패 구분)
       if (data.status === 'error') {
         console.error('❌ 추가 경로 에러:', data.data?.message || '알 수 없는 에러')
         break
@@ -494,16 +481,12 @@ const handleWebSocketMessage = (data: WebSocketMessage) => {
       
       // 성공인 경우에만 정상 처리
       if (data.status === 'success') {
-        console.log('📥 MATCH_ADDITIONAL 파싱된 데이터:', data.data)
         // 추가 경로 처리 로직 (필요시 추가)
       }
       break
       
     case 'MATCH_ALL_PERSONAL':
       // 모든 개인 메시지 처리
-      console.log('📥 MATCH_ALL_PERSONAL 원본 데이터:', data)
-      
-      // status 확인 (성공/실패 구분)
       if (data.status === 'error') {
         console.error('❌ 개인 메시지 에러:', data.data?.message || '알 수 없는 에러')
         break
@@ -511,8 +494,45 @@ const handleWebSocketMessage = (data: WebSocketMessage) => {
       
       // 성공인 경우에만 정상 처리
       if (data.status === 'success') {
-        console.log('📥 MATCH_ALL_PERSONAL 파싱된 데이터:', data.data)
         // 개인 메시지 처리 로직 (필요시 추가)
+      }
+      break
+      
+    case 'MATCH_RESULT':
+      // 매칭 결과 처리 (새로 추가)
+      console.log('🎯 MATCH_RESULT 케이스 진입!')
+      console.log('📥 MATCH_RESULT 원본 데이터:', data)
+      
+      if (data.status === 'error') {
+        console.error('❌ 매칭 결과 에러:', data.data?.message || '알 수 없는 에러')
+        break
+      }
+      
+      // 성공인 경우에만 정상 처리
+      if (data.status === 'success') {
+        console.log('✅ MATCH_RESULT 성공 상태 확인됨')
+        const resultData = data.data
+        console.log('📥 MATCH_RESULT resultData:', resultData)
+        
+        // 데이터 구조 확인 및 안전한 접근
+        if (resultData && (resultData.status === 'success' || resultData.roomId)) {
+          // 매칭 성공 - 방 생성됨
+          const roomId = resultData.roomId || resultData.data?.roomId
+          console.log('🎉 매칭 성공! 방 ID:', roomId)
+          
+          if (roomId) {
+            // 매칭 성공 시 처리
+            console.log('🚀 handleMatchSuccess 호출 준비 중...')
+            handleMatchSuccess(roomId.toString())
+          } else {
+            console.error('❌ roomId가 없습니다:', resultData)
+          }
+        } else {
+          console.log('📥 매칭 결과 데이터 구조:', resultData)
+          console.log('⚠️ roomId 또는 success 상태가 없음')
+        }
+      } else {
+        console.log('⚠️ MATCH_RESULT가 success 상태가 아님:', data.status)
       }
       break
       
@@ -524,13 +544,13 @@ const handleWebSocketMessage = (data: WebSocketMessage) => {
 
 // 매칭 시작 처리
 const handleStartMatching = async () => {
-  // 로그인 상태 확인
+  // 로그인 상태 확인 (가장 먼저)
   if (!authStore.isLoggedIn) {
     modals.showLoginRequiredModal()
     return
   }
   
-  // 정각 5분 전(300초)인지 체크
+  // 정각 5분 전(300초)인지 체크 (로그인 확인 후)
   if (remainingTime.value <= 300) {
     modals.showHourWarningModal()
   } else {
@@ -632,9 +652,37 @@ const handleLoginRequiredModalClose = () => {
 }
 
 // 주제 변경 경고 확인
-const confirmHourWarning = () => {
+const confirmHourWarning = async () => {
   modals.hideHourWarningModal()
-  handleStartMatching()
+  
+  // 로그인 상태 확인 (가장 먼저)
+  if (!authStore.isLoggedIn) {
+    modals.showLoginRequiredModal()
+    return
+  }
+  
+  // 바로 매칭 시작 (시간 체크 없이)
+  try {
+    // WebSocket 연결 및 메시지 핸들러 설정
+    await webSocket.connect()
+    
+    // 연결 성공 후 메시지 핸들러 설정
+    webSocket.handleMessage(handleWebSocketMessage)
+    
+    // 매칭 요청 전송
+    const request = matchingStore.toMatchRequest
+    webSocket.sendMatchRequest(request)
+    
+    // 상태 업데이트
+    matchingStore.startMatching()
+    
+    // 타이머 시작
+    startMatchingTimer(() => {
+      modals.showTimeoutModal()
+    })
+  } catch (error) {
+    console.error('❌ 매칭 시작 실패:', error)
+  }
 }
 
 // 유틸리티 함수들
@@ -683,6 +731,21 @@ const getModeButtonClass = (mode: PlayerMode) => {
   }
 }
 
+// 매칭 성공 시 처리
+const handleMatchSuccess = (roomId: string) => {
+  console.log('🎯 handleMatchSuccess 호출됨, roomId:', roomId)
+  
+  // 매칭 관련 상태 초기화
+  matchingStore.cancelMatching()
+  stopMatchingTimer()
+  webSocket.disconnect()
+  matchingStore.reset()
+  modals.hideAllModals()
+  
+  // 토론방으로 라우팅
+  console.log('🚀 토론방으로 라우팅:', `/debate-room/${roomId}`)
+  router.push(`/debate-room/${roomId}`)
+}
 
 
 // 컴포넌트 마운트/언마운트
@@ -699,16 +762,8 @@ onMounted(async () => {
   })
   
   // 주제 정보 가져오기 후 초기화
-  console.log('📚 토픽 세트 가져오기 시작...')
   await topicSetStore.fetchTopicSets()
   const activeTopics = topicSetStore.currentSet?.topics || []
-  console.log('📱 활성 주제:', activeTopics)
-  console.log('📱 토픽 세트 상태:', {
-    status: topicSetStore.status,
-    currentSet: topicSetStore.currentSet,
-    remainingTimeSeconds: topicSetStore.remainingTimeSeconds,
-    topicsCount: activeTopics.length
-  })
   
   // 글로벌 상태를 기본값으로 설정
   matchingStore.globalModes = new Set(['1:1', '2:2'])
@@ -720,18 +775,9 @@ onMounted(async () => {
   // DOM 업데이트를 강제로 트리거
   await nextTick()
   
-  console.log('📱 Matching 페이지 초기화 완료:', {
-    globalModes: Array.from(matchingStore.globalModes),
-    globalStances: Array.from(matchingStore.globalStances),
-    topicSelections: matchingStore.topicSelections,
-    isMatching: matchingStore.isMatching,
-    status: matchingStore.status
-  })
-  
   // 타이머 만료 감시
   watch(() => matchingStore.error, (error) => {
     if (error === '수락 시간이 만료되었습니다.') {
-      console.log('⏰ 타이머 만료로 모달 닫기')
       modals.hideMatchCompleteModal()
       matchingStore.clearError()
     }
@@ -739,26 +785,9 @@ onMounted(async () => {
   
   // 모달 상태 감시
   watch(() => modals.modalState.value.isMatchCompleteModalOpen, (isOpen) => {
-    console.log('🔍 모달 상태 변경 감지:', isOpen)
-    console.log('🔍 전체 모달 상태:', modals.modalState.value)
-    console.log('🔍 모달 데이터:', modals.matchModalData.value)
-    
-    // 모달이 열릴 때 추가 디버깅
+    // 모달이 열릴 때 lastAcceptedStance 초기화
     if (isOpen) {
-      console.log('🎉 모달이 열렸습니다!')
-      console.log('🔍 모달 Props 확인:')
-      console.log('  - isOpen:', modals.modalState.value.isMatchCompleteModalOpen)
-      console.log('  - topicTitle:', modals.matchModalData.value.topicTitle)
-      console.log('  - stanceText:', modals.matchModalData.value.stanceText)
-      console.log('  - mode:', modals.matchModalData.value.mode)
-      console.log('  - topicId:', modals.matchModalData.value.topicId)
-      console.log('  - totalCount:', modals.totalCount.value)
-      console.log('  - timeLeft:', matchingStore.acceptTimeLeft)
-      console.log('  - isConnecting:', matchingStore.status === 'connecting')
-      
-      // 모달이 열릴 때 lastAcceptedStance 초기화
       lastAcceptedStance.value = undefined
-      console.log('🔍 lastAcceptedStance 초기화됨')
     }
   })
   
@@ -767,8 +796,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  console.log('🔍 Matching.vue 언마운트됨')
-  
   // 타이머 정리
   if (timer) {
     clearInterval(timer)
