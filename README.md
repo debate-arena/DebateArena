@@ -296,5 +296,10 @@ frontend (3000) - 사용자 인터페이스
     4. 요약 임베딩: gpt-3 text-embedding-large (3072차원)
     5. 대표자 투표 이유 생성: gpt-4.1-mini (temperature 0.7)
 
+### 4. 추가 고려 사항
+    - AI 청중의 모델화(Tensorflow를 활용하여 구현)
+    - 토큰 최소화
+    - API 반환 시간 최소화(요약 및 판정 최적화)
+
 ### ~~Whisper 모델(base, small or fast-whisper 사용 방안 ...) 비교 및 STT 모델 선정, 테스팅~~ 
 - STT는 클라이언트에서 작동
