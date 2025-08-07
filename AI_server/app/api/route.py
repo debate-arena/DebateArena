@@ -11,7 +11,7 @@ router = APIRouter()
 @router.post("/summaries/opinion", response_model=ResponseOutput)
 async def summarize_opinion(input_data: STTRequest):
     result = await summarize_first_half(input_data)
-    return result
+    return {"result" : result}
 
 # 공방전을 하며 나온 공격/방어를 받아서 요약본으로 바꿔주는 곳
 @router.post("/summaries/seigedefense", response_model=AttackDefenseOutput)

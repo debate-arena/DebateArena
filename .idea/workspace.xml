@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="fa298a04-3a2a-42ce-bece-8016c481c6f2" name="Changes" comment="feat: 방 생성 시 redis에 방 정보 저장하도록 수정">
+      <change beforePath="$PROJECT_DIR$/.dockerignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitattributes" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.name" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.name" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.jar" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.properties" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradlew" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradlew.bat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/settings.gradle" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/DebateArenaApplication.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/api/AuthController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/api/TopicController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/api/TopicListResponse.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/api/TopicTestController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/api/UserController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/redis/RedisConfig.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/secuirty/config/SecurityConfig.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/secuirty/db/User.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/secuirty/db/UserRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/secuirty/jwt/JwtAuthenticationFilter.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/secuirty/jwt/JwtProperties.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/secuirty/jwt/JwtProvider.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/swagger/SwaggerConfig.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/test/TestController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/topic/dto/TopicDto.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/topic/dto/TopicList.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/topic/dto/TopicListWithTimeResponse.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/topic/service/TopicService.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/common/topic/service/TopicServiceImpl.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/config/StartupRunner.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/service/auth/dto/NicknameUpdateRequest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/service/auth/oAuth/Custom2OAuthUser.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/service/auth/oAuth/CustomOAuth2SuccessHandler.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/service/auth/oAuth/CustomOAuth2UserService.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/service/topic/DebateTopicService.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/service/topic/db/Topic.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/service/topic/db/TopicRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/service/topic/dto/TopicDto.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/service/topic/dto/TopicList.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ssafya408/debatearena/service/topic/dto/dto/ApiResponse.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/intellij-java-google-style.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/java/com/ssafya408/debatearena/DebateArenaApplicationTests.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/wait-for-it-simple.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/wait-for-it.sh" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Interface" />
+        <option value="Enum" />
+        <option value="Class" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="KubernetesApiProvider"><![CDATA[{
+  "isMigrated": true
+}]]></component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5
+}</component>
+  <component name="ProjectId" id="30UEs1jOwKC0yQdNLqNDtsVxx0A" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="showLibraryContents" value="true" />
+    <option name="showMembers" value="true" />
+    <option name="showVisibilityIcons" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Gradle.Build debate.executor": "Run",
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "Spring Boot.DebateApplication.executor": "Run",
+    "git-widget-placeholder": "be/merge",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/SSAFY/soo/실습/2_1/debate/src/main/java/com/ssafya408/debate/domain/common",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "run.configurations.included.in.services": "true",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CreateClassDialog.RecentsKey">
+      <recent name="com.ssafya408.debate.domain.api.dto" />
+      <recent name="com.ssafya408.debate.domain.api" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\SSAFY\soo\실습\2_1\debate\src\main\java\com\ssafya408\debate\domain\common" />
+      <recent name="C:\Users\SSAFY\soo\실습\2_1\debate\src\main\java\com\ssafya408\debate" />
+    </key>
+    <key name="CopyClassDialog.RECENTS_KEY">
+      <recent name="com.ssafya408.debate.domain.api.dto.room" />
+      <recent name="com.ssafya408.debate.domain.api.dto" />
+    </key>
+  </component>
+  <component name="RunDashboard">
+    <option name="configurationTypes">
+      <set>
+        <option value="MicronautRunConfigurationType" />
+        <option value="QuarkusRunConfigurationType" />
+        <option value="SpringBootApplicationConfigurationType" />
+      </set>
+    </option>
+  </component>
+  <component name="RunManager" selected="Spring Boot.DebateApplication">
+    <configuration name="DebateApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
+      <module name="debate.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.ssafya408.debate.DebateApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="DebateArenaApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
+      <module name="debate-arena.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.ssafya408.debatearena.DebateArenaApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="MatchingApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
+      <module name="matching.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.ssafya408.matching.MatchingApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="fa298a04-3a2a-42ce-bece-8016c481c6f2" name="Changes" comment="" />
+      <created>1753673959319</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1753673959319</updated>
+      <workItem from="1753673960636" duration="10601000" />
+      <workItem from="1753770075003" duration="10420000" />
+      <workItem from="1753792190104" duration="5829000" />
+      <workItem from="1753859528909" duration="631000" />
+      <workItem from="1753875823075" duration="93000" />
+      <workItem from="1754249493256" duration="35662000" />
+      <workItem from="1754446319340" duration="8314000" />
+      <workItem from="1754460463530" duration="3807000" />
+      <workItem from="1754464296260" duration="1670000" />
+    </task>
+    <task id="LOCAL-00001" summary="chore: Debate Service 프로젝트 환경설정">
+      <option name="closed" value="true" />
+      <created>1753674017588</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1753674017588</updated>
+    </task>
+    <task id="LOCAL-00002" summary="chore: 회원 인증 라이브러리 추가">
+      <option name="closed" value="true" />
+      <created>1753675230801</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1753675230801</updated>
+    </task>
+    <task id="LOCAL-00003" summary="feat: WebSocket Config 파일 생성">
+      <option name="closed" value="true" />
+      <created>1753675259607</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1753675259607</updated>
+    </task>
+    <task id="LOCAL-00004" summary="feat: 방생성 API 구현&#10;&#10;- 방생성 API, Repository 생성&#10;- 토론주제(Topic) Entity, Repository 생성">
+      <option name="closed" value="true" />
+      <created>1753850005396</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1753850005396</updated>
+    </task>
+    <task id="LOCAL-00005" summary="feat: 방생성 API 구현&#10;&#10;- 방생성 API, Repository 생성&#10;- 토론주제(Topic) Entity, Repository 생성">
+      <option name="closed" value="true" />
+      <created>1753850252954</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1753850252954</updated>
+    </task>
+    <task id="LOCAL-00006" summary="fix: Match 서비스 방 생성 요청과 연동하기 위해 응답 포맷 수정">
+      <option name="closed" value="true" />
+      <created>1754253413539</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1754253413539</updated>
+    </task>
+    <task id="LOCAL-00007" summary="feat: STT broadcast 하는 API 구현&#10;&#10;- 방 id 에 해당하는 모든 유저들에게 메시지 broadcast 하도록 구현">
+      <option name="closed" value="true" />
+      <created>1754292468401</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1754292468401</updated>
+    </task>
+    <task id="LOCAL-00008" summary="feat: Redis에 Debate 정보를 저장할 때 필요한 클래스 생성">
+      <option name="closed" value="true" />
+      <created>1754446520957</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1754446520957</updated>
+    </task>
+    <task id="LOCAL-00009" summary="feat: 방 생성 시 redis에 방 정보 저장하도록 수정">
+      <option name="closed" value="true" />
+      <created>1754456940313</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1754456940313</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="chore: Debate Service 프로젝트 환경설정" />
+    <MESSAGE value="chore: 회원 인증 라이브러리 추가" />
+    <MESSAGE value="feat: WebSocket Config 파일 생성" />
+    <MESSAGE value="feat: 방생성 API 구현&#10;&#10;- 방생성 API, Repository 생성&#10;- 토론주제(Topic) Entity, Repository 생성" />
+    <MESSAGE value="fix: Match 서비스 방 생성 요청과 연동하기 위해 응답 포맷 수정" />
+    <MESSAGE value="feat: STT broadcast 하는 API 구현&#10;&#10;- 방 id 에 해당하는 모든 유저들에게 메시지 broadcast 하도록 구현" />
+    <MESSAGE value="feat: Redis에 Debate 정보를 저장할 때 필요한 클래스 생성" />
+    <MESSAGE value="feat: 방 생성 시 redis에 방 정보 저장하도록 수정" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: 방 생성 시 redis에 방 정보 저장하도록 수정" />
+  </component>
+</project>

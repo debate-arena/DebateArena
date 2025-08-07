@@ -1,0 +1,6 @@
+package com.ssafya408.debate.domain.api.dto.room;
+
+public enum WebRTCStatus {
+  CONNECTING,
+  CONNECTED
+}
