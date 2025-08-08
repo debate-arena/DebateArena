@@ -106,24 +106,16 @@ public class RoomManager {
     return roomManager;
   }
 
-  public void broadcastSTTMessage(SimpMessagingTemplate template, BroadcastResponse stt) {
+  public void broadcastSTTMessageAtRoom(SimpMessagingTemplate template, BroadcastResponse stt, Long roomId) {
     log.info("STT 메시지 브로드캐스트 시작 - roomId: {}, 발신자: {}, 텍스트: {}", 
         roomId, stt.getUser(), stt.getText());
 
     ApiResponse<BroadcastResponse> res = ApiResponse.success(stt);
-    
+    String destination = String.format("/debate/room/%s/stt", roomId);
+
     log.debug("첫 번째 팀에게 메시지 전송 - 팀원: {}", firstTeam);
-    for (String user : firstTeam) {
-      template.convertAndSendToUser(user,"/queue/stt/broadcast", res);
-      log.debug("메시지 전송 완료 - 사용자: {}", user);
-    }
-    
-    log.debug("두 번째 팀에게 메시지 전송 - 팀원: {}", secondTeam);
-    for (String user : secondTeam) {
-      template.convertAndSendToUser(user,"/queue/stt/broadcast", res);
-      log.debug("메시지 전송 완료 - 사용자: {}", user);
-    }
-    
+    template.convertAndSend(destination,res);
+
     log.info("STT 메시지 브로드캐스트 완료 - 총 {}명에게 전송", playerCount);
   }
 

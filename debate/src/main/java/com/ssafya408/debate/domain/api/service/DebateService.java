@@ -98,7 +98,7 @@ public class DebateService {
     BroadcastResponse broadcastResponse = BroadcastResponse.builder().user(user).text(req.getText()).build();
     log.info("브로드캐스트할 메시지 생성 완료 - 사용자: {}, 텍스트: {}", user, text);
     
-    roomManager.broadcastSTTMessage(template, broadcastResponse);
+    roomManager.broadcastSTTMessageAtRoom(template, broadcastResponse,roomId);
     log.info("STT 메시지 브로드캐스트 완료 - 방ID: {}", roomId);
   }
 
@@ -373,7 +373,7 @@ public class DebateService {
             .defender(req.getTarget())
             .build();
 
-    template.convertAndSend("/sub/debate/room/"+req.getRoomId()+"/attack",res);
+    template.convertAndSend("/debate/room/"+req.getRoomId()+"/attack",res);
   }
 
 }
