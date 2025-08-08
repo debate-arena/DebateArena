@@ -117,10 +117,10 @@
               >
                 <img 
                   :src="getUserIcon('option1')" 
-                  class="w-8 h-8 rounded-full ring-2 ring-cyan-400 polar-icon polar-glow"
+                  class="w-8 h-8 rounded-full ring-2 ring-primary polar-icon polar-glow"
                   :alt="getUserIconAlt('option1')"
                 />
-                <span class="text-xs text-cyan-600">수락</span>
+                <span class="text-xs text-primary">수락</span>
               </div>
               
               <!-- 거절한 사용자들 -->
@@ -145,7 +145,7 @@
               >
                 <img 
                   :src="waitingIcon" 
-                  class="w-8 h-8 rounded-full ring-2 ring-cyan-400 polar-icon"
+                  class="w-8 h-8 rounded-full ring-2 ring-primary polar-icon"
                   alt="대기 중"
                 />
                 <span class="text-xs text-slate-500">대기</span>
@@ -168,10 +168,10 @@
               >
                 <img 
                   :src="getUserIcon('option2')" 
-                  class="w-8 h-8 rounded-full ring-2 ring-cyan-400 polar-icon polar-glow"
+                  class="w-8 h-8 rounded-full ring-2 ring-primary polar-icon polar-glow"
                   :alt="getUserIconAlt('option2')"
                 />
-                <span class="text-xs text-cyan-600">수락</span>
+                <span class="text-xs text-primary">수락</span>
               </div>
               
               <!-- 거절한 사용자들 -->
@@ -196,7 +196,7 @@
               >
                 <img 
                   :src="waitingIcon" 
-                  class="w-8 h-8 rounded-full ring-2 ring-cyan-400 polar-icon"
+                  class="w-8 h-8 rounded-full ring-2 ring-primary polar-icon"
                   alt="대기 중"
                 />
                 <span class="text-xs text-slate-500">대기</span>
