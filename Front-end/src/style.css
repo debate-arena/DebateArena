@@ -63,6 +63,22 @@
   --ring: 212 27% 84%;               /* #CBD5E1 - 차가운 회색 링 */
 }
 
+/* 북극 느낌 아이콘 톤 보정 및 글로우 */
+.polar-icon {
+  /* 차가운 톤으로 살짝 이동 + 선명도 증가 */
+  filter: hue-rotate(190deg) saturate(1.1) contrast(1.05);
+}
+
+.dark .polar-icon {
+  /* 다크모드에서는 아이콘이 죽지 않도록 약간 밝게 */
+  filter: hue-rotate(190deg) saturate(1.1) brightness(1.05) contrast(1.05);
+}
+
+.polar-glow {
+  /* 시안 계열의 은은한 발광 */
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.35)) drop-shadow(0 2px 6px rgba(2, 132, 199, 0.25));
+}
+
 /* 수락 완료 버튼 커스텀 스타일 */
 .accept-complete-button {
   border: 2px solid black !important;
@@ -164,6 +180,7 @@
 .border-l-debate-right {
   border-left-color: #B22222;
 }
+
 
 /* 수직 텍스트 스타일 */
 .writing-mode-vertical {

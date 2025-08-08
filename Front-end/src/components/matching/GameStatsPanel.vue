@@ -2,13 +2,13 @@
   <Card class="min-h-[400px] border-0">
     <CardContent class="p-8">
       <!-- 중앙 매칭 이미지 -->
-      <div class="flex flex-col items-center justify-center space-y-6">
+      <div class="flex flex-col items-center justify-center space-y-6 text-foreground">
         <!-- 매칭 이미지 -->
         <div class="w-32 h-32 flex items-center justify-center relative">
           <img 
             src="@/assets/images/profile/waiting.png" 
             alt="매칭 중" 
-            class="w-full h-full object-contain animate-pulse"
+            class="w-full h-full object-contain animate-pulse polar-icon"
           />
           <!-- 매칭 중 애니메이션 효과 -->
           <div class="absolute inset-0 rounded-full border-2 border-blue-400/30 animate-ping"></div>
@@ -26,14 +26,14 @@
         </div>
         
         <!-- 매칭 타이머 -->
-        <div class="text-center mt-6">
-          <div class="text-4xl font-bold text-blue-400">{{ formatTime(matchingTime) }}</div>
+          <div class="text-center mt-6">
+            <div class="text-4xl font-bold">{{ formatTime(matchingTime) }}</div>
         </div>
         
         <!-- 선택한 주제 카드들 -->
         <div class="w-full mt-8">
           <div class="flex items-center justify-center gap-2 mb-4">
-            <h3 class="text-sm font-medium text-foreground">선택한 주제</h3>
+            <h3 class="text-sm font-medium">선택한 주제</h3>
             <div class="relative group">
               <HelpCircle class="w-4 h-4 text-muted-foreground hover:text-foreground cursor-help" />
               <!-- 커스텀 툴팁 -->
@@ -49,8 +49,8 @@
                     <div class="space-y-1">
                       <p class="font-medium">⚠️ 주의사항</p>
                       <p>1. 마이크를 허용해야 플레이가 가능해요</p>
-                      <p>2. 물범 선택시 북극곰, 펭귄이 랜덤으로 선택되요</p>
-                      <p>3. 발언 순서는 북극곰 → 펭귄 순서로 반복</p>
+                      <p>2. <img src="@/assets/images/profile/debate_random.png" class="inline w-4 h-4 polar-icon" alt="물범" /> 선택시 <img src="@/assets/images/profile/debate_left.png" class="inline w-4 h-4 polar-icon" alt="북극곰" />, <img src="@/assets/images/profile/debate_right.png" class="inline w-4 h-4 polar-icon" alt="펭귄" />가 랜덤으로 선택되요</p>
+                      <p>3. 발언 순서는 <img src="@/assets/images/profile/debate_left.png" class="inline w-4 h-4 polar-icon" alt="북극곰" /> → <img src="@/assets/images/profile/debate_right.png" class="inline w-4 h-4 polar-icon" alt="펭귄" /> 순서로 반복</p>
                     </div>
                   </div>
                 </div>
@@ -80,22 +80,22 @@
                     <img 
                       v-if="topic.stance === 'option1'"
                       src="@/assets/images/profile/debate_left.png" 
-                      class="w-3 h-3" 
+                      class="w-3 h-3 polar-icon" 
                       alt="북극곰" 
                     />
                     <img 
                       v-else-if="topic.stance === 'option2'"
                       src="@/assets/images/profile/debate_right.png" 
-                      class="w-3 h-3" 
+                      class="w-3 h-3 polar-icon" 
                       alt="펭귄" 
                     />
                     <img 
                       v-else-if="topic.stance === 'random'"
                       src="@/assets/images/profile/debate_random.png" 
-                      class="w-3 h-3" 
+                      class="w-3 h-3 polar-icon" 
                       alt="물범" 
                     />
-                    {{ getStanceText(topic.stance) }}
+                    {{ getStanceText(topic.stance, matchingStore.getTopicById(topic.id)) }}
                   </Badge>
                 </div>
                 
@@ -125,28 +125,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useMatchingStore } from '@/store/matching'
 import { HelpCircle } from 'lucide-vue-next'
-import type { Stance, PlayerMode } from '@/types/matching'
-
-interface SelectedTopic {
-  id: number
-  title: string
-  stance: Stance
-  modes: PlayerMode[]
-}
+import type { PlayerMode } from '@/types/matching'
+import { getStanceText, getStanceBadgeClass, getModeBadgeClass } from '@/utils/matching'
 
 // 매칭 스토어 연동
 const matchingStore = useMatchingStore()
 
 // 매칭 타이머 (스토어에서 가져옴)
 const matchingTime = computed(() => matchingStore.elapsedTime)
-
-// 매칭 상태
-const isMatching = computed(() => matchingStore.isMatching)
 
 // 시간 포맷팅 함수 (mm:ss)
 const formatTime = (seconds: number) => {
@@ -164,7 +155,7 @@ const formatTitleToTwoLines = (title: string) => {
   return title
 }
 
-// 스토어에서 실제 선택된 주제들 가져오기
+// 실제 선택된 주제들 가져오기
 const selectedTopics = computed(() => {
   return matchingStore.selectedTopicSelections.map(selection => {
     const topic = matchingStore.getTopicById(selection.topicId)
@@ -177,43 +168,5 @@ const selectedTopics = computed(() => {
   })
 })
 
-// 진영 텍스트 변환
-const getStanceText = (stance: Stance) => {
-  switch (stance) {
-    case 'option1':
-      return '찬성'
-    case 'option2':
-      return '반대'
-    case 'random':
-      return '상관없음'
-    default:
-      return '알 수 없음'
-  }
-}
 
-// 진영 배지 스타일
-const getStanceBadgeClass = (stance: Stance) => {
-  switch (stance) {
-    case 'option1':
-      return 'bg-debate-left text-slate-800 border-debate-left'
-    case 'option2':
-      return 'bg-debate-right text-white border-debate-right'
-    case 'random':
-      return 'bg-debate-random text-slate-700 border-debate-random'
-    default:
-      return 'bg-slate-600 text-slate-300 border-slate-500'
-  }
-}
-
-// 모드 배지 스타일
-const getModeBadgeClass = (mode: PlayerMode) => {
-  switch (mode) {
-    case '1:1':
-      return 'bg-mode-1v1 text-slate-800 border-mode-1v1'
-    case '2:2':
-      return 'bg-mode-2v2 text-slate-800 border-mode-2v2'
-    default:
-      return 'bg-slate-600 text-slate-300 border-slate-500'
-  }
-}
 </script>

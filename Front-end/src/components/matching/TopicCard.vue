@@ -15,26 +15,12 @@
             @click="handleStanceSelect('option1')"
             class="flex-1 h-12"
             :class="{ 
-              'bg-stance-option1 hover:bg-stance-option1/90 text-stance-option1 border-stance-option1 ring-stance-option1': getStanceVariant('option1') === 'default',
+              'bg-debate-left hover:bg-debate-left/90 text-slate-800 border-debate-left': getStanceVariant('option1') === 'default',
               'bg-background hover:bg-accent': getStanceVariant('option1') === 'outline'
             }"
           >
-            <img src="/src/assets/images/profile/debate_left.png" class="w-6 h-6 mr-2" alt="북극곰" />
-            찬성
-          </Button>
-          
-          <Button 
-            variant="outline"
-            size="lg"
-            @click="handleStanceSelect('option2')"
-            class="flex-1 h-12"
-            :class="{ 
-              'bg-stance-option2 hover:bg-stance-option2/90 text-stance-option2 border-stance-option2 ring-stance-option2': getStanceVariant('option2') === 'default',
-              'bg-background hover:bg-accent': getStanceVariant('option2') === 'outline'
-            }"
-          >
-            <img src="/src/assets/images/profile/debate_right.png" class="w-6 h-6 mr-2" alt="펭귄" />
-            반대
+            <img src="/src/assets/images/profile/debate_left.png" class="w-6 h-6 mr-2 polar-icon" alt="북극곰" />
+            {{ topic.option1 }}
           </Button>
           
           <Button 
@@ -43,12 +29,26 @@
             @click="handleStanceSelect('random')"
             class="flex-1 h-12"
             :class="{ 
-              'bg-stance-random hover:bg-stance-random/90 text-stance-random border-stance-random ring-stance-random': getStanceVariant('random') === 'default',
+              'bg-debate-random hover:bg-debate-random/90 text-slate-700 border-debate-random': getStanceVariant('random') === 'default',
               'bg-background hover:bg-accent': getStanceVariant('random') === 'outline'
             }"
           >
-            <img src="/src/assets/images/profile/debate_random.png" class="w-6 h-6 mr-2" alt="물범" />
+            <img src="/src/assets/images/profile/debate_random.png" class="w-6 h-6 mr-2 polar-icon" alt="물범" />
             상관없음
+          </Button>
+          
+          <Button 
+            variant="outline"
+            size="lg"
+            @click="handleStanceSelect('option2')"
+            class="flex-1 h-12"
+            :class="{ 
+              'bg-debate-right hover:bg-debate-right/90 text-white border-debate-right': getStanceVariant('option2') === 'default',
+              'bg-background hover:bg-accent': getStanceVariant('option2') === 'outline'
+            }"
+          >
+            <img src="/src/assets/images/profile/debate_right.png" class="w-6 h-6 mr-2 polar-icon" alt="펭귄" />
+            {{ topic.option2 }}
           </Button>
         </div>
       </div>
@@ -59,12 +59,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Button } from '@/components/ui/button'
-// 아이콘 import
-import debateLeftIcon from '@/assets/images/profile/debate_left.png'
-import debateRightIcon from '@/assets/images/profile/debate_right.png'
-import debateRandomIcon from '@/assets/images/profile/debate_random.png'
 import { useMatchingStore } from '@/store/matching'
-import { useThemeStore } from '@/store/theme'
 import type { Topic } from '@/types/topic'
 import type { Stance } from '@/types/matching'
 
@@ -79,7 +74,6 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 const matchingStore = useMatchingStore()
-const themeStore = useThemeStore()
 
 // 진영 버튼 스타일 결정 (개별 선택 우선)
 const getStanceVariant = (stance: Stance) => {
