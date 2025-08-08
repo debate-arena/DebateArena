@@ -15,7 +15,7 @@ export type MatchingStatus = 'idle' | 'waiting' | 'matching' | 'connecting' | 'c
 export type WebSocketMessageType = 'MATCH_STATUS' | 'MATCH_INVITATION' | 'ACCEPTANCE_STATUS' | 'ERROR' | 'MATCH_ADDITIONAL' | 'MATCH_ALL_PERSONAL' | 'MATCH_RESULT'
 
 // WebSocket 메시지 상태
-export type WebSocketMessageStatus = 'success' | 'error' | 'warning' | 'info'
+export type WebSocketMessageStatus = 'success' | 'error' | 'warning' | 'info' | 'fail'
 
 // WebSocket 메시지 인터페이스
 export interface WebSocketMessage {

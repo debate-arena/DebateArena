@@ -1,8 +1,8 @@
 <template>
   <div class="min-h-screen bg-background">
-    <!-- 에러 메시지 표시 -->
-    <div v-if="matchingStore.error" class="fixed inset-0 flex items-center justify-center z-50">
-      <Alert class="max-w-md bg-background shadow-lg">
+    <!-- 에러 메시지 (불투명 토스트) -->
+    <div v-if="matchingStore.error" class="fixed bottom-6 right-6 z-50">
+      <Alert class="max-w-sm bg-card border border-border shadow-xl">
         <AlertCircle class="h-4 w-4" />
         <AlertTitle>알림</AlertTitle>
         <AlertDescription>{{ matchingStore.error }}</AlertDescription>
@@ -191,7 +191,7 @@ const handleAcceptanceStatus = (data: WebSocketMessage) => {
   if (data.status === 'error') return
   
   if (data.status === 'success') {
-    const { accept, team, stance } = processAcceptanceStatus(data)
+    const { accept, stance } = processAcceptanceStatus(data)
     
     matchingStore.updateRoomInfo({ 
       connectedUsers: matchingStore.roomInfo.connectedUsers + 1 
@@ -207,14 +207,53 @@ const handleAcceptanceStatus = (data: WebSocketMessage) => {
 
 const handleMatchResult = (data: WebSocketMessage) => {
   if (data.status === 'error') return
-  
+
+  // 공통 처리 함수 (FAIL 시 재사용)
+  const handleFail = () => {
+    // FAIL 경로 처리
+    matchResultState.resetStanceAcceptance()
+    matchingStore.stopAcceptTimer()
+    stopAcceptTimer()
+
+    if (selfAcceptance.value === 'accepted') {
+      // 내가 수락한 경우: 재매칭 대기 복귀 + 대기 타이머 재시작
+      matchingStore.startMatching()
+      startMatchingTimer(() => modals.showTimeoutModal())
+      // 선택값은 store에 이미 유지됨. 필요 시 재요청 전송
+      try {
+        const request = matchingStore.toMatchRequest
+        webSocket.sendMatchRequest(request)
+      } catch (e) {
+        console.warn('재매칭 요청 전송 실패(무시 가능):', e)
+      }
+      // 초대장 상태 정리 (새 초대 가능)
+      matchingStore.clearInvitation()
+    } else {
+      // 내가 거절/미응답: 초기 화면 복귀(선택값 보존), 소켓 종료
+      matchingStore.cancelMatching()
+      stopMatchingTimer()
+      webSocket.disconnect()
+      if (selfAcceptance.value === 'pending') {
+        // 미응답을 로컬 거절로 처리
+        selfAcceptance.value = 'rejected'
+      }
+      // 초대장 상태 정리
+      matchingStore.clearInvitation()
+    }
+  }
+
   if (data.status === 'success') {
     const result = processMatchResult(data)
     
     if (result.success && result.roomId) {
       handleMatchSuccess(result.roomId)
+    } else {
+      handleFail()
     }
+    return
   }
+  // success가 아닌 기타 상태는 실패로 간주
+  handleFail()
 }
 
 // Event Handlers
@@ -267,6 +306,16 @@ const handleModalAccept = () => {
   selfAcceptance.value = 'accepted'
   matchingStore.stopAcceptTimer()
   stopAcceptTimer()
+
+  // 수락 시 즉시 'waiting' 화면으로 전환하여 게임 스테이터스 표시
+  // (소켓은 유지, 서버 MATCH_RESULT 수신 시 최종 처리)
+  if (!matchingStore.isMatching) {
+    matchingStore.startMatching()
+    startMatchingTimer(() => modals.showTimeoutModal())
+  }
+
+  // 새 초대를 받을 수 있도록 초대장 상태 초기화
+  matchingStore.clearInvitation()
 }
 
 const handleModalReject = () => {
@@ -347,6 +396,16 @@ watch(
       
       // 라우팅 후 스토어 리셋
       setTimeout(() => matchingStore.reset(), 100)
+    }
+  }
+)
+
+// 에러 토스트 자동 해제 (3초)
+watch(
+  () => matchingStore.error,
+  (err) => {
+    if (err) {
+      setTimeout(() => matchingStore.clearError(), 3000)
     }
   }
 )

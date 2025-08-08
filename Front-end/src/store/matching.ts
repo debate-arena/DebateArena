@@ -443,6 +443,16 @@ export const useMatchingStore = defineStore('matching', {
       }
     },
 
+    // 초대장 관련 상태만 초기화 (선택값/글로벌 상태는 보존)
+    clearInvitation() {
+      this.currentMatchId = ''
+      this.acceptTimeLeft = 0
+      this.currentMatchTopicId = null
+      this.currentMatchMode = null
+      this.lastAcceptedStance = ''
+      this.resetRoomInfo()
+    },
+
     // 매칭 ID 설정
     setCurrentMatchId(matchId: string) {
       this.currentMatchId = matchId

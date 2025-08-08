@@ -94,9 +94,11 @@
             <div class="flex items-center gap-2">
               <span class="text-sm text-muted-foreground">모드:</span>
               <div 
-                class="px-3 py-1 rounded-full text-sm font-medium"
+                class="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1"
                 :class="getModeBadgeClass(props.mode as PlayerMode)"
               >
+                <img v-if="(props.mode as PlayerMode) === '1:1'" src="/src/assets/images/profile/1vs1.png" class="w-3 h-3 polar-icon" alt="1대1" />
+                <img v-else src="/src/assets/images/profile/2vs2.png" class="w-3 h-3 polar-icon" alt="2대2" />
                 {{ props.mode ?? '1:1' }}
               </div>
             </div>
