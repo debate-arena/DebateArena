@@ -202,7 +202,7 @@ async function createTransport(payload) {
         // ],
         listenInfos: [
             {
-                protocol: 'udp',                // 보통 WebRTC는 UDP
+                // protocol: 'udp',                // 보통 WebRTC는 UDP
                 ip: process.env.MEDIASOUP_LISTEN_IP,                  // 로컬에서 바인딩할 인터페이스
                 announcedAddress:  process.env.MEDIASOUP_ANNOUNCED_IP,   // 클라이언트에 노출할 공인 IP (도메인 아님)
                 portRange: {
@@ -224,7 +224,13 @@ async function createTransport(payload) {
     console.log(`[Transport created] - ID: ${transport.id}, Type: ${isProducer ? 'Producer' : 'Consumer'}
          RoomTransport:${roomTransportSizeMap.get(roomId)}`);
     
-    transport.on('close', () => {
+    transport.on('close', async () => {
+        const disconnectedResponse = {
+            roomId : roomId,
+            userEmail: payload.userEmail,
+            transportId: transport.id,
+        };
+        await redisPublisher.publish('mediasoup:transport:disconnected', JSON.stringify(disconnectedResponse));
         console.log(`Transport closed - ID: ${transport.id}`);
         try{
             transports.delete(transport.id);
@@ -236,6 +242,12 @@ async function createTransport(payload) {
     transport.on('dtlsstatechange', async(dtlsState) => {
         console.log(`DTLS state change - Transport ${payload.userEmail}, ${dtlsState}`);
         if (dtlsState === 'failed') {
+            const disconnectedResponse = {
+                roomId : roomId,
+                userEmail: payload.userEmail,
+                transportId: transport.id,
+            };
+            await redisPublisher.publish('mediasoup:transport:disconnected', JSON.stringify(disconnectedResponse));
             console.log(`DTLS failed for transport ${transport.id}`);
             // cleanupTransport(payload.userEmail, roomId);
         }
@@ -266,7 +278,6 @@ async function createTransport(payload) {
                 roomId : roomId,
                 userEmail: payload.userEmail,
                 transportId: transport.id,
-                sessionId: sessionId
             };
             await redisPublisher.publish('mediasoup:transport:disconnected', JSON.stringify(disconnectedResponse));
             console.log(`ICE disconnected for transport ${payload.userEmail}, ${payload.producerUserEmail}`);
