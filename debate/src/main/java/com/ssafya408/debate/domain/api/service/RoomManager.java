@@ -34,6 +34,7 @@ public class RoomManager {
   private int currentBattleIndex = 0;
   private RoomStatus status =RoomStatus.OPINION;
   private DebateTurn turn = DebateTurn.ATTACK; //
+  private Map<String,String> attackTarget;
 
   private Map<String, STTMessage> opinions; //각 사용자의 stt 텍스트가 저장됨
   // 공방전 데이터 어떻게?
@@ -286,6 +287,7 @@ public class RoomManager {
         result.put("currentStatus", status);
         result.put("currentIndex", status == RoomStatus.OPINION ? currentOpinionIndex : currentBattleIndex);
         result.put("isFinished", isFinished());
+
         
       } else {
         log.warn("❌ 의견 단계가 이미 완료됨 - currentOpinionIndex: {}, playerCount: {}", 

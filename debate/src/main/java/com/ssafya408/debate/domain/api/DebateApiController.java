@@ -1,5 +1,6 @@
 package com.ssafya408.debate.domain.api;
 
+import com.ssafya408.debate.domain.api.dto.debate.SelectTargetRequestDto;
 import com.ssafya408.debate.domain.api.dto.stt.OpinionSTTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
 import com.ssafya408.debate.domain.api.service.DebateService;
@@ -81,6 +82,13 @@ public class DebateApiController {
     }
     
     log.info("=== 토론방 입장 요청 처리 완료 ===");
+  }
+  @MessageMapping("/debate/attack")
+  public void selectTarget(Principal principal, SelectTargetRequestDto req) {
+    String user = principal.getName();
+    log.info("타겟 선택 - 사용자: {}, SelectTarget: {}", user, req);
+
+    debateService.selectAttackTarget(user,req);
   }
 
 }
