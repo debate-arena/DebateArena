@@ -5,7 +5,7 @@ import com.ssafya408.debate.domain.api.dto.debate.STTAttackDefense;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
 import com.ssafya408.debate.domain.api.dto.stt.STTMessage;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
-import com.ssafya408.debate.domain.api.dto.stt.ai.BroadcastResponse;
+import com.ssafya408.debate.domain.api.dto.stt.BroadcastResponse;
 import com.ssafya408.debate.domain.common.dto.ApiResponse;
 import com.ssafya408.debate.domain.db.rdb.MatchType;
 import java.util.ArrayList;
