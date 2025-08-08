@@ -26,6 +26,11 @@ const routes: RouteRecordRaw[] = [
     path: '/debate/:id',
     name: 'Debate',
     component: () => import('@/pages/DebateRoom.vue'),
+  },
+  {
+    path: '/custom-room',
+    name: 'CustomRoom',
+    component: () => import('@/pages/CustomRoom.vue'),
   }
 ]
 
