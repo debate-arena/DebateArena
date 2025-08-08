@@ -42,7 +42,7 @@ export interface WebRTCConnectionOptions {
   onConnectionStep?: (step: string, message: string) => void
   onParticipantUpdate?: (participants: WebRTCParticipant[]) => void
   onError?: (error: string) => void
-  expectedRemoteCount?: number
+  participantsCount?: number
 }
 
 export interface WebRTCParticipant {
@@ -91,7 +91,7 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
     testUser: options.config?.testUser || generateUniqueTestUser(),
   }
 
-  const expectedRemote = options.expectedRemoteCount ?? 1
+  const expectedRemote = (options.participantsCount ?? 2) - 1
 
   // 각 단계 완료 신호
   const stepDone = {
@@ -142,8 +142,8 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
 
   // 계산된 속성들
   const allParticipantsConnected = computed(() => {
-    return state.value.participants.length > 0 && 
-           state.value.participants.every(p => p.connected)
+    const currentParticipants = state.value.participants.length
+    return expectedRemote > 0 && currentParticipants === expectedRemote && state.value.participants.every(p => p.connected)
   })
   
   watch(
@@ -151,7 +151,8 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       total: state.value.participants.length,
       allConnected: allParticipantsConnected.value,
       expected: expectedRemote
-    }),
+    }
+  ),
     ({ total, allConnected, expected }) => {
       console.log('🔄 참가자 수:', total, '연결 상태:', allConnected, '예상 참가자 수:', expected)
       if (allConnected && total === expected && state.value.connectionStep !== 'completed') {
@@ -369,6 +370,7 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
 
   // 참가자 업데이트 헬퍼
   const updateParticipants = () => {
+    console.log('🔄 updateParticipants', state.value.participants)
     onParticipantUpdate?.(state.value.participants)
   }
 
@@ -756,6 +758,24 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       kind: data.kind,
       rtpParameters: data.rtpParameters,
     })
+
+    if (data.kind === 'audio') {
+      const stream = new MediaStream([consumer.track])
+    
+      const participant = state.value.participants
+        .find(p => p.producerUserEmail === producerUserEmail)
+    
+      if (participant) {
+        participant.audioStream = markRaw(stream)
+        participant.audioConsumer = markRaw(consumer)
+        participant.connected = true
+      }
+
+      console.log('🔄 참가자 연결 상태 업데이트:', participant)
+    
+      audioController?.connectParticipantAudio(producerUserEmail, stream)
+    }
+
     console.log('✅ Consumer 생성 완료:', consumer)
     return consumer
   }
@@ -763,7 +783,7 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
   // 5. Consumer Transport 및 Consumer 생성
   const connectConsumers = async (client: StompClient) => {
     console.log('✅ connectConsumers 호출')
-    if (state.value.participants.length === 0 && expectedRemote > 0) {
+    if (state.value.participants.length === 0) {
       console.log('참가자 대기중...')
       return
     }
@@ -771,59 +791,13 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
     if (!client?.connected) {
       throw new Error('STOMP 클라이언트가 연결되지 않았습니다')
     }
-    console.log('참가자 목록:', state.value.participants)
+
     for (const participant of state.value.participants) {
       console.log('참가자 정보:', participant)
       const consumer = await createConsumer(client, participant.producerUserEmail, participant.producerId)
       console.log('✅ Consumer 생성 완료:', consumer)
     }
-    stepDone.consumerReady.resolve() // 테스트 코드, 나중에 들어온 사람 다음 단계 진행
     return
-  }
-
-  const createConsumersForParticipants = async (client: StompClient): Promise<void> => {
-    if (state.value.participants.length === 0) {
-      console.log('👥 다른 참가자가 없어 Consumer 생성을 건너뜁니다')
-      stepDone.consumerReady.resolve()
-      return
-    }
-
-    if (!client?.connected) {
-      throw new Error('STOMP 클라이언트가 연결되지 않았습니다')
-    }
-    
-    // 각 참가자별로 Consumer Transport 생성 요청
-    for (const participant of state.value.participants) {
-      try {
-        console.log(`🚛 Consumer Transport 생성 요청: ${participant.producerUserEmail}`)
-        
-        client.publish('/signaling/createTransport', {
-          producerUserEmail: participant.producerUserEmail,
-          isProducer: false
-        })
-        
-      } catch (error) {
-        console.warn(`참가자 ${participant.producerUserEmail} Consumer 생성 실패:`, error)
-      }
-    }
-    
-    // Consumer 생성 완료 대기 (간단한 방식)
-    let maxWaitTime = 5000 // 5초
-    let waitTime = 0
-    const checkInterval = 100
-    
-    while (waitTime < maxWaitTime) {
-      const allConnected = state.value.participants.every(p => p.connected)
-      if (allConnected) {
-        break
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, checkInterval))
-      waitTime += checkInterval
-    }
-    
-    updateParticipants()
-    console.log('✅ Consumer 생성 프로세스 완료')
   }
 
   // Recv 단계
@@ -928,7 +902,6 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       const participantInfo = JSON.parse(message.body)
       console.log('🆕 새 발화자 입장:', participantInfo)
       handleNewProducer(participantInfo)
-      stepDone.consumerReady.resolve() // 테스트 코드, 먼저 들어와 있는 사람 다음 단계 진행
     })
 
     console.log('✅ STOMP 메시지 핸들러 설정 완료')
@@ -936,7 +909,7 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
   }
 
   // 메인 WebRTC 연결 프로세스
-  const startWebRTCConnection = async (targetRoomId: string, expectedParticipants?: number): Promise<boolean> => {
+  const startWebRTCConnection = async (targetRoomId: string): Promise<boolean> => {
     try {
       state.value.isConnecting = true
       state.value.isConnected = false
@@ -1106,12 +1079,13 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
 
   return {
     // 상태
-    state: state.value,
+    state,
     connectionError,
     roomId,
     allParticipantsConnected,
     connectionProgress,
-    
+    stepDone,
+
     // 사용자 정보
     getCurrentUser,
     config,
