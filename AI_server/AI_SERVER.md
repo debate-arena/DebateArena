@@ -1,4 +1,6 @@
 ## 실행 방법
+source venv/Scripts/activate
+pip install - requirements
 cd data
 python process.py
 cd ..
