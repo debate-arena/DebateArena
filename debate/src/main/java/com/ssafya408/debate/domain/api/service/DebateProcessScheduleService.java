@@ -99,7 +99,7 @@ public class DebateProcessScheduleService {
         // signaling server 에 publish [mic on]
         redisTemplate.convertAndSend("signaling:mic:on", mediaControlInfo);
         // room 참여자들에게 broadcast
-        simpMessagingTemplate.convertAndSend("/sub/room/" + roomManager.getRoomId(), dto);
+        simpMessagingTemplate.convertAndSend("/sub/room/" + roomManager.getRoomId()+"/speak/start", dto);
 
         taskScheduler.schedule(() -> {
             endOpinionTurn(roomManager,mediaControlInfo);
@@ -120,7 +120,7 @@ public class DebateProcessScheduleService {
         // signaling server 에 publish [mic off]
         redisTemplate.convertAndSend("signaling:mic:off" + roomManager.getRoomId(), mediaControlInfo);
         // room 참여자들에게 broadcast
-        simpMessagingTemplate.convertAndSend("/sub/room/" + roomManager.getRoomId()+"/",dto);
+        simpMessagingTemplate.convertAndSend("/sub/room/" + roomManager.getRoomId()+"/speak/end",dto);
         taskScheduler.schedule(() -> {
             startOpinionTurn(roomManager);
         }, Instant.now().plusSeconds(3));
@@ -138,7 +138,7 @@ public class DebateProcessScheduleService {
                 .battleStartAt(LocalDateTime.now())
                 .build();
 
-        simpMessagingTemplate.convertAndSend("/sub/room/" + roomManager.getRoomId(), dto);
+        simpMessagingTemplate.convertAndSend("/sub/room/" + roomManager.getRoomId()+"/start/battle", dto);
 
         taskScheduler.schedule(() -> {
             startBattleTurn(roomManager);
@@ -196,7 +196,7 @@ public class DebateProcessScheduleService {
         // signaling server 에 publish [mic on]
         redisTemplate.convertAndSend("signaling:mic:on", mediaControlInfo);
         // room 참여자들에게 broadcast
-        simpMessagingTemplate.convertAndSend("/sub/room/" + roomManager.getRoomId(), dto);
+        simpMessagingTemplate.convertAndSend("/sub/room/" + roomManager.getRoomId()+"/speak/start", dto);
 
         taskScheduler.schedule(() -> {
             endBattleTurn(roomManager,mediaControlInfo);
@@ -213,7 +213,7 @@ public class DebateProcessScheduleService {
                 .build();
         redisTemplate.convertAndSend("signaling:mic:off" + roomManager.getRoomId(), mediaControlInfo);
         // room 참여자들에게 broadcast
-        simpMessagingTemplate.convertAndSend("/sub/room/" + roomManager.getRoomId()+"/",dto);
+        simpMessagingTemplate.convertAndSend("/sub/room/" + roomManager.getRoomId()+"/speak/end",dto);
         taskScheduler.schedule(() -> {
             startBattleTurn(roomManager);
         }, Instant.now().plusSeconds(3));
