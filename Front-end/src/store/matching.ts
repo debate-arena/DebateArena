@@ -38,6 +38,11 @@ interface MatchingState {
 
   // 현재 사용자의 팀 정보 (서버에서 받은 팀 번호)
   currentUserTeam: number
+
+  // 매칭된 게임 정보
+  currentMatchTopicId: number | null
+  currentMatchMode: PlayerMode | null
+  lastAcceptedStance: string
 }
 
 export const useMatchingStore = defineStore('matching', {
@@ -59,7 +64,10 @@ export const useMatchingStore = defineStore('matching', {
     currentMatchId: '',
     acceptTimeLeft: 15,
     currentUserPosition: 0,
-    currentUserTeam: 0 // 초기값 설정
+    currentUserTeam: 0, // 초기값 설정
+    currentMatchTopicId: null,
+    currentMatchMode: null,
+    lastAcceptedStance: ''
   }),
 
   getters: {
@@ -455,6 +463,31 @@ export const useMatchingStore = defineStore('matching', {
       this.currentUserTeam = team
     },
 
+    // 매칭된 주제 ID 설정
+    setCurrentMatchTopicId(topicId: number) {
+      this.currentMatchTopicId = topicId
+    },
+
+    // 매칭된 모드 설정
+    setCurrentMatchMode(mode: PlayerMode) {
+      this.currentMatchMode = mode
+    },
+
+    // 마지막 수락 진영 설정
+    setLastAcceptedStance(stance: string) {
+      this.lastAcceptedStance = stance
+    },
+
+    // 매칭 결과 설정
+    setMatchResult(result: MatchResult) {
+      this.matchResult = result
+    },
+
+    // 상태 직접 설정
+    setStatus(status: MatchingStatus) {
+      this.status = status
+    },
+
     // 현재 사용자의 팀 정보 가져오기
     getCurrentUserTeam(): number {
       return this.currentUserTeam
@@ -497,6 +530,9 @@ export const useMatchingStore = defineStore('matching', {
       this.acceptTimeLeft = 15
       this.currentUserPosition = 0
       this.currentUserTeam = 0 // 팀 정보도 리셋
+      this.currentMatchTopicId = null
+      this.currentMatchMode = null
+      this.lastAcceptedStance = ''
       this.resetRoomInfo()
     }
   }
