@@ -37,7 +37,7 @@ public class MediasoupPublishService {
     public void createTransport(SimpMessageHeaderAccessor headerAccessor, CreatedTransportRequestDto req) {
         req.setUserEmail(getAttribute(headerAccessor, "userEmail", String.class));
         req.setRoomId(getAttribute(headerAccessor, "roomId", Long.class));
-        req.setSessionId(getSessionId(headerAccessor));
+//        req.setSessionId(getSessionId(headerAccessor));
 
         redisTemplate.convertAndSend("mediasoup:transport:create", req);
         log.info("[Transport 생성 요청] roomId: {}, userEmail: {}", req.getRoomId(), req.getUserEmail());

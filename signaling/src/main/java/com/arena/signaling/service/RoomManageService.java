@@ -7,9 +7,12 @@ import com.arena.signaling.dto.response.CreatedProducerDto;
 import com.arena.signaling.model.Participant;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -21,19 +24,50 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @RequiredArgsConstructor
 public class RoomManageService {
 
+    private static final String KEY_PREFIX = "room";
+    private HashOperations<String, String, Object> hashOps;
+    private final Map<Long,Long> roomType = new ConcurrentHashMap<>();
     private final Map<Long, List<Participant>> rooms = new ConcurrentHashMap<>();
     private final Map<String, Long> userEmailToRoom = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final SimpMessagingTemplate simpMessagingTemplate;
+
+    @PostConstruct
+    public void init() {
+        this.hashOps = redisTemplate.opsForHash();
+    }
 
     public boolean isUserInRoom(String userEmail) {
 
         return userEmailToRoom.containsKey(userEmail);
     }
 
+    public Long getRoomType(Long roomId){
+        if(roomType.get(roomId) == null){
+            return null;
+        }
+        return roomType.get(roomId);
+    }
+
     public void addRoom(CreateRouterRequest req) {
-        List<Participant> participants = rooms.computeIfAbsent(req.getRoomId()
-                , k -> new CopyOnWriteArrayList<>());
+
+        if (!rooms.containsKey(req.getRoomId())) {
+            String redisKey = KEY_PREFIX + ":" + req.getRoomId();
+            Map<String, Object> entries = hashOps.entries(redisKey);
+            if(entries.isEmpty()) {
+                return;
+            }
+
+            if(entries.get("type").toString().equals("1")){
+                roomType.put(req.getRoomId(),2L);
+                rooms.put(req.getRoomId(), new CopyOnWriteArrayList<>());
+            }else{
+                roomType.put(req.getRoomId(),4L);
+                rooms.put(req.getRoomId(), new CopyOnWriteArrayList<>());
+            }
+
+        }
         userEmailToRoom.put(req.getUserEmail(), req.getRoomId());
     }
 
@@ -77,28 +111,28 @@ public class RoomManageService {
     public void removeParticipant(String userEmail) throws JsonProcessingException {
         // Redis 에 삭제 요청
         if(userEmail == null){
+            log.debug("[유저 삭제] 잘못된 요청입니다.");
             return;
         }
         Long roomId = userEmailToRoom.get(userEmail);
         if(roomId == null){
-            log.debug("removeParticipant - roomId not found Error");
+            log.debug("[유저 삭제] 방 및 유저를 찾을 수 없습니다.");
             return;
         }
+        userEmailToRoom.remove(userEmail);
 
         Map<String, Object> map2 = new HashMap<>();
         map2.put("roomId", roomId);
         map2.put("userEmail", userEmail);
-        String jsonString = objectMapper.writeValueAsString(map2);
-        redisTemplate.convertAndSend("mediasoup:transport:disconnect", jsonString);
+        redisTemplate.convertAndSend("mediasoup:transport:disconnect", map2);
 
 
         List<Participant> participants = rooms.get(roomId);
         if(participants == null){
-            log.debug("removeParticipant - room in participants not found Error");
+            log.debug("[유저 삭제] 해당 방에 참가자가 존재하지 않습니다.");
             return;
         }
 
-        userEmailToRoom.remove(userEmail);
 
         Participant removedParticipant = participants.stream()
                 .filter(p -> p.getProducerUserEmail().equals(userEmail))
@@ -106,21 +140,26 @@ public class RoomManageService {
                 .orElse(null);
 
         if(removedParticipant == null){
-            log.debug("removeParticipant - userEmail not found Error");
+            log.debug("[유저 삭제] 해당 방에 해당 유저가 존재하지 않습니다.");
             return;
         }
-
         participants.removeIf(p -> p.getProducerUserEmail().equals(userEmail));
 
         // 방에있는 다른 참가자들의 해당 유저와의 연결 상태 업데이트
         participants.forEach(participant -> {
             Map<String, Boolean> map = participant.getConsumerConnectedStatus();
             if (map != null && map.containsKey(userEmail) && map.get(userEmail) == Boolean.TRUE) {
-                map.remove(removedParticipant.getProducerUserEmail());
+                map.remove(userEmail);
             }
         });
+        // 방이 비어있으면 제거
+        if (participants.isEmpty()) {
+            log.info("[유저 삭제] 방이 비어있으므로 해당 방을 삭제합니다 {} ", roomId);
+            rooms.remove(roomId);
+            roomType.remove(roomId);
+        }
 
-
+        log.info("[유저 삭제] {} 유저가 삭제됨 방 : {} ", userEmail, roomId);
         // 같은 방의 다른 참가자들에게 퇴장 알림
         // TODO : 같은방 참가자들에게 퇴장 알림 또는 pending 처리
 //        getParticipants(roomId).forEach(participantSessionId -> {
@@ -130,13 +169,8 @@ public class RoomManageService {
 //                    Map.of("userEmail", userEmail, "roomId", roomId)
 //            );
 //        });
-        // 방이 비어있으면 제거
-        if (participants.isEmpty()) {
-            log.info("[ removed ] ROOM {} ", roomId);
-            rooms.remove(roomId);
-        }
 
-        log.info("[ removed ] {} from room {} ", userEmail, roomId);
+
 
         participants.forEach(participant -> {
             System.out.println("=== Participant ===");
@@ -175,12 +209,28 @@ public class RoomManageService {
 
         if (clientConnectionEstablishedDto.getIsProducer()) {
             participant.setIsProducerConnected(true);
+
+            simpMessagingTemplate.convertAndSendToUser(
+                    clientConnectionEstablishedDto.getConsumerUserEmail(),
+                    "/queue/producer-connected",
+                    "producer-connected"
+            );
             return -2;
         }else {
-            if (participant.getConsumerConnectedStatus() == null)
-                participant.setConsumerConnectedStatus(new HashMap<>());
-            participant.getConsumerConnectedStatus().put(clientConnectionEstablishedDto.getProducerUserEmail(), true);
+            Map<String,Boolean> consumerStatus = participant.getConsumerConnectedStatus() ;
+            if (consumerStatus==null) {
+                consumerStatus = new HashMap<>();
+            }
+            consumerStatus.put(clientConnectionEstablishedDto.getProducerUserEmail(), true);
+            participant.setConsumerConnectedStatus(consumerStatus);
+
+            simpMessagingTemplate.convertAndSendToUser(
+                    clientConnectionEstablishedDto.getConsumerUserEmail(),
+                    "/queue/producer-connected",
+                    clientConnectionEstablishedDto.getProducerUserEmail()
+            );
         }
+
 
         return participants.stream()
                 .filter(p -> Boolean.TRUE.equals(p.getIsProducerConnected()))
@@ -213,6 +263,17 @@ public class RoomManageService {
 //    }
 //
      //
+
+    public void updateField(Long roomId, String field, Object value) {
+        try {
+            String redisKey = KEY_PREFIX + ":" + roomId;
+            hashOps.put(redisKey, field, value);
+            log.debug("필드 업데이트 완료 - roomId: {}, field: {}, value: {}", roomId, field, value);
+        } catch (Exception e) {
+            log.error("필드 업데이트 실패 - roomId: {}, field: {}, error: {}", roomId, field, e.getMessage(), e);
+        }
+    }
+
     public void updateParticipantConsumerInfo(CreatedConsumerDto createdConsumerDto) {
 
 
@@ -245,5 +306,10 @@ public class RoomManageService {
                 .findFirst()
                 .ifPresent(participant ->
                         redisTemplate.convertAndSend("mediasoup:producer:mic:on", participant.getProducerId()));
+    }
+
+    public void setWebrtcConnection(Long roomId) {
+        updateField(roomId, "webRTCStatus", "CONNECTED");
+
     }
 }

@@ -15,6 +15,7 @@ import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -115,24 +116,42 @@ public class MediasoupSubscribeService {
     public void establishedTransport(ClientConnectionEstablishedDto clientConnectionEstablishedDto) {
         long result = roomManageService.updateParticipantConnectionInfo(clientConnectionEstablishedDto);
 
+
+        switch ((int) result) {
+            case -1:
+                log.debug("[Transport 연결됨] ERROR 유저가 방에 존재하지 않음.");
+                break;
+            case -2:
+                log.debug("[Transport 연결됨] 유저 연결됨 (PRODUCER) {}", result);
+                break;
+            default:
+                long roomType =roomManageService.getRoomType(clientConnectionEstablishedDto.getRoomId());
+                if(result == roomType){
+                    roomManageService.setWebrtcConnection(clientConnectionEstablishedDto.getRoomId());
+                    messagingTemplate.convertAndSend(
+                            "/queue/"+ clientConnectionEstablishedDto.getRoomId()+"/connected"
+                            ,"gameStart");
+                }
+
+        }
+
         if ((int) result == -1) {
-            log.debug("connectedTransport - participant not found Error");
+            log.debug("[Transport 연결됨] ERROR 유저가 방에 존재하지 않음.");
         } else {
-            log.debug("connectedTransport - consumer connected {}", result);
+            log.debug("[Transport 연결됨] 유저 연결됨 {}", result);
             // 레디스에서 룸 사이즈 가져온다.
             if(result == 2) { // TODO : REDIS 에서 RoomSize 가져오기
                 // TODO : redis 에 webrtcState 정보를 수정한다
                 messagingTemplate.convertAndSend("/queue/"+ clientConnectionEstablishedDto.getRoomId(),"gameStart");
             }
         }
-
     }
 
     public void disconnectedTransport(TransportDisconnectedDto transportDisconnectedDto) {
         String userEmail = transportDisconnectedDto.getUserEmail();
         Long roomId = transportDisconnectedDto.getRoomId();
         
-        log.info("[ Transport disconnected ] user: {} in room: {}", userEmail, roomId);
+        log.info("[ Transport 연결 해제됨 유저 삭제 요청] user: {} in room: {}", userEmail, roomId);
         
         try {
             SimpUser user = simpUserRegistry.getUser(userEmail);
@@ -142,15 +161,15 @@ public class MediasoupSubscribeService {
                         WebSocketSession webSocketSession = (WebSocketSession) session.getUser();
                         if (webSocketSession != null && webSocketSession.isOpen()) {
                             webSocketSession.close(CloseStatus.NORMAL);
-                            log.info("[disconnecting]: {}", userEmail);
+                            log.info("[유저 삭제 요청]: {}", userEmail);
                         }
                     } catch (Exception e) {
-                        log.error("Error closing WebSocket session for user {}: {}", userEmail, e.getMessage(), e);
+                        log.error("[유저 삭제 요청] {}: {}", userEmail, e.getMessage(), e);
                     }
                 }
             }
         } catch (Exception e) {
-            log.error("Error handling transport disconnection for user {}: {}", userEmail, e.getMessage(), e);
+            log.error("[유저 삭제 요청] {}: {}", userEmail, e.getMessage(), e);
         }
     }
 

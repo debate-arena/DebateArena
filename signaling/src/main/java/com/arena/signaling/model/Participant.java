@@ -20,6 +20,4 @@ public class Participant {
     private Boolean producerConnectedStatus;
     private Map<String,Boolean> consumerConnectedStatus;
 
-    public void setConsumerConnectedStatus(HashMap<String, Boolean> consumerConnectedStatus) {
-    }
 }
