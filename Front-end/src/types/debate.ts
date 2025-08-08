@@ -1,3 +1,8 @@
+export interface Team {
+  order: number;
+  user: string;
+}
+
 export interface Speaker {
   id: number;
   name: string;
@@ -40,4 +45,38 @@ export interface SessionUpdateMessage {
   stage: 'waiting' | 'speaking' | 'transition' | 'finished';
   currentOrderIndex: number;
   speakingOrder: number[];
+}
+
+export interface DebateStartMessage {
+  roomId: number;
+  type: number;
+  topicId: number;
+  topicText: string;
+  firstOption: string;
+  secondOption: string;
+  status: string;
+  webRTCStatus: string;
+  debateStartAt: string;
+  firstTeam: Team[];
+  secondTeam: Team[];
+}
+
+export interface DebateSpeakStartMessage {
+  speaker: string;
+  speakerStartAt: string;
+}
+
+export interface DebateSpeakEndMessage {
+  speaker: string;
+  speakerEndAt: string;
+}
+
+export interface DebateSelectTargetMessage {
+  status: 'success';
+  battleStartAt: string;
+}
+
+export interface DebateSelectTargetResponse {
+  attacker: string;
+  defender: string;
 }

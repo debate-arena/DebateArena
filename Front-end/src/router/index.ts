@@ -22,6 +22,11 @@ const routes: RouteRecordRaw[] = [
     name: 'DebateRoom',
     component: () => import('@/components/SpeechRecognitionDemo.vue'),
   },
+  {
+    path: '/debate/:id',
+    name: 'Debate',
+    component: () => import('@/pages/DebateRoom.vue'),
+  }
 ]
 
 const router = createRouter({

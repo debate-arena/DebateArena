@@ -7,6 +7,8 @@ import { ref, onUnmounted } from 'vue'
  * - 참가자별 볼륨 제어
  */
 export function useAudioControls() {
+  const pendingAudioStreams = new Map<string, MediaStream>()
+
   // 음성 관련 상태
   const isMuted = ref(false)
   const isVoiceModulated = ref(false)
@@ -32,18 +34,31 @@ export function useAudioControls() {
 
   // 참가자 오디오 엘리먼트 설정
   const setParticipantAudio = (userEmail: string, audioElement: HTMLAudioElement | null) => {
-    if (audioElement) {
-      participantAudios.set(userEmail, audioElement)
-      // 기본 볼륨 50%로 설정
+    if (!audioElement) return;
+    
+    participantAudios.set(userEmail, audioElement)
+      
+      // 오디오 엘리먼트 기본 설정
+      audioElement.autoplay = true
+      audioElement.setAttribute('playsinline', 'true')
+      audioElement.muted = false
+      
+      // 기본 볼륨 80%로 설정 (더 잘 들리도록)
       if (!participantVolumes.has(userEmail)) {
-        participantVolumes.set(userEmail, 0.5)
-        audioElement.volume = 0.5
+        participantVolumes.set(userEmail, 0.8)
+        audioElement.volume = 0.8
       } else {
-        audioElement.volume = participantVolumes.get(userEmail) || 0.5
+        audioElement.volume = participantVolumes.get(userEmail) || 0.8
       }
-      console.log(`🎵 참가자 ${userEmail}의 오디오 엘리먼트 설정됨`)
+
+      const queuedStream = pendingAudioStreams.get(userEmail)
+      if (queuedStream) {
+        connectParticipantAudio(userEmail, queuedStream)
+        pendingAudioStreams.delete(userEmail)
+      }
+      
+      console.log(`🎵 참가자 ${userEmail}의 오디오 엘리먼트 설정됨 (볼륨: ${Math.round(audioElement.volume * 100)}%)`)
     }
-  }
 
   // 참가자 볼륨 가져오기
   const getParticipantVolume = (userEmail: string): number => {
@@ -65,14 +80,88 @@ export function useAudioControls() {
   // 참가자 오디오 스트림 연결
   const connectParticipantAudio = (userEmail: string, audioStream: MediaStream) => {
     const audioElement = participantAudios.get(userEmail)
-    if (audioElement) {
+    if (!audioElement) {
+      pendingAudioStreams.set(userEmail, audioStream)
+      return
+    }
+    audioElement.srcObject = audioStream
+    console.log("🔊 참가자 오디오 스트림 연결 시작:", participantAudios)
+    console.log("🔊 참가자 오디오 스트림 연결 시작:", userEmail)
+    if (audioElement && audioStream) {
+      console.log(`🔊 참가자 ${userEmail}의 스트림 연결 시작...`)
+      
+      // 스트림 연결
       audioElement.srcObject = audioStream
+      
       // 저장된 볼륨 설정 적용
-      const volume = participantVolumes.get(userEmail) || 0.5
+      const volume = participantVolumes.get(userEmail) || 0.8
       audioElement.volume = volume
-      console.log(`🔊 참가자 ${userEmail}의 스트림 연결됨 (볼륨: ${Math.round(volume * 100)}%)`)
+      
+      // 오디오 트랙 확인
+      const audioTracks = audioStream.getAudioTracks()
+      console.log(`🎵 오디오 트랙 수: ${audioTracks.length}`)
+      
+      if (audioTracks.length > 0) {
+        const track = audioTracks[0]
+        console.log(`🎵 오디오 트랙 상태: enabled=${track.enabled}, readyState=${track.readyState}`)
+        
+        // 트랙이 비활성화되어 있다면 활성화
+        if (!track.enabled) {
+          track.enabled = true
+        }
+      }
+      
+      // 다양한 이벤트 리스너 추가 (디버깅용)
+      audioElement.addEventListener('loadstart', () => {
+        console.log(`📡 ${userEmail}: loadstart`)
+      }, { once: true })
+      
+      audioElement.addEventListener('loadeddata', () => {
+        console.log(`📡 ${userEmail}: loadeddata`)
+      }, { once: true })
+      
+      audioElement.addEventListener('canplay', () => {
+        console.log(`📡 ${userEmail}: canplay`)
+      }, { once: true })
+      
+      audioElement.addEventListener('playing', () => {
+        console.log(`🎵 ${userEmail}: 재생 시작됨!`)
+      }, { once: true })
+      
+      audioElement.addEventListener('error', (e) => {
+        console.error(`❌ ${userEmail}: 오디오 오류`, e)
+      }, { once: true })
+      
+      // 강제 재생 시도
+      setTimeout(() => {
+        if (audioElement.paused) {
+          audioElement.play().then(() => {
+            console.log(`✅ ${userEmail}: 자동 재생 성공`)
+          }).catch(error => {
+            console.warn(`⚠️ ${userEmail}: 자동 재생 실패`, error)
+            
+            // 사용자 상호작용 후 재시도
+            const playOnInteraction = () => {
+              audioElement.play().then(() => {
+                console.log(`✅ ${userEmail}: 수동 재생 성공`)
+              }).catch(console.error)
+              document.removeEventListener('click', playOnInteraction)
+              document.removeEventListener('touchstart', playOnInteraction)
+            }
+            document.addEventListener('click', playOnInteraction, { once: true })
+            document.addEventListener('touchstart', playOnInteraction, { once: true })
+          })
+        }
+      }, 100)
+      
+      console.log(`🔊 참가자 ${userEmail}의 스트림 연결 완료 (볼륨: ${Math.round(volume * 100)}%)`)
     } else {
-      console.log(`⏳ 참가자 ${userEmail}의 audio 엘리먼트가 아직 준비되지 않음`)
+      if (!audioElement) {
+        console.warn(`⚠️ 참가자 ${userEmail}의 audio 엘리먼트가 없음`)
+      }
+      if (!audioStream) {
+        console.warn(`⚠️ 참가자 ${userEmail}의 오디오 스트림이 없음`)
+      }
     }
   }
 
