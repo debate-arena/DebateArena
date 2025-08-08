@@ -1,5 +1,6 @@
 package com.ssafya408.debate.domain.api;
 
+import com.ssafya408.debate.domain.api.dto.debate.SelectTargetRequestDto;
 import com.ssafya408.debate.domain.api.dto.stt.BattleSTTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.OpinionSTTRequest;
 import com.ssafya408.debate.domain.api.service.DebateService;
@@ -44,6 +45,13 @@ public class DebateApiController {
 
     debateService.userJoinMatch(user, roomId);
 
+  }
+  @MessageMapping("/debate/attack")
+  public void selectTarget(Principal principal, SelectTargetRequestDto req) {
+    String user = principal.getName();
+    log.info("타겟 선택 - 사용자: {}, SelectTarget: {}", user, req);
+
+    debateService.selectAttackTarget(user,req);
   }
 
 }

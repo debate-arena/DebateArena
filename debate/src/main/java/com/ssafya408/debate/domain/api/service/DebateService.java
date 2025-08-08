@@ -1,5 +1,7 @@
 package com.ssafya408.debate.domain.api.service;
 
+import com.ssafya408.debate.domain.api.dto.debate.SelectTargetRequestDto;
+import com.ssafya408.debate.domain.api.dto.debate.SelectTargetResponseDto;
 import com.ssafya408.debate.domain.api.dto.debate.SpeakerOrder;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
 import com.ssafya408.debate.domain.api.dto.room.WebRTCStatus;
@@ -17,10 +19,8 @@ import com.ssafya408.debate.domain.db.rdb.MatchType;
 import com.ssafya408.debate.domain.db.rdb.Topic;
 import com.ssafya408.debate.domain.db.rdb.TopicRepository;
 import jakarta.annotation.PostConstruct;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -221,6 +221,7 @@ public class DebateService {
       beforeGameStartQueue.get(roomId);
       RoomManager roomManager= roomInfos.get(roomId);
       scheduleService.gameStart(roomManager);
+      // TODO : 게임 시작하면 beforeGameStartQueue 삭제
     }
 
     log.info("사용자 {}가 방 {}에 참여했습니다.", user, roomId);
@@ -276,6 +277,34 @@ public class DebateService {
     } catch (Exception e) {
       log.error("토론방 종료 처리 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
     }
+  }
+
+  public void selectAttackTarget(String user, SelectTargetRequestDto req) {
+    // TODO : 방이 Stage 1,2 사이일때만 공격자 선택을 가능하도록 함
+    RoomManager roomManager= roomInfos.get(req.getRoomId());
+
+    if(roomManager == null){
+      // TODO : EXCEPTION
+      return ;
+    }
+
+    Map<String,String> attackTarget = roomManager.getAttackTarget();
+    if(attackTarget==null){
+      // TODO : EXCEPTION
+      attackTarget = new HashMap<>();
+    }
+    attackTarget.put(user, req.getTarget());
+    roomManager.setAttackTarget(attackTarget);
+
+    log.info("[공격자 생성] {} -> {} ",user,req.getTarget());
+    log.info("[공격자 생성] {} ",attackTarget);
+
+    SelectTargetResponseDto res = SelectTargetResponseDto.builder()
+            .attacker(user)
+            .defender(req.getTarget())
+            .build();
+
+    template.convertAndSend("/sub/debate/room/"+req.getRoomId()+"/attack",res);
   }
 
 //  public void generateDebateRoom(List<String> debaters) {

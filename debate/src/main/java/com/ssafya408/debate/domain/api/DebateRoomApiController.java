@@ -1,5 +1,6 @@
 package com.ssafya408.debate.domain.api;
 
+import com.ssafya408.debate.domain.api.dto.debate.SelectTargetRequestDto;
 import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
 import com.ssafya408.debate.domain.api.dto.room.DebateRoomResponse;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
@@ -361,17 +362,28 @@ public class DebateRoomApiController {
   )
   public void createDebateRoom(@RequestParam String userEmail, @RequestParam Long roomId) {
     try {
-
-      log.info("[토론 진행 시작]");
-
+      log.info("[토론자 생성] 요청" );
       debateService.userJoinMatch(userEmail, roomId);
-
-      log.info("[토론 진행] 성공 ");
+      log.info("[토론자 생성] 성공 ");
 
     } catch (Exception e) {
-      log.error("[토론 진행] 실패 - 오류: {}", e.getMessage(), e);
-
+      log.error("[토론자 생성] 실패 - 오류: {}", e.getMessage(), e);
     }
   }
+  @PostMapping("/attack")
+  @Operation(
+          summary = "공격자 선택",
+          description = "공격자를 선택합니다."
+  )
+  public void createAttacker(@RequestParam String userEmail, @RequestBody SelectTargetRequestDto req) {
+    try {
+      log.info("[공격자 생성] 요청" );
+      debateService.selectAttackTarget(userEmail, req);
+      log.info("[공격자 생성] 성공" );
+    } catch (Exception e) {
+      log.error("[공격자 생성] 실패 - 오류: {}", e.getMessage(), e);
+    }
+  }
+
 
 }

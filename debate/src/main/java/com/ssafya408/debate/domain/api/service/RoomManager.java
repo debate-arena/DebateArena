@@ -8,6 +8,7 @@ import com.ssafya408.debate.domain.common.dto.ApiResponse;
 import com.ssafya408.debate.domain.db.rdb.MatchType;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 import lombok.Getter;
 import lombok.Setter;
@@ -26,7 +27,8 @@ public class RoomManager {
   private int currentOpinionIndex = 0;
   private int currentBattleIndex = 0;
   private String status="opinion";
-  private DebateTurn turn = DebateTurn.TEAM1; //
+  private DebateTurn turn = DebateTurn.ATTACK; //
+  private Map<String,String> attackTarget;
 
   private TreeMap<String, STTMessage> opinions; //각 사용자의 stt 텍스트가 저장됨
   // 공방전 데이터 어떻게?
@@ -73,7 +75,7 @@ public class RoomManager {
   public String getCurrentTotalSTTOpinion() {
     int teamIdx= getCurrentIndex()/2;
 
-    String user= (turn.equals(DebateTurn.TEAM1))?
+    String user= (turn.equals(DebateTurn.ATTACK))?
         firstTeam.get(teamIdx)
         : secondTeam.get(teamIdx);
 
