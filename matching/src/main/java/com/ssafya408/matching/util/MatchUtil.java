@@ -3,6 +3,7 @@ package com.ssafya408.matching.util;
 import com.ssafya408.matching.api.dto.AcceptanceStatusDto;
 import com.ssafya408.matching.api.dto.ChoiceDto;
 import com.ssafya408.matching.api.dto.DebateRoomResponse;
+import com.ssafya408.matching.api.dto.DebateMemberDto;
 import com.ssafya408.matching.api.dto.MatchAcceptRequest;
 import com.ssafya408.matching.api.dto.MatchApplyRequest;
 import com.ssafya408.matching.api.dto.MatchInvitationResponse;
@@ -27,6 +28,8 @@ import org.springframework.http.MediaType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import com.ssafya408.matching.db.User;
+import com.ssafya408.matching.db.UserRepository;
 
 @Component
 @RequiredArgsConstructor
@@ -36,6 +39,7 @@ public class MatchUtil {
     private String debateServerUrl;
     private static final Logger log = LoggerFactory.getLogger(MatchUtil.class);
     private final SimpMessagingTemplate template;
+    private final UserRepository userRepository;
     
     // 스케줄러를 클래스 레벨에서 관리
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
@@ -307,23 +311,49 @@ public class MatchUtil {
     }
 
     private void broadcastDebateInfo(MatchInfo matchInfo,Long roomId, Boolean established) {
+        List<DebateMemberDto> firstTeamMembers = new ArrayList<>();
+        List<DebateMemberDto> secondTeamMembers = new ArrayList<>();
+
+        if (matchInfo != null && matchInfo.getTeams() != null && matchInfo.getTeams().size() >= 2) {
+            // Team 1
+            for (WaitingUser userInfo : matchInfo.getTeams().get(0)) {
+                String email = userInfo.getUser();
+                String nickname = userRepository.findByEmail(email)
+                    .map(User::getNickname)
+                    .orElse(null);
+                firstTeamMembers.add(DebateMemberDto.builder()
+                    .email(email)
+                    .nickname(nickname)
+                    .build());
+            }
+            // Team 2
+            for (WaitingUser userInfo : matchInfo.getTeams().get(1)) {
+                String email = userInfo.getUser();
+                String nickname = userRepository.findByEmail(email)
+                    .map(User::getNickname)
+                    .orElse(null);
+                secondTeamMembers.add(DebateMemberDto.builder()
+                    .email(email)
+                    .nickname(nickname)
+                    .build());
+            }
+        }
+
         DebateRoomResponse debateInfo = DebateRoomResponse
             .builder()
             .roomId(roomId)
+            .firstTeam(firstTeamMembers)
+            .secondTeam(secondTeamMembers)
             .build();
 
-        ApiResponse<DebateRoomResponse> response =
-            established ?
-                ApiResponse.success(debateInfo) //성공하면 status: success
-                : ApiResponse.fail(debateInfo); // 실패하면 status: fail 로 전송
-
-        for (Map.Entry<WaitingUser, MatchApplyRequest> e : matchInfo.getCandidates()
-            .entrySet()) {
+        for (Map.Entry<WaitingUser, MatchApplyRequest> e : matchInfo.getCandidates().entrySet()) {
             WaitingUser userInfo = e.getKey();
-            // 매칭 실패 알림 전송
-            template.convertAndSendToUser(userInfo.getUser(),
-                "/queue/match/acceptance/result", response);
-
+            // 매칭 결과(성공/실패 모두) DebateRoomResponse 포맷으로 전송
+            template.convertAndSendToUser(
+                userInfo.getUser(),
+                "/queue/match/acceptance/result",
+                debateInfo
+            );
         }
     }
     private void removeMatchFromQueue(WaitingUser user) {
