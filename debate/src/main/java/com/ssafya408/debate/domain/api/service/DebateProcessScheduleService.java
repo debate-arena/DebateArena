@@ -150,8 +150,10 @@ public class DebateProcessScheduleService {
             .text(opinion)
             .position(position)
             .build();
-        log.info("[opinion summary req] >>> {}",request.toString());
-        return aiService.requestOpinionSummary(roomManager.getRoomId(),request );
+        log.info("[opinion summary req] >>> {}, idx >>> {}",request.toString(),
+            roomManager.getCurrentIndex());
+        return aiService.requestOpinionSummary(roomManager.getRoomId(),
+            roomManager.getCurrentIndex(), request );
     }
 
     private void startBattle(RoomManager roomManager) {
@@ -280,8 +282,10 @@ public class DebateProcessScheduleService {
                         .build())
                 .build();
         
-        log.info("[battle summary req] >>> {}", request.toString());
-        return aiService.requestSiegeDefenseSummary(roomManager.getRoomId(), request);
+        log.info("[battle summary req] >>> {}, idx >>> {}", request.toString()
+            ,roomManager.getCurrentIndex());
+        return aiService.requestSiegeDefenseSummary(roomManager.getRoomId(),
+            roomManager.getCurrentIndex(),request);
     }
 
     /**

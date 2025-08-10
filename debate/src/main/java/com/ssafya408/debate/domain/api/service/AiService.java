@@ -6,6 +6,7 @@ import com.ssafya408.debate.domain.api.dto.ai.OpinionSummaryResponse;
 import com.ssafya408.debate.domain.api.dto.ai.OpinionTextRequest;
 import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseRequest;
 import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseResponse;
+import com.ssafya408.debate.domain.db.cache.SummaryRedisRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ import reactor.core.publisher.Mono;
 public class AiService {
     private final WebClient webClient;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SummaryRedisRepository summaryRedisRepository;
     
     @Value("${AI_SERVER_BASE_URL:http://ai-server:8000}")
     private String aiServerBaseUrl;
@@ -30,7 +32,7 @@ public class AiService {
      * @param request 의견 요약 요청 데이터
      * @return 의견 요약을 소켓에 broadcast
      */
-    public Mono<Void> requestOpinionSummary(Long roomId, OpinionTextRequest request) {
+    public Mono<Void> requestOpinionSummary(Long roomId, Integer index, OpinionTextRequest request) {
         log.info("AI 서버 의견 요약 요청 - userId: {}, topic: {}", 
             request.getUser_id(), request.getTopic());
         
@@ -49,7 +51,7 @@ public class AiService {
                 .bodyToMono(OpinionSummaryResponse.class)
                  .doOnNext(res -> {
                      log.info("[opinion summary res] >>> {}",res.getResult().getText());
-
+                     summaryRedisRepository.saveOpinionSummary(roomId, index, res, request.getPosition());
                      String destination = String.format("/sub/debate/room/" + roomId + "/summaries/opinion");
                      messagingTemplate.convertAndSend(destination + roomId, res);
                  } ) // 브로드캐스트
@@ -70,10 +72,11 @@ public class AiService {
      * @param request 공방전 요약 요청 데이터
      * @return 공방전 요약을 소켓에 broadcast
      */
-    public Mono<Void> requestSiegeDefenseSummary(Long roomId, SiegeDefenseRequest request) {
+    public Mono<Void> requestSiegeDefenseSummary(Long roomId, Integer idx, SiegeDefenseRequest request) {
         log.info("AI 서버 공방전 요약 요청 - topic: {}", request.getTopic());
-        
-        return webClient.post()
+      String attackPosition = request.getKey().getAttack().getPosition();
+      String defensePosition = request.getKey().getDefense().getPosition();
+      return webClient.post()
             .uri(aiServerBaseUrl+"/summaries/seigedefense")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(request)
@@ -83,7 +86,7 @@ public class AiService {
             .bodyToMono(SiegeDefenseResponse.class)
             .doOnNext(res -> {
                 log.info("[battle summary res] >>> {}", res.getResult().getText());
-                
+                summaryRedisRepository.saveBattleSummary(roomId, idx, res, attackPosition,defensePosition );
                 String destination = String.format("/sub/debate/room/%d/summaries/battle", roomId);
                 messagingTemplate.convertAndSend(destination, res);
             })

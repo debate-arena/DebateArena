@@ -6,9 +6,11 @@ import com.ssafya408.debate.domain.api.dto.ai.OpinionSummaryResponse;
 import com.ssafya408.debate.domain.api.dto.ai.OpinionTextRequest;
 import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseRequest;
 import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseResponse;
+import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse;
 import com.ssafya408.debate.domain.api.service.AiService;
 import com.ssafya408.debate.domain.api.service.DebateService;
 import com.ssafya408.debate.domain.common.dto.ApiResponse;
+import com.ssafya408.debate.domain.db.cache.SummaryRedisRepository;
 import com.ssafya408.debate.domain.db.rdb.Topic;
 import com.ssafya408.debate.domain.db.rdb.TopicRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,31 +27,32 @@ import java.util.List;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/api/ai-test")
+@RequestMapping("/api/test/ai")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "AI 서버 테스트 API", description = "AI 서버와의 통신을 테스트하는 API들")
+@Tag(name = "AI 서버 테스트", description = "AI 서버 연동 기능을 테스트하는 API")
 public class TestAIController {
 
+    private final AiService aiService;
     private final DebateService debateService;
     private final TopicRepository topicRepository;
-    private final AiService aiService;
+    private final SummaryRedisRepository summaryRedisRepository;
 
     /**
-     * AI 서버 의견 요약 기능 테스트 (주요 API - 유지)
+     * AI 서버 의견 요약 기능 테스트
      * route.py의 /summaries/opinion API와 연동
      */
     @PostMapping("/opinion-summary")
     @Operation(
         summary = "AI 서버 의견 요약 테스트",
-        description = "토론에서 발표한 의견을 AI 서버에 전송하여 요약을 받아옵니다. route.py의 /summaries/opinion API와 연동됩니다."
+        description = "토론 참가자의 의견을 AI 서버에 전송하여 요약을 받아옵니다. route.py의 /summaries/opinion API와 연동됩니다."
     )
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
             description = "의견 요약 성공",
             content = @Content(
-                mediaType = "application/json",
+                mediaType = "application/json", 
                 schema = @Schema(implementation = ApiResponse.class),
                 examples = @ExampleObject(
                     name = "성공 예시",
@@ -66,61 +69,25 @@ public class TestAIController {
                         """
                 )
             )
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "AI 서버 통신 실패",
-            content = @Content(
-                mediaType = "application/json",
-                examples = @ExampleObject(
-                    name = "실패 예시",
-                    value = """
-                        {
-                          "status": "error",
-                          "data": "의견 요약 요청 실패: Connection refused"
-                        }
-                        """
-                )
-            )
         )
     })
     public Mono<ApiResponse<String>> testOpinionSummary(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                description = "의견 요약 요청 데이터",
-                required = true,
-                content = @Content(
-                    schema = @Schema(implementation = OpinionTextRequest.class),
-                    examples = @ExampleObject(
-                        name = "요청 예시",
-                        value = """
-                            {
-                              "user_id": "user123",
-                              "topic": "야근 vs 출근길 2시간",
-                              "position": "야근",
-                              "text": "야근을 선택하겠습니다. 차라리 늦게까지 일하고 집에서 푹 쉬는 게 출근길에 오래 고생하는 것보다 낫다고 생각해요."
-                            }
-                            """
-                    )
-                )
-            )
             @RequestBody OpinionTextRequest request,
             @RequestParam(defaultValue = "1") Long roomId) {
         
         log.info("=== AI 서버 의견 요약 테스트 시작 ===");
-        log.info("요청 데이터 - userId: {}, topic: {}, position: {}, roomId: {}", 
-            request.getUser_id(), request.getTopic(), request.getPosition(), roomId);
+        log.info("요청 데이터 - userId: {}, topic: {}, roomId: {}", 
+            request.getUser_id(), request.getTopic(), roomId);
 
-        return aiService.requestOpinionSummary(roomId, request)
+        return aiService.requestOpinionSummary(roomId, 1, request)
             .then(Mono.fromCallable(() -> {
-                log.info("AI 서버 의견 요약 테스트 성공 - userId: {}", request.getUser_id());
+                log.info("AI 서버 의견 요약 테스트 성공");
                 return ApiResponse.success("의견 요약 요청이 성공적으로 처리되었습니다.");
             }))
             .onErrorResume(e -> {
                 log.error("AI 서버 의견 요약 테스트 실패 - error: {}", e.getMessage(), e);
-                log.error("요청 데이터: {}", request);
-                return Mono.just(ApiResponse.error("의견 요약 요청 실패: " + e.getMessage()));
+                return Mono.just(ApiResponse.error("의견 요약 요청 처리 중 오류가 발생했습니다: " + e.getMessage()));
             });
-
     }
 
     /**
@@ -156,71 +123,39 @@ public class TestAIController {
                         """
                 )
             )
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "AI 서버 통신 실패"
         )
     })
     public Mono<ApiResponse<String>> testSiegeDefenseSummary(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                description = "공방전 요약 요청 데이터",
-                required = true,
-                content = @Content(
-                    schema = @Schema(implementation = SiegeDefenseRequest.class),
-                    examples = @ExampleObject(
-                        name = "요청 예시",
-                        value = """
-                            {
-                              "topic": "호랑이와 사자 중 누가 동물의 왕인가",
-                              "key": {
-                                "attack": {
-                                  "user_id": "abc123",
-                                  "position": "호랑이가 이긴다",
-                                  "text": "욜로 욜로 하다가 골로 간다는 말이 있다..."
-                                },
-                                "defense": {
-                                  "user_id": "abc321",
-                                  "position": "사자가 왕이다.",
-                                  "text": "사자는 소비를 함으로써 경제를 순환시킨다..."
-                                }
-                              }
-                            }
-                            """
-                    )
-                )
-            )
             @RequestBody SiegeDefenseRequest request,
             @RequestParam(defaultValue = "1") Long roomId) {
         
         log.info("=== AI 서버 공방전 요약 테스트 시작 ===");
         log.info("요청 데이터 - topic: {}, roomId: {}", request.getTopic(), roomId);
 
-        return aiService.requestSiegeDefenseSummary(roomId, request)
+        return aiService.requestSiegeDefenseSummary(roomId, 1, request)
             .then(Mono.fromCallable(() -> {
                 log.info("AI 서버 공방전 요약 테스트 성공");
                 return ApiResponse.success("공방전 요약 요청이 성공적으로 처리되었습니다.");
             }))
             .onErrorResume(e -> {
                 log.error("AI 서버 공방전 요약 테스트 실패 - error: {}", e.getMessage(), e);
-                log.error("요청 데이터: {}", request);
-                return Mono.just(ApiResponse.error("공방전 요약 요청 실패: " + e.getMessage()));
+                return Mono.just(ApiResponse.error("공방전 요약 요청 처리 중 오류가 발생했습니다: " + e.getMessage()));
             });
     }
 
     /**
-     * AI 서버 토론 최종 결과 요청 테스트
+     * AI 서버 토론 최종 결과 기능 테스트
      * route.py의 /summaries/result API와 연동
      */
     @PostMapping("/debate-result")
     @Operation(
         summary = "AI 서버 토론 최종 결과 테스트",
-        description = "전체 토론 내용을 AI 서버에 전송하여 최종 판정 및 요약을 받아옵니다. route.py의 /summaries/result API와 연동됩니다."
+        description = "토론 전체 내용을 AI 서버에 전송하여 최종 결과를 받아옵니다. route.py의 /summaries/result API와 연동됩니다."
     )
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
-            description = "토론 결과 요약 성공",
+            description = "토론 최종 결과 성공",
             content = @Content(
                 mediaType = "application/json", 
                 schema = @Schema(implementation = ApiResponse.class),
@@ -240,106 +175,133 @@ public class TestAIController {
                               "soft_scores": {
                                 "num1": 26.219,
                                 "num2": 23.781
-                              },
-                              "details": [
-                                {
-                                  "juror": 0,
-                                  "vote": "num1",
-                                  "sim1": 0.10478,
-                                  "sim2": 0.10152,
-                                  "diff": 0.00326
-                                },
-                                {
-                                  "juror": 1,
-                                  "vote": "num2",
-                                  "sim1": 0.10581,
-                                  "sim2": 0.12208,
-                                  "diff": -0.01627
-                                },
-                                "... (총 50명의 판정단 데이터)"
-                              ]
+                              }
                             },
-                            "juror_explain": "대표 청중 #44의 선택 이유:\\n실전 무술에 관심 많은 30대 남성입니다. 단검의 빠른 공격 속도와 치명타 능력이 현실적인 생존 상황에서 훨씬 유리하다고 느꼈어요. 빠따는 위력이 크지만 준비 동작과 체력 소모가 커서 긴박한 싸움에선 단검이 더 효율적일 것 같습니다.",
+                            "juror_explain": "대표 청중 #44의 선택 이유...",
                             "full_summarize": {
-                              "num1": "단도 진영의 주장은 단검이 빠따에 비해 실전 상황에서 더 우위에 있다는 논리적 근거에 집중되어 있다...",
-                              "num2": "야구 빠따가 단도에 비해 우위에 있다는 주장의 핵심 논리는 리치, 즉 공격 거리의 차이에 기반한다..."
+                              "num1": "단도 진영의 주장은...",
+                              "num2": "야구 빠따가 단도에 비해..."
                             }
                           }
                         }
                         """
                 )
             )
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "AI 서버 통신 실패"
         )
     })
     public Mono<ApiResponse<String>> testDebateResult(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                description = "토론 최종 결과 요청 데이터",
-                required = true,
-                content = @Content(
-                    schema = @Schema(implementation = DebateResultRequest.class),
-                    examples = @ExampleObject(
-                        name = "요청 예시",
-                        value = """
-                            {
-                              "topic": "야구 빠따 vs 단도",
-                              "draw": true,
-                              "entire": {
-                                "num1": {
-                                  "position": "단도가 이긴다",
-                                  "text": "단도 진영은 빠따에 비해 훨씬 빠른 공격 속도...",
-                                  "rebuttal_score": 4.2
-                                },
-                                "num2": {
-                                  "position": "야구 빠따가 이긴다",
-                                  "text": "야구빠따가 단도에 비해 월등히 긴 리치...",
-                                  "rebuttal_score": 3.5
-                                }
-                              }
-                            }
-                            """
-                    )
-                )
-            )
             @RequestBody DebateResultRequest request,
             @RequestParam(defaultValue = "1") Long roomId) {
         
         log.info("=== AI 서버 토론 최종 결과 테스트 시작 ===");
-        log.info("요청 데이터 - topic: {}, draw: {}, roomId: {}", request.getTopic(), request.getDraw(), roomId);
+        log.info("요청 데이터 - topic: {}, draw: {}, roomId: {}", 
+            request.getTopic(), request.getDraw(), roomId);
 
         return aiService.requestDebateResult(roomId, request)
             .then(Mono.fromCallable(() -> {
                 log.info("AI 서버 토론 최종 결과 테스트 성공");
-                return ApiResponse.success("토론 결과 요청이 성공적으로 처리되었습니다.");
+                return ApiResponse.success("토론 최종 결과 요청이 성공적으로 처리되었습니다.");
             }))
             .onErrorResume(e -> {
                 log.error("AI 서버 토론 최종 결과 테스트 실패 - error: {}", e.getMessage(), e);
-                log.error("요청 데이터: {}", request);
-                return Mono.just(ApiResponse.error("토론 결과 요청 실패: " + e.getMessage()));
+                return Mono.just(ApiResponse.error("토론 최종 결과 요청 처리 중 오류가 발생했습니다: " + e.getMessage()));
             });
     }
 
     /**
-     * 사용 가능한 토론 주제 목록 조회 (유틸리티 API)
+     * Redis에 저장된 토론 요약 데이터 조회 테스트
+     */
+    @GetMapping("/summary/{roomId}")
+    @Operation(
+        summary = "토론 요약 데이터 조회 테스트",
+        description = "Redis에 저장된 특정 방의 의견, 공방전, 최종 요약 데이터를 모두 조회합니다."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "요약 데이터 조회 성공",
+            content = @Content(
+                mediaType = "application/json", 
+                schema = @Schema(implementation = ApiResponse.class),
+                examples = @ExampleObject(
+                    name = "성공 예시",
+                    value = """
+                        {
+                          "status": "success",
+                          "data": {
+                            "roomId": 1,
+                            "opinion": [
+                              {
+                                "phase": "opinion",
+                                "round": 1,
+                                "user_id": "user123",
+                                "text": "야근하며 늦게까지 일하고 집에서 쉬는 것이 출근길 2시간 고생하는 것보다 낫다고 생각한다.",
+                                "team": "first",
+                                "timestamp": "2024-01-01T12:00:00"
+                              }
+                            ],
+                            "battle": [
+                              {
+                                "phase": "battle",
+                                "round": 1,
+                                "attack_id": "abc123",
+                                "defense_id": "abc321",
+                                "text": "공격 내용 : 호랑이는 사자보다 과소비로 파산 위험이 크고...",
+                                "rebuttal_score": 6,
+                                "attack_team": "first",
+                                "defense_team": "second",
+                                "timestamp": "2024-01-01T12:30:00"
+                              }
+                            ],
+                            "final_summary": [],
+                            "current_phase": "battle",
+                            "current_round": 1,
+                            "timestamp": "2024-01-01T13:00:00"
+                          }
+                        }
+                        """
+                )
+            )
+        )
+    })
+    public ApiResponse<DebateSummaryResponse> getSummaryData(@PathVariable Long roomId) {
+        log.info("=== 토론 요약 데이터 조회 테스트 시작 ===");
+        log.info("조회 요청 - roomId: {}", roomId);
+
+        try {
+            DebateSummaryResponse summaryData = summaryRedisRepository.getAllSummaries(roomId);
+            
+            log.info("토론 요약 데이터 조회 성공 - roomId: {}, 의견: {}개, 공방전: {}개, 최종: {}개", 
+                roomId, 
+                summaryData.getOpinion().size(), 
+                summaryData.getBattle().size(), 
+                summaryData.getFinal_summary().size());
+            
+            return ApiResponse.success(summaryData);
+        } catch (Exception e) {
+            log.error("토론 요약 데이터 조회 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+            return ApiResponse.error("요약 데이터 조회 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 토론 주제 목록 조회 (테스트용)
      */
     @GetMapping("/topics")
     @Operation(
         summary = "토론 주제 목록 조회",
-        description = "테스트에 사용할 수 있는 토론 주제 목록을 조회합니다."
+        description = "테스트용으로 사용할 수 있는 토론 주제 목록을 조회합니다."
     )
     public ApiResponse<List<Topic>> getTopics() {
-        log.info("=== 토론 주제 목록 조회 테스트 ===");
+        log.info("=== 토론 주제 목록 조회 ===");
         
         try {
-            List<Topic> topics = debateService.getAvailableTopics();
+            List<Topic> topics = topicRepository.findAll();
             log.info("토론 주제 목록 조회 성공 - 총 {}개", topics.size());
             return ApiResponse.success(topics);
         } catch (Exception e) {
             log.error("토론 주제 목록 조회 실패 - error: {}", e.getMessage(), e);
-            return ApiResponse.error("토론 주제 목록 조회 실패: " + e.getMessage());
+            return ApiResponse.error("토론 주제 목록 조회 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 }
