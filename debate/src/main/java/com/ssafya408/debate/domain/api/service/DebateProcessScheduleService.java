@@ -1,5 +1,6 @@
 package com.ssafya408.debate.domain.api.service;
 
+import com.ssafya408.debate.domain.api.dto.ai.OpinionTextRequest;
 import com.ssafya408.debate.domain.api.dto.debate.*;
 import com.ssafya408.debate.domain.api.dto.control.MediaControlInfo;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import reactor.core.publisher.Mono;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +28,7 @@ public class DebateProcessScheduleService {
     @Qualifier("taskScheduler")
     private final TaskScheduler taskScheduler;
     private final DebateRedisRepository debateRedisRepository;
+    private final AiService aiService;
 
     public void gameStart(RoomManager roomManager) {
         if (roomManager == null) return;
@@ -76,10 +79,7 @@ public class DebateProcessScheduleService {
         log.info("[1페이즈 발언 시작] currentTurn : {}",roomManager.getTurn());
         log.info("[1페이즈 발언 시작] currentOpinionIndex : {}",roomManager.getCurrentOpinionIndex());
 
-        int currentIndex = getRoomManager(roomManager).getCurrentOpinionIndex();
         String speaker=roomManager.getCurrentSpeaker();
-
-        roomManager.setCurrentOpinionIndex(++currentIndex);
 
         MediaControlInfo mediaControlInfo = MediaControlInfo.builder()
             .speaker(speaker)
@@ -99,7 +99,7 @@ public class DebateProcessScheduleService {
 
         taskScheduler.schedule(() -> {
             endOpinionTurn(roomManager,mediaControlInfo);
-        }, Instant.now().plusSeconds(5));
+        }, Instant.now().plusSeconds(30));
     }
 
     private static RoomManager getRoomManager(RoomManager roomManager) {
@@ -108,6 +108,13 @@ public class DebateProcessScheduleService {
 
     // 발언 종료 이후 3초 대기
     private void endOpinionTurn(RoomManager roomManager,MediaControlInfo mediaControlInfo) {
+        summarizeOpinion(roomManager)
+            .subscribe(
+                null,                                // next 없음
+                e -> log.error("pipeline error", e), // 에러 소비자 필수
+                () -> log.info("broadcast done")     // 완료 콜백
+            );
+
         log.info("[1페이즈 발언 종료] {}",mediaControlInfo );
         SpeakerEndResponseDto dto = SpeakerEndResponseDto.builder()
                 .speaker(mediaControlInfo.getSpeaker())
@@ -117,9 +124,31 @@ public class DebateProcessScheduleService {
         redisTemplate.convertAndSend("signaling:mic:off" + roomManager.getRoomId(), mediaControlInfo);
         // room 참여자들에게 broadcast
         simpMessagingTemplate.convertAndSend("/debate/room/" + roomManager.getRoomId()+"/speak/end",dto);
+        roomManager.advanceTurn();
         taskScheduler.schedule(() -> {
             startOpinionTurn(roomManager);
         }, Instant.now().plusSeconds(3));
+    }
+
+
+    public Mono<Void> summarizeOpinion(RoomManager roomManager) {
+        DebateRedisInfo debateInfo = debateRedisRepository.findByRoomId(roomManager.getRoomId());
+
+        String currentSpeaker = roomManager.getCurrentSpeaker();
+        log.info("[current speaker] >>> {}",currentSpeaker);
+
+        String opinion = roomManager.getSpeakerTotalOpinion(currentSpeaker);
+        int teamIdx = roomManager.getTeamIdx();
+        String position= teamIdx==0? debateInfo.getFirstOption() : debateInfo.getSecondOption();
+
+        OpinionTextRequest request = OpinionTextRequest.builder()
+            .user_id(currentSpeaker)
+            .topic(debateInfo.getTopicText())
+            .text(opinion)
+            .position(position)
+            .build();
+        log.info("[opinion summary req] >>> {}",request.toString());
+        return aiService.requestOpinionSummary(roomManager.getRoomId(),request );
     }
 
     private void startBattle(RoomManager roomManager) {
@@ -135,7 +164,6 @@ public class DebateProcessScheduleService {
                 .build();
 
         simpMessagingTemplate.convertAndSend("/debate/room/" + roomManager.getRoomId()+"/start/battle", dto);
-
         taskScheduler.schedule(() -> {
             startBattleTurn(roomManager);
         }, Instant.now().plusSeconds(5));
@@ -157,13 +185,8 @@ public class DebateProcessScheduleService {
         String speaker;
 
         if(turn.equals(DebateTurn.ATTACK)){
-            if(currentIndex%2==0){
-                speaker = roomManager.getFirstTeam().get(currentIndex/2);
-            }else{
-                speaker = roomManager.getSecondTeam().get(currentIndex/2);
-            }
+            speaker=roomManager.getCurrentSpeaker();
             if(roomManager.getAttackTarget().get(speaker)==null){
-                roomManager.setCurrentBattleIndex(++currentIndex);
                 startBattleTurn(roomManager);
                 return ;
             }
@@ -176,7 +199,6 @@ public class DebateProcessScheduleService {
                 attacker = roomManager.getSecondTeam().get(currentIndex/2);
             }
             speaker = roomManager.getAttackTarget().get(attacker);
-            roomManager.setCurrentBattleIndex(++currentIndex);
             roomManager.setTurn(DebateTurn.ATTACK);
         }
 
@@ -193,7 +215,6 @@ public class DebateProcessScheduleService {
         redisTemplate.convertAndSend("signaling:mic:on", mediaControlInfo);
         // room 참여자들에게 broadcast
         simpMessagingTemplate.convertAndSend("/debate/room/" + roomManager.getRoomId()+"/speak/start", dto);
-
         taskScheduler.schedule(() -> {
             endBattleTurn(roomManager,mediaControlInfo);
         }, Instant.now().plusSeconds(5));
@@ -210,6 +231,9 @@ public class DebateProcessScheduleService {
         redisTemplate.convertAndSend("signaling:mic:off" + roomManager.getRoomId(), mediaControlInfo);
         // room 참여자들에게 broadcast
         simpMessagingTemplate.convertAndSend("/debate/room/" + roomManager.getRoomId()+"/speak/end",dto);
+        roomManager.advanceTurn();
+
+
         taskScheduler.schedule(() -> {
             startBattleTurn(roomManager);
         }, Instant.now().plusSeconds(3));

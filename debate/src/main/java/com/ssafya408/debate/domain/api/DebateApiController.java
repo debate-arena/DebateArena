@@ -65,8 +65,8 @@ public class DebateApiController {
     log.info("=== 배틀 STT 메시지 수신 완료 ===");
   }
 
-  @MessageMapping("/debate/join")
-  public void joinMatch(Principal principal, Long roomId) {
+  @MessageMapping("/debate/{roomId}/join")
+  public void joinMatch(Principal principal,@DestinationVariable Long roomId) {
     String user = principal.getName();
     log.info("=== 토론방 입장 요청 수신 시작 ===");
     log.info("사용자: {}, 방ID: {}", user, roomId);

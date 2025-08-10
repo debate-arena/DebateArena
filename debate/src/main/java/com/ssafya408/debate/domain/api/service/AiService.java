@@ -1,10 +1,19 @@
 package com.ssafya408.debate.domain.api.service;
 
-import com.ssafya408.debate.domain.api.dto.stt.ai.*;
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultRequest;
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultResponse;
+import com.ssafya408.debate.domain.api.dto.ai.OpinionSummaryResponse;
+import com.ssafya408.debate.domain.api.dto.ai.OpinionTextRequest;
+import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseRequest;
+import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafya408.debate.domain.api.dto.debate.SelectTargetResponseDto;
+import com.ssafya408.debate.domain.common.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -15,39 +24,49 @@ import reactor.core.publisher.Mono;
 public class AiService {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
+    private final SimpMessagingTemplate messagingTemplate;
     
-    private static final String AI_SERVER_BASE_URL = "http://localhost:8000";
+    @Value("${AI_SERVER_BASE_URL:http://ai-server:8000}")
+    private String aiServerBaseUrl;
 
     /**
      * AI 서버에 의견 요약 요청
      * @param request 의견 요약 요청 데이터
-     * @return 의견 요약 응답
+     * @return 의견 요약을 소켓에 broadcast
      */
-    public OpinionSummaryResponse requestOpinionSummary(OpinionTextRequest request) {
+    public Mono<Void> requestOpinionSummary(Long roomId, OpinionTextRequest request) {
         log.info("AI 서버 의견 요약 요청 - userId: {}, topic: {}", 
             request.getUser_id(), request.getTopic());
         
-        try {
-            String requestJson = objectMapper.writeValueAsString(request);
+//        try {
+//            String requestJson = objectMapper.writeValueAsString(request);
             
-            log.debug("의견 요약 요청 JSON: {}", requestJson);
+//            log.debug("의견 요약 요청 JSON: {}", requestJson);
             
-            return webClient.post()
-                .uri(AI_SERVER_BASE_URL+"/summaries/opinion")
+             return webClient.post()
+                .uri(aiServerBaseUrl+"/summaries/opinion")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(requestJson)
+                .bodyValue(request)
                 .retrieve()
                 .onStatus(status -> status.value() == 422, 
                     this::handle422Error)
                 .bodyToMono(OpinionSummaryResponse.class)
-                .block();
-                
-        } catch (Exception e) {
-            log.error("의견 요약 요청 실패 - userId: {}, error: {}", 
-                request.getUser_id(), e.getMessage(), e);
-            throw new RuntimeException("의견 요약 요청 실패: " + e.getMessage(), e);
-        }
+                 .doOnNext(res -> {
+                     log.info("[opinion summary res] >>> {}",res.getResult().getText());
+
+                     String destination = String.format("/sub/debate/room/" + roomId + "/summaries/opinion");
+                     messagingTemplate.convertAndSend(destination + roomId, res);
+                 } ) // 브로드캐스트
+
+                 .then(); // Mono<Void>
+//
+//        } catch (Exception e) {
+//            log.error("의견 요약 요청 실패 - userId: {}, error: {}",
+//                request.getUser_id(), e.getMessage(), e);
+//            throw new RuntimeException("의견 요약 요청 실패: " + e.getMessage(), e);
+//        }
     }
+
 
     /**
      * AI 서버에 공방전 요약 요청
@@ -63,7 +82,7 @@ public class AiService {
             log.debug("공방전 요약 요청 JSON: {}", requestJson);
             
             return webClient.post()
-                .uri(AI_SERVER_BASE_URL+"/summaries/seigedefense")
+                .uri(aiServerBaseUrl+"/summaries/seigedefense")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(requestJson)
                 .retrieve()
@@ -94,7 +113,7 @@ public class AiService {
             log.debug("토론 결과 요청 JSON: {}", requestJson);
             
             return webClient.post()
-                .uri(AI_SERVER_BASE_URL+"/summaries/result")
+                .uri(aiServerBaseUrl+"/summaries/result")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(requestJson)
                 .retrieve()
@@ -131,7 +150,7 @@ public class AiService {
     public boolean checkAiServerConnection() {
         try {
             webClient.get()
-                .uri(AI_SERVER_BASE_URL+"/health") // AI 서버에 health check 엔드포인트가 있다고 가정
+                .uri(aiServerBaseUrl+"/health") // AI 서버 health check
                 .retrieve()
                 .bodyToMono(String.class)
                 .block();

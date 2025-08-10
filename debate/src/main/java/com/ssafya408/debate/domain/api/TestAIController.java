@@ -1,6 +1,11 @@
 package com.ssafya408.debate.domain.api;
 
-import com.ssafya408.debate.domain.api.dto.stt.ai.*;
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultRequest;
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultResponse;
+import com.ssafya408.debate.domain.api.dto.ai.OpinionSummaryResponse;
+import com.ssafya408.debate.domain.api.dto.ai.OpinionTextRequest;
+import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseRequest;
+import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseResponse;
 import com.ssafya408.debate.domain.api.service.AiService;
 import com.ssafya408.debate.domain.api.service.DebateService;
 import com.ssafya408.debate.domain.common.dto.ApiResponse;
@@ -17,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/ai-test")
@@ -78,7 +84,7 @@ public class TestAIController {
             )
         )
     })
-    public ApiResponse<OpinionSummaryResponse> testOpinionSummary(
+    public Mono<ApiResponse<?>> testOpinionSummary(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                 description = "의견 요약 요청 데이터",
                 required = true,
@@ -103,17 +109,11 @@ public class TestAIController {
         log.info("요청 데이터 - userId: {}, topic: {}, position: {}", 
             request.getUser_id(), request.getTopic(), request.getPosition());
 
-        try {
-            OpinionSummaryResponse response = aiService.requestOpinionSummary(request);
+            Long roomId=1L;
+            Mono<Void> voidMono = aiService.requestOpinionSummary(roomId, request);
             log.info("AI 서버 의견 요약 테스트 성공 - userId: {}", request.getUser_id());
-            return ApiResponse.success(response);
-            
-        } catch (Exception e) {
-            log.error("AI 서버 의견 요약 테스트 실패 - userId: {}, error: {}", 
-                request.getUser_id(), e.getMessage(), e);
-            log.error("요청 데이터: {}", request);
-            return ApiResponse.error("의견 요약 요청 실패: " + e.getMessage());
-        }
+            return voidMono.thenReturn(ApiResponse.success(null));
+
     }
 
     /**

@@ -102,16 +102,6 @@ public class DebateService {
     log.info("STT 메시지 브로드캐스트 완료 - 방ID: {}", roomId);
   }
 
-
-  // AI 서버에 STT 모음 텍스트 전송
-  public void sendTotalTextToAIServer() {
-
-  }
-
-  // 카프카에 텍스트 저장
-  public void saveTextToKafka() {
-  }
-
   public void processOpinionSTTMessage(String user, Long roomId, OpinionSTTRequest req) {
     String text=req.getText();
     RoomManager roomManager = roomInfos.get(roomId);
@@ -133,11 +123,6 @@ public class DebateService {
     log.debug("현재 방의 참가자 수: {}", roomManager.getPlayerCount());
   }
 
-  public String finalizeOpinionTurnContent(RoomManager roomManager) {
-    String currentSpeaker = roomManager.getCurrentSpeaker();
-
-    return roomManager.getSpeakerTotalOpinion(currentSpeaker);
-  }
 
 
   public void processBattleSTTMessage(String user, Long roomId, STTRequest request) {
@@ -347,6 +332,35 @@ public class DebateService {
 
     }
     return roomManager.advanceTurn();
+  }
+
+  // 토론 턴 초기화 (테스트용): 상태 OPINION으로, 인덱스 0으로 리셋
+  public Map<String, Object> resetDebateTurn(Long roomId) {
+    log.info("=== 토론 턴 초기화 시작 ===");
+    log.info("요청된 방ID: {}", roomId);
+
+    RoomManager roomManager = roomInfos.get(roomId);
+    if (roomManager == null) {
+      log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
+      log.error("현재 활성 방 목록: {}", roomInfos.keySet());
+      throw new RuntimeException("토론방을 찾을 수 없습니다: " + roomId);
+    }
+
+    roomManager.setStatus(RoomStatus.OPINION);
+    roomManager.setCurrentOpinionIndex(0);
+    roomManager.setCurrentBattleIndex(0);
+
+    Map<String, Object> result = new HashMap<>();
+    result.put("roomId", roomId);
+    result.put("currentStatus", roomManager.getStatus());
+    result.put("currentOpinionIndex", roomManager.getCurrentOpinionIndex());
+    result.put("currentBattleIndex", roomManager.getCurrentBattleIndex());
+    result.put("message", "턴이 초기화되었습니다");
+    result.put("timestamp", java.time.LocalDateTime.now().toString());
+
+    log.info("토론 턴 초기화 완료 - roomId: {}, status: {}, opinionIndex: {}, battleIndex: {}",
+        roomId, roomManager.getStatus(), roomManager.getCurrentOpinionIndex(), roomManager.getCurrentBattleIndex());
+    return result;
   }
   public void selectAttackTarget(String user, SelectTargetRequestDto req) {
     // TODO : 방이 Stage 1,2 사이일때만 공격자 선택을 가능하도록 함

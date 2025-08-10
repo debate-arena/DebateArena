@@ -399,6 +399,48 @@ public class DebateRoomApiController {
     }
   }
 
+  @PostMapping("/{roomId}/reset-turn")
+  @Operation(
+      summary = "토론 턴 초기화 (테스트용)",
+      description = "토론 진행 턴을 초기 상태로 리셋합니다. 상태를 OPINION으로 설정하고 opinion/battle 인덱스를 0으로 초기화합니다."
+  )
+  @ApiResponses(value = {
+      @io.swagger.v3.oas.annotations.responses.ApiResponse(
+          responseCode = "200",
+          description = "턴 초기화 성공",
+          content = @Content(
+              mediaType = "application/json",
+              examples = @ExampleObject(
+                  name = "성공 예시",
+                  value = """
+                    {
+                      "status": "success",
+                      "data": {
+                        "roomId": 1,
+                        "currentStatus": "OPINION",
+                        "currentOpinionIndex": 0,
+                        "currentBattleIndex": 0,
+                        "message": "턴이 초기화되었습니다"
+                      }
+                    }
+                  """
+              )
+          )
+      )
+  })
+  public ResponseEntity<ApiResponse<Map<String, Object>>> resetTurn(@PathVariable Long roomId) {
+    log.info("[토론 턴 초기화] 요청 수신 - roomId: {}", roomId);
+
+    try {
+      Map<String, Object> result = debateService.resetDebateTurn(roomId);
+      log.info("[토론 턴 초기화] 성공 - roomId: {}, result: {}", roomId, result);
+      return ResponseEntity.ok(ApiResponse.success(result));
+    } catch (Exception e) {
+      log.error("[토론 턴 초기화] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("턴 초기화에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
   @GetMapping("/createDebate")
   @Operation(
           summary = "토론 시작",

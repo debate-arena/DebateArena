@@ -54,6 +54,8 @@ public class RoomManager {
     firstTeamAttack = new ArrayList<>();
     secondTeamAttack = new ArrayList<>();
 
+    attackTarget=new HashMap<>();
+
     for (int i = 0; i < teamSize; i++) {
       firstTeamAttack.add(new STTAttackDefense(firstTeam.get(i))) ;
       secondTeamAttack.add(new STTAttackDefense(secondTeam.get(i))) ;
@@ -64,9 +66,8 @@ public class RoomManager {
   }
 
   public void tempInitialize() {
-    Map<String,String> map=new HashMap<>();
-    map.put("testuser@example.com", "testuser1@example.com");
-    map.put("testuser1@example.com", "testuser@example.com");
+    attackTarget.put("testuser@example.com", "testuser1@example.com");
+    attackTarget.put("testuser1@example.com", "testuser@example.com");
   }
 
   public void setDefenseUsers(Map<String,String> partners) {
@@ -256,6 +257,7 @@ public class RoomManager {
       if (currentOpinionIndex < playerCount) {
         log.info("⏭️ 의견 단계 턴 진행 - currentOpinionIndex: {} → {}", currentOpinionIndex, currentOpinionIndex + 1);
         currentOpinionIndex++;
+
         
         // 턴 진행 후 새로운 발화자 정보 로그
         int newTeamIdx = getTeamIdx();
@@ -268,7 +270,6 @@ public class RoomManager {
         
         // 의견 단계 완료 체크
         if (currentOpinionIndex >= playerCount) {
-          status = RoomStatus.BATTLE;
           currentBattleIndex = 0;
           log.info("✅ 의견 단계 완료 - 배틀 단계로 전환");
           log.info("🔄 상태 전환: OPINION → BATTLE, currentBattleIndex 초기화: {}", currentBattleIndex);
