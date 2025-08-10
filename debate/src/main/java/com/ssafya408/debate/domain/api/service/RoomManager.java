@@ -66,8 +66,11 @@ public class RoomManager {
   }
 
   public void tempInitialize() {
+    firstTeamAttack.get(0).setDefenseUser("testuser1@example.com");
+    secondTeamAttack.get(0).setDefenseUser("testuser@example.com");
     attackTarget.put("testuser@example.com", "testuser1@example.com");
     attackTarget.put("testuser1@example.com", "testuser@example.com");
+
   }
 
   public void setDefenseUsers(Map<String,String> partners) {
@@ -208,6 +211,9 @@ public class RoomManager {
     }
   }
 
+  public String getDefender(String attacker) {
+    return attackTarget.get(attacker);
+  }
   public boolean isFinished() {
     if (status == RoomStatus.OPINION){
       return currentOpinionIndex == playerCount;

@@ -1,6 +1,9 @@
 package com.ssafya408.debate.domain.api.service;
 
 import com.ssafya408.debate.domain.api.dto.ai.OpinionTextRequest;
+import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseRequest;
+import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseRequest.Side;
+import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseResponse;
 import com.ssafya408.debate.domain.api.dto.debate.*;
 import com.ssafya408.debate.domain.api.dto.control.MediaControlInfo;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
@@ -217,11 +220,19 @@ public class DebateProcessScheduleService {
         simpMessagingTemplate.convertAndSend("/debate/room/" + roomManager.getRoomId()+"/speak/start", dto);
         taskScheduler.schedule(() -> {
             endBattleTurn(roomManager,mediaControlInfo);
-        }, Instant.now().plusSeconds(5));
+        }, Instant.now().plusSeconds(30));
     }
 
     // 발언 종료 이후 3초 대기
     private void endBattleTurn(RoomManager roomManager, MediaControlInfo mediaControlInfo) {
+        summarizeBattle(roomManager)
+            .subscribe(
+                null,                                // next 없음
+                e -> log.error("pipeline error", e), // 에러 소비자 필수
+                () -> log.info("broadcast done")     // 완료 콜백
+            );
+
+
         log.info("[2페이즈 발언 종료] {}",mediaControlInfo );
         // signaling server 에 publish [mic off]
         SpeakerEndResponseDto dto = SpeakerEndResponseDto.builder()
@@ -235,7 +246,57 @@ public class DebateProcessScheduleService {
 
 
         taskScheduler.schedule(() -> {
+
             startBattleTurn(roomManager);
         }, Instant.now().plusSeconds(3));
+    }
+
+    public Mono<Void> summarizeBattle(RoomManager roomManager) {
+        DebateRedisInfo debateInfo = debateRedisRepository.findByRoomId(roomManager.getRoomId());
+
+        String attacker = roomManager.getCurrentSpeaker();
+        String defender = roomManager.getDefender(attacker);
+        log.info("[current attacker] >>> {}, defenser : {}",attacker,defender);
+
+        STTAttackDefense currentTotalSTTBattle = roomManager.getCurrentTotalSTTBattle();
+
+        // 공격자와 방어자의 입장 정보 가져오기
+        String attackerPosition = getPositionByUser(roomManager, attacker);
+        String defenderPosition = getPositionByUser(roomManager, defender);
+
+        SiegeDefenseRequest request = SiegeDefenseRequest.builder()
+                .topic(debateInfo.getTopicText())
+                .key(SiegeDefenseRequest.Key.builder()
+                        .attack(Side.builder()
+                                .user_id(attacker)
+                                .position(attackerPosition)
+                                .text(currentTotalSTTBattle.getAttackTotalMessage())
+                                .build())
+                        .defense(Side.builder()
+                                .user_id(defender)
+                                .position(defenderPosition)
+                                .text(currentTotalSTTBattle.getDefenseTotalMessage())
+                                .build())
+                        .build())
+                .build();
+        
+        log.info("[battle summary req] >>> {}", request.toString());
+        return aiService.requestSiegeDefenseSummary(roomManager.getRoomId(), request);
+    }
+
+    /**
+     * 사용자의 입장/진영 정보를 가져오는 헬퍼 메서드
+     */
+    private String getPositionByUser(RoomManager roomManager, String userId) {
+        // 첫 번째 팀에 속하는지 확인
+        if (roomManager.getFirstTeam().contains(userId)) {
+            return debateRedisRepository.findByRoomId(roomManager.getRoomId()).getFirstOption();
+        }
+        // 두 번째 팀에 속하는지 확인
+        else if (roomManager.getSecondTeam().contains(userId)) {
+            return debateRedisRepository.findByRoomId(roomManager.getRoomId()).getSecondOption();
+        }
+        // 기본값
+        return "입장 정보 없음";
     }
 }

@@ -84,7 +84,7 @@ public class TestAIController {
             )
         )
     })
-    public Mono<ApiResponse<?>> testOpinionSummary(
+    public Mono<ApiResponse<String>> testOpinionSummary(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                 description = "의견 요약 요청 데이터",
                 required = true,
@@ -103,16 +103,23 @@ public class TestAIController {
                     )
                 )
             )
-            @RequestBody OpinionTextRequest request) {
+            @RequestBody OpinionTextRequest request,
+            @RequestParam(defaultValue = "1") Long roomId) {
         
         log.info("=== AI 서버 의견 요약 테스트 시작 ===");
-        log.info("요청 데이터 - userId: {}, topic: {}, position: {}", 
-            request.getUser_id(), request.getTopic(), request.getPosition());
+        log.info("요청 데이터 - userId: {}, topic: {}, position: {}, roomId: {}", 
+            request.getUser_id(), request.getTopic(), request.getPosition(), roomId);
 
-            Long roomId=1L;
-            Mono<Void> voidMono = aiService.requestOpinionSummary(roomId, request);
-            log.info("AI 서버 의견 요약 테스트 성공 - userId: {}", request.getUser_id());
-            return voidMono.thenReturn(ApiResponse.success(null));
+        return aiService.requestOpinionSummary(roomId, request)
+            .then(Mono.fromCallable(() -> {
+                log.info("AI 서버 의견 요약 테스트 성공 - userId: {}", request.getUser_id());
+                return ApiResponse.success("의견 요약 요청이 성공적으로 처리되었습니다.");
+            }))
+            .onErrorResume(e -> {
+                log.error("AI 서버 의견 요약 테스트 실패 - error: {}", e.getMessage(), e);
+                log.error("요청 데이터: {}", request);
+                return Mono.just(ApiResponse.error("의견 요약 요청 실패: " + e.getMessage()));
+            });
 
     }
 
@@ -155,7 +162,7 @@ public class TestAIController {
             description = "AI 서버 통신 실패"
         )
     })
-    public ApiResponse<SiegeDefenseResponse> testSiegeDefenseSummary(
+    public Mono<ApiResponse<String>> testSiegeDefenseSummary(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                 description = "공방전 요약 요청 데이터",
                 required = true,
@@ -183,21 +190,22 @@ public class TestAIController {
                     )
                 )
             )
-            @RequestBody SiegeDefenseRequest request) {
+            @RequestBody SiegeDefenseRequest request,
+            @RequestParam(defaultValue = "1") Long roomId) {
         
         log.info("=== AI 서버 공방전 요약 테스트 시작 ===");
-        log.info("요청 데이터 - topic: {}", request.getTopic());
+        log.info("요청 데이터 - topic: {}, roomId: {}", request.getTopic(), roomId);
 
-        try {
-            SiegeDefenseResponse response = aiService.requestSiegeDefenseSummary(request);
-            log.info("AI 서버 공방전 요약 테스트 성공");
-            return ApiResponse.success(response);
-            
-        } catch (Exception e) {
-            log.error("AI 서버 공방전 요약 테스트 실패 - error: {}", e.getMessage(), e);
-            log.error("요청 데이터: {}", request);
-            return ApiResponse.error("공방전 요약 요청 실패: " + e.getMessage());
-        }
+        return aiService.requestSiegeDefenseSummary(roomId, request)
+            .then(Mono.fromCallable(() -> {
+                log.info("AI 서버 공방전 요약 테스트 성공");
+                return ApiResponse.success("공방전 요약 요청이 성공적으로 처리되었습니다.");
+            }))
+            .onErrorResume(e -> {
+                log.error("AI 서버 공방전 요약 테스트 실패 - error: {}", e.getMessage(), e);
+                log.error("요청 데이터: {}", request);
+                return Mono.just(ApiResponse.error("공방전 요약 요청 실패: " + e.getMessage()));
+            });
     }
 
     /**
@@ -267,7 +275,7 @@ public class TestAIController {
             description = "AI 서버 통신 실패"
         )
     })
-    public ApiResponse<DebateResultResponse> testDebateResult(
+    public Mono<ApiResponse<String>> testDebateResult(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                 description = "토론 최종 결과 요청 데이터",
                 required = true,
@@ -296,21 +304,22 @@ public class TestAIController {
                     )
                 )
             )
-            @RequestBody DebateResultRequest request) {
+            @RequestBody DebateResultRequest request,
+            @RequestParam(defaultValue = "1") Long roomId) {
         
         log.info("=== AI 서버 토론 최종 결과 테스트 시작 ===");
-        log.info("요청 데이터 - topic: {}, draw: {}", request.getTopic(), request.getDraw());
+        log.info("요청 데이터 - topic: {}, draw: {}, roomId: {}", request.getTopic(), request.getDraw(), roomId);
 
-        try {
-            DebateResultResponse response = aiService.requestDebateResult(request);
-            log.info("AI 서버 토론 최종 결과 테스트 성공");
-            return ApiResponse.success(response);
-            
-        } catch (Exception e) {
-            log.error("AI 서버 토론 최종 결과 테스트 실패 - error: {}", e.getMessage(), e);
-            log.error("요청 데이터: {}", request);
-            return ApiResponse.error("토론 결과 요청 실패: " + e.getMessage());
-        }
+        return aiService.requestDebateResult(roomId, request)
+            .then(Mono.fromCallable(() -> {
+                log.info("AI 서버 토론 최종 결과 테스트 성공");
+                return ApiResponse.success("토론 결과 요청이 성공적으로 처리되었습니다.");
+            }))
+            .onErrorResume(e -> {
+                log.error("AI 서버 토론 최종 결과 테스트 실패 - error: {}", e.getMessage(), e);
+                log.error("요청 데이터: {}", request);
+                return Mono.just(ApiResponse.error("토론 결과 요청 실패: " + e.getMessage()));
+            });
     }
 
     /**

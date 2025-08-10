@@ -6,9 +6,6 @@ import com.ssafya408.debate.domain.api.dto.ai.OpinionSummaryResponse;
 import com.ssafya408.debate.domain.api.dto.ai.OpinionTextRequest;
 import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseRequest;
 import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseResponse;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ssafya408.debate.domain.api.dto.debate.SelectTargetResponseDto;
-import com.ssafya408.debate.domain.common.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -23,7 +20,6 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class AiService {
     private final WebClient webClient;
-    private final ObjectMapper objectMapper;
     private final SimpMessagingTemplate messagingTemplate;
     
     @Value("${AI_SERVER_BASE_URL:http://ai-server:8000}")
@@ -70,63 +66,55 @@ public class AiService {
 
     /**
      * AI 서버에 공방전 요약 요청
+     * @param roomId 토론방 ID
      * @param request 공방전 요약 요청 데이터
-     * @return 공방전 요약 응답
+     * @return 공방전 요약을 소켓에 broadcast
      */
-    public SiegeDefenseResponse requestSiegeDefenseSummary(SiegeDefenseRequest request) {
+    public Mono<Void> requestSiegeDefenseSummary(Long roomId, SiegeDefenseRequest request) {
         log.info("AI 서버 공방전 요약 요청 - topic: {}", request.getTopic());
         
-        try {
-            String requestJson = objectMapper.writeValueAsString(request);
-            
-            log.debug("공방전 요약 요청 JSON: {}", requestJson);
-            
-            return webClient.post()
-                .uri(aiServerBaseUrl+"/summaries/seigedefense")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(requestJson)
-                .retrieve()
-                .onStatus(status -> status.value() == 422, 
-                    this::handle422Error)
-                .bodyToMono(SiegeDefenseResponse.class)
-                .block();
+        return webClient.post()
+            .uri(aiServerBaseUrl+"/summaries/seigedefense")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(request)
+            .retrieve()
+            .onStatus(status -> status.value() == 422, 
+                this::handle422Error)
+            .bodyToMono(SiegeDefenseResponse.class)
+            .doOnNext(res -> {
+                log.info("[battle summary res] >>> {}", res.getResult().getText());
                 
-        } catch (Exception e) {
-            log.error("공방전 요약 요청 실패 - topic: {}, error: {}", 
-                request.getTopic(), e.getMessage(), e);
-            throw new RuntimeException("공방전 요약 요청 실패: " + e.getMessage(), e);
-        }
+                String destination = String.format("/sub/debate/room/%d/summaries/battle", roomId);
+                messagingTemplate.convertAndSend(destination, res);
+            })
+            .then(); // Mono<Void>
     }
 
     /**
      * AI 서버에 토론 최종 결과 요청
+     * @param roomId 토론방 ID
      * @param request 토론 결과 요청 데이터
-     * @return 토론 결과 응답
+     * @return 토론 결과를 소켓에 broadcast
      */
-    public DebateResultResponse requestDebateResult(DebateResultRequest request) {
+    public Mono<Void> requestDebateResult(Long roomId, DebateResultRequest request) {
         log.info("AI 서버 토론 최종 결과 요청 - topic: {}, draw: {}", 
             request.getTopic(), request.getDraw());
         
-        try {
-            String requestJson = objectMapper.writeValueAsString(request);
-            
-            log.debug("토론 결과 요청 JSON: {}", requestJson);
-            
-            return webClient.post()
-                .uri(aiServerBaseUrl+"/summaries/result")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(requestJson)
-                .retrieve()
-                .onStatus(status -> status.value() == 422, 
-                    this::handle422Error)
-                .bodyToMono(DebateResultResponse.class)
-                .block();
+        return webClient.post()
+            .uri(aiServerBaseUrl+"/summaries/result")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(request)
+            .retrieve()
+            .onStatus(status -> status.value() == 422, 
+                this::handle422Error)
+            .bodyToMono(DebateResultResponse.class)
+            .doOnNext(res -> {
+                log.info("[debate result res] >>> {}", res.getResult().getWinner());
                 
-        } catch (Exception e) {
-            log.error("토론 결과 요청 실패 - topic: {}, error: {}", 
-                request.getTopic(), e.getMessage(), e);
-            throw new RuntimeException("토론 결과 요청 실패: " + e.getMessage(), e);
-        }
+                String destination = String.format("/sub/debate/room/%d/summaries/result", roomId);
+                messagingTemplate.convertAndSend(destination, res);
+            })
+            .then(); // Mono<Void>
     }
 
     /**
