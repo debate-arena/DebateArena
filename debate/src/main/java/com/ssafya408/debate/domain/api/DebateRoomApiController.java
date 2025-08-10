@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -220,31 +221,6 @@ public class DebateRoomApiController {
     } catch (Exception e) {
       log.error("[토론방 존재 여부 확인] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
       return ResponseEntity.ok(ApiResponse.error("존재 여부 확인에 실패했습니다: " + e.getMessage()));
-    }
-  }
-
-  @GetMapping("/active")
-  @Operation(
-    summary = "활성 토론방 목록 조회",
-    description = "현재 활성화된 모든 토론방의 ID 목록을 조회합니다."
-  )
-  public ResponseEntity<ApiResponse<Map<String, Object>>> getActiveRooms() {
-    log.info("[활성 토론방 목록 조회] 요청 수신");
-    
-    try {
-      java.util.Set<String> activeRoomIds = debateService.getActiveRoomIds();
-      
-      Map<String, Object> response = new HashMap<>();
-      response.put("activeRooms", activeRoomIds);
-      response.put("count", activeRoomIds.size());
-      response.put("timestamp", java.time.LocalDateTime.now().toString());
-      
-      log.info("[활성 토론방 목록 조회] 성공 - 활성 방 개수: {}", activeRoomIds.size());
-      return ResponseEntity.ok(ApiResponse.success(response));
-      
-    } catch (Exception e) {
-      log.error("[활성 토론방 목록 조회] 실패 - error: {}", e.getMessage(), e);
-      return ResponseEntity.ok(ApiResponse.error("활성 토론방 목록 조회에 실패했습니다: " + e.getMessage()));
     }
   }
 

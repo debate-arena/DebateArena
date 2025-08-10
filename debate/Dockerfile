@@ -2,19 +2,10 @@ FROM openjdk:21-jdk-slim
 
 WORKDIR /app
 
-# Gradle wrapper와 build 파일 복사
-COPY gradlew .
-COPY gradle gradle
-COPY build.gradle .
-COPY settings.gradle .
+# 로컬에서 빌드한 JAR 파일만 복사 (정확한 파일명 사용)
+COPY build/libs/debate-0.0.1-SNAPSHOT.jar app.jar
 
-# 소스 코드 복사
-COPY src src
-
-# Gradle 빌드 실행
-RUN chmod +x ./gradlew
-RUN ./gradlew build -x test
-
-# JAR 파일 실행
 EXPOSE 8082
-ENTRYPOINT ["java", "-jar", "build/libs/debate-0.0.1-SNAPSHOT.jar"] 
+
+# JVM 옵션 추가로 성능 최적화
+ENTRYPOINT ["java", "-Xmx512m", "-Xms256m", "-jar", "app.jar"] 
