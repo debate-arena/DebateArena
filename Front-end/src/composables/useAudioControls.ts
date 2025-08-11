@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, reactive, getCurrentInstance } from 'vue'
 
 /**
  * 음성 제어 관련 Composable
@@ -6,7 +6,11 @@ import { ref, onUnmounted } from 'vue'
  * - 음성 변조 기능
  * - 참가자별 볼륨 제어
  */
+let audioControlsSingleton: any | null = null
+
 export function useAudioControls() {
+  // 싱글턴: 이미 생성된 인스턴스가 있으면 재사용
+  if (audioControlsSingleton) return audioControlsSingleton
   const pendingAudioStreams = new Map<string, MediaStream>()
 
   // 음성 관련 상태
@@ -16,7 +20,48 @@ export function useAudioControls() {
   
   // 참가자별 음성 제어
   const participantAudios = new Map<string, HTMLAudioElement>()
-  const participantVolumes = new Map<string, number>()
+  const participantVolumes = reactive(new Map<string, number>())
+  const participantMuted = reactive(new Map<string, boolean>())
+  const participantMuteState = reactive<Record<string, boolean>>({})
+  const participantSpeakingState = reactive<Record<string, boolean>>({})
+
+  // 오디오 레벨 분석용 상태
+  const analyserNodes = new Map<string, AnalyserNode>()
+  const sourceNodes = new Map<string, MediaStreamAudioSourceNode>()
+  const speakingEnergies = new Map<string, number>()
+  const LOCAL_SPEAKING_KEY = '__local__'
+  let speakingRafId: number | null = null
+
+  // 내부 유틸: RMS 계산
+  const computeRmsFromAnalyser = (analyser: AnalyserNode): number => {
+    const bufferLength = analyser.fftSize
+    const dataArray = new Uint8Array(bufferLength)
+    analyser.getByteTimeDomainData(dataArray)
+    let sumSquares = 0
+    for (let i = 0; i < bufferLength; i++) {
+      const v = (dataArray[i] - 128) / 128
+      sumSquares += v * v
+    }
+    return Math.sqrt(sumSquares / bufferLength)
+  }
+
+  // 발화 모니터 루프 시작
+  const startSpeakingMonitor = () => {
+    const step = () => {
+      analyserNodes.forEach((analyser, key) => {
+        try {
+          const rms = computeRmsFromAnalyser(analyser)
+          const prev = speakingEnergies.get(key) ?? 0
+          const energy = prev * 0.85 + rms * 0.15 // 지수 평활
+          speakingEnergies.set(key, energy)
+          const THRESHOLD = 0.035
+          participantSpeakingState[key] = energy > THRESHOLD
+        } catch {}
+      })
+      speakingRafId = requestAnimationFrame(step)
+    }
+    speakingRafId = requestAnimationFrame(step)
+  }
   
   // 음성 변조 관련 상태
   const audioContext = ref<AudioContext | null>(null)
@@ -41,14 +86,14 @@ export function useAudioControls() {
       // 오디오 엘리먼트 기본 설정
       audioElement.autoplay = true
       audioElement.setAttribute('playsinline', 'true')
-      audioElement.muted = false
+      audioElement.muted = participantMuted.get(userEmail) || false
       
       // 기본 볼륨 80%로 설정 (더 잘 들리도록)
       if (!participantVolumes.has(userEmail)) {
         participantVolumes.set(userEmail, 0.8)
         audioElement.volume = 0.8
       } else {
-        audioElement.volume = participantVolumes.get(userEmail) || 0.8
+        audioElement.volume = participantVolumes.get(userEmail) ?? 0.8
       }
 
       const queuedStream = pendingAudioStreams.get(userEmail)
@@ -62,19 +107,45 @@ export function useAudioControls() {
 
   // 참가자 볼륨 가져오기
   const getParticipantVolume = (userEmail: string): number => {
-    return participantVolumes.get(userEmail) || 0.5
+    return participantVolumes.get(userEmail) ?? 0.8
   }
 
   // 참가자 볼륨 설정
   const setParticipantVolume = (userEmail: string, volume: string | number) => {
-    const volumeValue = typeof volume === 'string' ? parseFloat(volume) : volume
+    let volumeValue = typeof volume === 'string' ? parseFloat(volume) : volume
+    if (Number.isNaN(volumeValue as number)) volumeValue = 0
+    // 0~1 사이로 클램프
+    volumeValue = Math.min(1, Math.max(0, volumeValue as number))
     participantVolumes.set(userEmail, volumeValue)
     
     const audioElement = participantAudios.get(userEmail)
     if (audioElement) {
-      audioElement.volume = volumeValue
+      audioElement.volume = volumeValue as number
       console.log(`🔊 참가자 ${userEmail}의 볼륨을 ${Math.round(volumeValue * 100)}%로 설정`)
     }
+  }
+
+  // 참가자 음소거 상태 가져오기
+  const getParticipantMuted = (userEmail: string): boolean => {
+    return participantMuteState[userEmail] ?? false
+  }
+
+  // 참가자 음소거 설정
+  const setParticipantMuted = (userEmail: string, muted: boolean) => {
+    participantMuted.set(userEmail, muted)
+    participantMuteState[userEmail] = muted
+    const audioElement = participantAudios.get(userEmail)
+    if (audioElement) {
+      audioElement.muted = muted
+    }
+    console.log(`🔇 참가자 ${userEmail} ${muted ? '음소거' : '음소거 해제'}`)
+  }
+
+  // 참가자 음소거 토글
+  const toggleParticipantMuted = (userEmail: string) => {
+    const next = !getParticipantMuted(userEmail)
+    console.log(`🔇 참가자 ${userEmail} ${next ? '음소거' : '음소거 해제'}`)
+    setParticipantMuted(userEmail, next)
   }
 
   // 참가자 오디오 스트림 연결
@@ -85,8 +156,6 @@ export function useAudioControls() {
       return
     }
     audioElement.srcObject = audioStream
-    console.log("🔊 참가자 오디오 스트림 연결 시작:", participantAudios)
-    console.log("🔊 참가자 오디오 스트림 연결 시작:", userEmail)
     if (audioElement && audioStream) {
       console.log(`🔊 참가자 ${userEmail}의 스트림 연결 시작...`)
       
@@ -94,7 +163,7 @@ export function useAudioControls() {
       audioElement.srcObject = audioStream
       
       // 저장된 볼륨 설정 적용
-      const volume = participantVolumes.get(userEmail) || 0.8
+      const volume = participantVolumes.get(userEmail) ?? 0.8
       audioElement.volume = volume
       
       // 오디오 트랙 확인
@@ -155,6 +224,25 @@ export function useAudioControls() {
       }, 100)
       
       console.log(`🔊 참가자 ${userEmail}의 스트림 연결 완료 (볼륨: ${Math.round(volume * 100)}%)`)
+      // 오디오 분석(발화 감지) 연결
+      try {
+        const ctx = initAudioContext()
+        // 일부 브라우저에서 초기 상태가 suspended일 수 있음
+        ctx.resume?.().catch(() => {})
+        // 기존 소스/분석기 정리
+        try { sourceNodes.get(userEmail)?.disconnect() } catch {}
+        try { analyserNodes.get(userEmail)?.disconnect() } catch {}
+        const source = ctx.createMediaStreamSource(audioStream)
+        const analyser = ctx.createAnalyser()
+        analyser.fftSize = 512
+        analyser.smoothingTimeConstant = 0.2
+        source.connect(analyser)
+        sourceNodes.set(userEmail, source)
+        analyserNodes.set(userEmail, analyser)
+        if (!speakingRafId) startSpeakingMonitor()
+      } catch (e) {
+        console.warn('발화 감지 초기화 실패:', e)
+      }
     } else {
       if (!audioElement) {
         console.warn(`⚠️ 참가자 ${userEmail}의 audio 엘리먼트가 없음`)
@@ -165,10 +253,54 @@ export function useAudioControls() {
     }
   }
 
+  // 참가자 오디오 스트림 분리
+  const disconnectParticipantAudio = (userEmail: string) => {
+    const audioElement = participantAudios.get(userEmail)
+    if (audioElement) {
+      const currentStream = audioElement.srcObject as MediaStream | null
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => {
+          try { track.stop() } catch {}
+        })
+      }
+      audioElement.srcObject = null
+    }
+    pendingAudioStreams.delete(userEmail)
+    participantAudios.delete(userEmail)
+    participantVolumes.delete(userEmail)
+    participantMuted.delete(userEmail)
+    delete participantMuteState[userEmail]
+    console.log(`🔇 참가자 ${userEmail}의 오디오 연결 해제`)
+  }
+
   // 로컬 오디오 트랙 설정
   const setLocalAudioTrack = (track: MediaStreamTrack | null) => {
     localAudioTrack.value = track
     console.log('🎤 로컬 오디오 트랙 설정됨')
+    // 로컬 발화 감지 연결
+    try {
+      // 기존 로컬 소스/분석기 정리
+      try { sourceNodes.get(LOCAL_SPEAKING_KEY)?.disconnect() } catch {}
+      try { analyserNodes.get(LOCAL_SPEAKING_KEY)?.disconnect() } catch {}
+      if (track) {
+        const ctx = initAudioContext()
+        ctx.resume?.().catch(() => {})
+        const localStream = new MediaStream([track])
+        const source = ctx.createMediaStreamSource(localStream)
+        const analyser = ctx.createAnalyser()
+        analyser.fftSize = 512
+        analyser.smoothingTimeConstant = 0.2
+        source.connect(analyser)
+        sourceNodes.set(LOCAL_SPEAKING_KEY, source)
+        analyserNodes.set(LOCAL_SPEAKING_KEY, analyser)
+        if (!speakingRafId) startSpeakingMonitor()
+      } else {
+        sourceNodes.delete(LOCAL_SPEAKING_KEY)
+        analyserNodes.delete(LOCAL_SPEAKING_KEY)
+      }
+    } catch (e) {
+      console.warn('로컬 발화 감지 연결 실패:', e)
+    }
   }
 
   // 음소거 토글
@@ -369,6 +501,8 @@ export function useAudioControls() {
   const clearAllParticipantAudios = () => {
     participantAudios.clear()
     participantVolumes.clear()
+    participantMuted.clear()
+    for (const key in participantMuteState) delete participantMuteState[key]
     console.log('🧹 모든 참가자 오디오 정리됨')
   }
 
@@ -407,16 +541,29 @@ export function useAudioControls() {
     
     // 참가자 audio 엘리먼트 및 볼륨 정리
     clearAllParticipantAudios()
+    // 발화 감지 정리
+    if (speakingRafId) {
+      cancelAnimationFrame(speakingRafId)
+      speakingRafId = null
+    }
+    analyserNodes.forEach(node => { try { node.disconnect() } catch {} })
+    sourceNodes.forEach(node => { try { node.disconnect() } catch {} })
+    analyserNodes.clear()
+    sourceNodes.clear()
+    speakingEnergies.clear()
+    for (const key in participantSpeakingState) delete participantSpeakingState[key]
     
     console.log('🧹 음성 리소스 정리 완료')
   }
 
-  // 컴포넌트 언마운트 시 자동 정리
-  onUnmounted(() => {
-    cleanup()
-  })
+  // 컴포넌트 언마운트 시 자동 정리 (컴포넌트 컨텍스트가 있을 때만)
+  if (getCurrentInstance()) {
+    onUnmounted(() => {
+      cleanup()
+    })
+  }
 
-  return {
+  const api = {
     // 상태
     isMuted,
     isVoiceModulated,
@@ -434,7 +581,18 @@ export function useAudioControls() {
     setParticipantAudio,
     getParticipantVolume,
     setParticipantVolume,
+    getParticipantMuted,
+    setParticipantMuted,
+    toggleParticipantMuted,
     connectParticipantAudio,
+    disconnectParticipantAudio,
+    // 발화 감지 API
+    getParticipantSpeaking: (userEmail: string): boolean => {
+      return participantSpeakingState[userEmail] ?? false
+    },
+    getLocalSpeaking: (): boolean => {
+      return participantSpeakingState[LOCAL_SPEAKING_KEY] ?? false
+    },
     
     // 로컬 오디오 관리
     setLocalAudioTrack,
@@ -443,4 +601,8 @@ export function useAudioControls() {
     clearAllParticipantAudios,
     cleanup
   }
+
+  // 싱글턴 저장 후 반환
+  audioControlsSingleton = api
+  return api
 }
