@@ -224,16 +224,20 @@ export function processMatchInvitation(data: any, topicSetStore: any) {
  * 매칭 결과 데이터 처리 및 변환
  */
 export function processMatchResult(data: any) {
-  const resultData = data.data
-  
-  if (resultData && (resultData.status === 'success' || resultData.roomId)) {
-    const roomId = resultData.roomId || resultData.data?.roomId
+  const resultData = data?.data ?? data
+
+  if (resultData && (resultData.status === 'success' || resultData.roomId || resultData.data?.roomId)) {
+    const roomId = resultData.roomId ?? resultData.data?.roomId
+    const firstTeam = resultData.firstTeam ?? resultData.data?.firstTeam ?? []
+    const secondTeam = resultData.secondTeam ?? resultData.data?.secondTeam ?? []
     return {
       success: true,
       roomId: roomId?.toString(),
       topicId: resultData.topicId,
       stance: resultData.stance,
-      mode: resultData.mode
+      mode: resultData.mode,
+      firstTeam,
+      secondTeam,
     }
   }
   

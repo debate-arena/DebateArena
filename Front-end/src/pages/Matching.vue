@@ -81,6 +81,7 @@ import { useMatchingModals } from '@/composables/useMatchingModals'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { useMatchResultState } from '@/composables/useMatchResultState'
 import { useAuthStore } from '@/store/auth'
+import { useRoomStore } from '@/store/roomStore'
 import { AlertCircle } from 'lucide-vue-next'
 
 // Components
@@ -109,6 +110,7 @@ const router = useRouter()
 const matchingStore = useMatchingStore()
 const topicSetStore = useTopicSetStore()
 const authStore = useAuthStore()
+const roomStore = useRoomStore()
 
 // Controllers
 useTopicSetController()
@@ -216,16 +218,9 @@ const handleMatchResult = (data: WebSocketMessage) => {
     stopAcceptTimer()
 
     if (selfAcceptance.value === 'accepted') {
-      // 내가 수락한 경우: 재매칭 대기 복귀 + 대기 타이머 재시작
+      // 내가 수락한 경우: 게임 스테이터스 화면으로 전환 (재요청은 서버에서 처리)
       matchingStore.startMatching()
       startMatchingTimer(() => modals.showTimeoutModal())
-      // 선택값은 store에 이미 유지됨. 필요 시 재요청 전송
-      try {
-        const request = matchingStore.toMatchRequest
-        webSocket.sendMatchRequest(request)
-      } catch (e) {
-        console.warn('재매칭 요청 전송 실패(무시 가능):', e)
-      }
       // 초대장 상태 정리 (새 초대 가능)
       matchingStore.clearInvitation()
     } else {
@@ -246,6 +241,17 @@ const handleMatchResult = (data: WebSocketMessage) => {
     const result = processMatchResult(data)
     
     if (result.success && result.roomId) {
+      // 방 정보가 함께 온다면 RoomStore에 즉시 반영 (보내기 전 준비)
+      try {
+        const participants = [
+          ...((result.firstTeam || []).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'L' as const }))),
+          ...((result.secondTeam || []).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'R' as const }))),
+        ]
+        roomStore.setRoom({ roomId: result.roomId, participants })
+      } catch (e) {
+        console.warn('RoomStore 초기화 중 경고(무시 가능):', e)
+      }
+
       handleMatchSuccess(result.roomId)
     } else {
       handleFail()
@@ -411,13 +417,8 @@ watch(
 
 // Lifecycle
 onMounted(async () => {
+  // 진입 시 매칭 상태만 초기화 (토픽 fetch/타이머는 useTopicSetController에서 관리)
   matchingStore.cancelMatching()
-  await topicSetStore.fetchTopicSets()
-  
-  const activeTopics = topicSetStore.currentSet?.topics || []
-  matchingStore.globalModes = new Set(['1:1', '2:2'])
-  matchingStore.globalStances = new Set(['random'])
-  matchingStore.initializeTopicSelections(activeTopics.map(topic => topic.id))
 })
 
 onUnmounted(() => {
@@ -431,23 +432,6 @@ onUnmounted(() => {
   modals.hideAllModals()
 })
 
-// Timer (for topic change)
+// Timer placeholder (legacy). 주제 변경 타이머는 useTopicSetController에서 일원화됨
 let timer: ReturnType<typeof setInterval> | null = null
-
-const startTopicChangeTimer = () => {
-  if (topicSetStore.currentSet?.remainingTimeSeconds) {
-    const update = () => {
-      const remainingSeconds = topicSetStore.remainingTimeSeconds
-      if (remainingSeconds <= 0) {
-        topicSetStore.swapSets()
-      }
-    }
-    update()
-    timer = setInterval(update, 1000)
-  }
-}
-
-onMounted(() => {
-  startTopicChangeTimer()
-})
 </script>

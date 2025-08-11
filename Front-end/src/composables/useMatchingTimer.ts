@@ -12,13 +12,10 @@ export function useMatchingTimer() {
   let timerInterval: ReturnType<typeof setInterval> | null = null
   let isAcceptTimerActive = ref(false) // 수락 타이머 활성화 상태 추가
 
-  // 남은 시간 계산
-  const remainingTime = computed(() => {
-    if (!topicSetStore.currentSet) return 0
-    
-    const currentTime = now.value
-    const endTime = topicSetStore.currentSet.endAtMs
-    return Math.max(0, endTime - currentTime)
+  // 남은 시간(ms) 계산: 스토어의 초 단위 값을 기반으로 환산
+  const remainingTimeMs = computed(() => {
+    const seconds = topicSetStore.remainingTimeSeconds || 0
+    return Math.max(0, seconds * 1000)
   })
 
   // 타이머 포맷팅
@@ -121,16 +118,13 @@ export function useMatchingTimer() {
 
   // 정각 체크 (정각 + 10초 후 자동 취소)
   const checkHourlyTimeout = () => {
-    // 매칭 중이거나 매칭 성사된 상태가 아닐 때만 체크
+    // 매칭 중 또는 매칭 성사/연결 대기 상태에서만 체크
     if (!matchingStore.isMatching && matchingStore.status !== 'matched' && matchingStore.status !== 'connecting') {
       return false
     }
-
-    const minutesUntilChange = Math.floor(remainingTime.value / 60000) // 분 단위
-
-    // 정각 + 10초 후 자동 취소
-    if (remainingTime.value <= -10000) { // -10초 (정각 + 10초)
-      console.log('⏰ 정각 + 10초 초과로 자동 취소')
+    // 스토어 기준: 0초 이하이면 정각 도달로 간주
+    if (topicSetStore.remainingTimeSeconds <= 0) {
+      console.log('⏰ 정각 도달로 자동 취소')
       return true
     }
     return false
@@ -138,7 +132,7 @@ export function useMatchingTimer() {
 
   // 정각 5분 전 경고 표시 여부
   const showHourWarning = () => {
-    return remainingTime.value <= 300000 // 5분 = 300초 = 300000ms
+    return remainingTimeMs.value <= 300000 // 5분 = 300초 = 300000ms
   }
 
   // 컴포넌트 언마운트 시 정리
@@ -147,7 +141,7 @@ export function useMatchingTimer() {
   })
 
   return {
-    remainingTime,
+    remainingTime: remainingTimeMs,
     formatTime,
     startMatchingTimer,
     stopMatchingTimer,

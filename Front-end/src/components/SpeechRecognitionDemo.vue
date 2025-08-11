@@ -87,6 +87,14 @@
         <p class="text-xs text-gray-500">수신 토픽은 컴포저블에서 자동 구독합니다.</p>
       </div>
     </section>
+
+    <!-- Room preview (RoomStore) -->
+    <section class="space-y-2">
+      <h2 class="font-semibold">Room Preview (RoomStore)</h2>
+      <div class="rounded border p-3 text-sm whitespace-pre-wrap">
+        {{ roomPreview }}
+      </div>
+    </section>
   </div>
 </template>
 
@@ -96,6 +104,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useStt } from '@/composables/useSpeechRecognition'
 import { config } from '@/config/env'
+import { useRoomStore } from '@/store/roomStore'
 
 // --- connection (기본 8082 환경변수 사용) ---
 const defaultWsUrl = `${config.STT_WS_URL}/ws`
@@ -164,6 +173,16 @@ const route = useRoute()
 const routeRoomId = computed(() => {
   const id = route.params.id
   return typeof id === 'string' ? id : Array.isArray(id) ? id[0] : ''
+})
+
+// RoomStore preview
+const roomStore = useRoomStore()
+const roomPreview = computed(() => {
+  const r = roomStore.room
+  if (!r) return 'No room in store'
+  const left = r.participants.filter(p => p.side === 'L').map(p => p.displayName)
+  const right = r.participants.filter(p => p.side === 'R').map(p => p.displayName)
+  return JSON.stringify({ roomId: r.roomId, leftTeam: left, rightTeam: right }, null, 2)
 })
 
 onMounted(() => {
