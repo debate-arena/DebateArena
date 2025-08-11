@@ -3,12 +3,14 @@ package com.ssafya408.debate.domain.api;
 import com.ssafya408.debate.domain.api.dto.debate.SelectTargetRequestDto;
 import com.ssafya408.debate.domain.api.dto.stt.OpinionSTTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
+import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse;
 import com.ssafya408.debate.domain.api.service.DebateService;
 import java.security.Principal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 @Controller
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Controller;
 public class DebateApiController {
 
   private final DebateService debateService;
+  private final SimpMessagingTemplate messagingTemplate;
   @MessageMapping("/debate/{roomId}/stt/opinion")
   public void receiveOpinionSTTMessage(Principal principal,@DestinationVariable Long roomId, OpinionSTTRequest request) {
     String user = principal.getName();
@@ -89,6 +92,42 @@ public class DebateApiController {
     log.info("타겟 선택 - 사용자: {}, SelectTarget: {}", user, req);
 
     debateService.selectAttackTarget(user,req);
+  }
+
+  @MessageMapping("/debate/{roomId}/spectator/join")
+  public void joinAsSpectator(Principal principal, @DestinationVariable Long roomId) {
+    String user = principal.getName();
+    log.info("=== 시청자 토론방 입장 요청 수신 시작 ===");
+    log.info("시청자: {}, 방ID: {}", user, roomId);
+
+    try {
+      log.info("시청자 토론방 입장 처리 시작 - 시청자: {}, 방ID: {}", user, roomId);
+      
+      // 현재까지의 요약 정보 조회
+      DebateSummaryResponse summaryData = debateService.joinAsSpectator(roomId);
+      
+      // 시청자에게 요약 정보 전송
+      messagingTemplate.convertAndSendToUser(
+        user,
+        "/queue/debate/spectator/summary",
+        summaryData
+      );
+      
+      log.info("시청자 토론방 입장 처리 완료 - 시청자: {}, 방ID: {}", user, roomId);
+      
+    } catch (Exception e) {
+      log.error("시청자 토론방 입장 처리 중 오류 발생 - 시청자: {}, 방ID: {}, 오류: {}", 
+          user, roomId, e.getMessage(), e);
+      
+      // 에러 메시지 전송
+      messagingTemplate.convertAndSendToUser(
+        user,
+        "/queue/debate/spectator/error",
+        "시청자 입장에 실패했습니다: " + e.getMessage()
+      );
+    }
+    
+    log.info("=== 시청자 토론방 입장 요청 처리 완료 ===");
   }
 
 }

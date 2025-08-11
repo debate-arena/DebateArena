@@ -12,6 +12,8 @@ import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.BroadcastResponse;
 import com.ssafya408.debate.domain.db.cache.DebateRedisInfo;
 import com.ssafya408.debate.domain.db.cache.DebateRedisRepository;
+import com.ssafya408.debate.domain.db.cache.SummaryRedisRepository;
+import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse;
 import com.ssafya408.debate.domain.db.rdb.DebateRoom;
 import com.ssafya408.debate.domain.db.rdb.DebateRoomRepository;
 import com.ssafya408.debate.domain.db.rdb.MatchType;
@@ -36,6 +38,7 @@ import org.springframework.web.client.RestClient;
 public class DebateService {
   private final DebateRoomRepository debateRoomRepository;
   private final DebateRedisRepository debateRedisRepository;
+  private final SummaryRedisRepository summaryRedisRepository;
   private final TopicRepository topicRepository;
   private final RestClient.Builder builder;
   private Map<Long, RoomManager> roomInfos;
@@ -389,6 +392,38 @@ public class DebateService {
             .build();
 
     template.convertAndSend("/debate/room/"+req.getRoomId()+"/attack",res);
+  }
+
+  /**
+   * 시청자가 토론방에 입장할 때 현재까지의 요약 정보를 반환
+   */
+  public DebateSummaryResponse joinAsSpectator(Long roomId) {
+    log.info("=== 시청자 토론방 입장 처리 시작 ===");
+    log.info("시청자 입장 요청 - 방ID: {}", roomId);
+    
+    try {
+      // 방 존재 여부 확인
+      RoomManager roomManager = roomInfos.get(roomId);
+      if (roomManager == null) {
+        log.warn("토론방을 찾을 수 없습니다 - 방ID: {}", roomId);
+        throw new RuntimeException("토론방을 찾을 수 없습니다: " + roomId);
+      }
+      
+      // Redis에서 현재까지의 요약 정보 조회
+      DebateSummaryResponse summaryData = summaryRedisRepository.getAllSummaries(roomId);
+      
+      log.info("시청자 입장 처리 완료 - 방ID: {}, 의견 요약: {}개, 공방전 요약: {}개, 최종 요약: {}개",
+          roomId, 
+          summaryData.getOpinion().size(),
+          summaryData.getBattle().size(), 
+          summaryData.getFinal_summary().size());
+      
+      return summaryData;
+      
+    } catch (Exception e) {
+      log.error("시청자 입장 처리 중 오류 발생 - 방ID: {}, 오류: {}", roomId, e.getMessage(), e);
+      throw new RuntimeException("시청자 입장 처리에 실패했습니다: " + e.getMessage(), e);
+    }
   }
 
 }

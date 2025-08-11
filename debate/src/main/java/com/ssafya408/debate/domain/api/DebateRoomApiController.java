@@ -5,6 +5,7 @@ import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
 import com.ssafya408.debate.domain.api.dto.room.DebateRoomResponse;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
 import com.ssafya408.debate.domain.api.dto.room.WebRTCStatus;
+import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse;
 import com.ssafya408.debate.domain.api.service.DebateService;
 import com.ssafya408.debate.domain.common.dto.ApiResponse;
 import com.ssafya408.debate.domain.db.cache.DebateRedisInfo;
@@ -447,5 +448,97 @@ public class DebateRoomApiController {
     }
   }
 
+  @PostMapping("/{roomId}/spectator/join")
+  @Operation(
+    summary = "시청자 토론방 입장",
+    description = "시청자가 토론방에 입장하여 현재까지의 요약 정보를 받습니다."
+  )
+  @ApiResponses(value = {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+      responseCode = "200",
+      description = "시청자 입장 성공",
+      content = @Content(
+        mediaType = "application/json",
+        examples = @ExampleObject(
+          name = "성공 예시",
+          value = """
+            {
+              "status": "success",
+              "data": {
+                "roomId": 1,
+                "opinion": [
+                  {
+                    "phase": "opinion",
+                    "round": 1,
+                    "user_id": "user123",
+                    "text": "의견 요약 내용",
+                    "team": "first",
+                    "timestamp": "2024-01-01T12:00:00"
+                  }
+                ],
+                "battle": [
+                  {
+                    "phase": "battle",
+                    "round": 1,
+                    "attack_id": "user123",
+                    "defense_id": "user456",
+                    "text": "공방전 요약 내용",
+                    "rebuttal_score": 6,
+                    "attack_team": "first",
+                    "defense_team": "second",
+                    "timestamp": "2024-01-01T12:00:00"
+                  }
+                ],
+                "final_summary": [
+                  {
+                    "phase": "final",
+                    "round": 1,
+                    "winner": "first",
+                    "votes": {
+                      "num1": 3,
+                      "num2": 2,
+                      "none": 0
+                    },
+                    "soft_scores": {
+                      "num1": 8.5,
+                      "num2": 7.2
+                    },
+                    "juror_explain": "심사위원 설명",
+                    "full_summarize": {
+                      "num1": "첫 번째 팀 요약",
+                      "num2": "두 번째 팀 요약"
+                    },
+                    "timestamp": "2024-01-01T12:00:00"
+                  }
+                ],
+                "current_phase": "battle",
+                "current_round": 2,
+                "timestamp": "2024-01-01T12:00:00"
+              }
+            }
+            """
+        )
+      )
+    )
+  })
+  public ResponseEntity<ApiResponse<DebateSummaryResponse>> joinAsSpectator(@PathVariable Long roomId) {
+    log.info("[시청자 입장] 요청 수신 - roomId: {}", roomId);
+    
+    try {
+      DebateSummaryResponse summaryData = debateService.joinAsSpectator(roomId);
+      
+      log.info("[시청자 입장] 성공 - roomId: {}, 의견 요약: {}개, 공방전 요약: {}개, 최종 요약: {}개",
+          roomId, 
+          summaryData.getOpinion().size(),
+          summaryData.getBattle().size(), 
+          summaryData.getFinal_summary().size());
+      
+      return ResponseEntity.ok(ApiResponse.success(summaryData));
+      
+    } catch (Exception e) {
+      log.error("[시청자 입장] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("시청자 입장에 실패했습니다: " + e.getMessage()));
+    }
+  }
 
 }
