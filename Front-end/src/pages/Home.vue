@@ -2,12 +2,13 @@
   <div class="min-h-screen bg-background">
     <div class="max-w-7xl mx-auto px-6 py-8">
       <div class="relative flex flex-col gap-6">
-        <!-- 상단 화살표 + 자동 전환 (컴팩트, sticky) -->
+        <!-- 상단 화살표 + 다음 세트까지 남은 시간 표시 (컴팩트, sticky) -->
         <div class="sticky top-2 z-10 flex items-center justify-center gap-4">
           <Button variant="ghost" size="sm" :disabled="totalTopics === 0" @click="prevTopic" title="이전 주제">←</Button>
-          <Button variant="ghost" size="sm" :disabled="totalTopics === 0" @click="toggleAutoChange">
-            {{ autoChangeInterval ? '자동 전환 중지' : '자동 전환 시작' }}
-          </Button>
+          <div class="flex flex-col items-center leading-tight select-none">
+            <span class="text-[10px] text-muted-foreground">주제 변경</span>
+            <span class="text-sm font-medium tabular-nums">{{ formattedRemainingTime }}</span>
+          </div>
           <Button variant="ghost" size="sm" :disabled="totalTopics === 0" @click="nextTopic" title="다음 주제">→</Button>
         </div>
 
@@ -41,14 +42,14 @@
                 <div class="h-6"></div>
               </div>
 
-              <!-- 중앙: 물범 (선택 불가, 라벨 없음) -->
+              <!-- 중앙: 물범 (선택 불가, 라벨 표시: 현재 주제의 옵션 1/2) -->
               <div class="relative select-none cursor-default">
                 <!-- 말풍선: 항상 표시 -->
                 <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2">
                   <div class="bg-card text-card-foreground px-4 py-2 rounded-xl shadow-md border border-border text-sm">
                     <div class="flex items-center gap-2 whitespace-nowrap">
-                      <span>선택1?</span>
-                      <span>선택2?</span>
+                      <span>{{ (currentTopic?.option1 || '옵션 1') + '?' }}</span>
+                      <span>{{ (currentTopic?.option2 || '옵션 2') + '?' }}</span>
                     </div>
                   </div>
                   <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[8px] border-transparent" style="border-top-color: hsl(var(--card))"></div>
@@ -76,24 +77,24 @@
               <!-- 좌 아이콘 슬롯 -->
               <div class="flex items-center justify-center w-[28rem] h-[28rem]">
                 <img
-                  v-if="animals[selectedAnimalIndex].name === '북극곰'"
+                  v-if="hasSelection && selectedAnimalName === '북극곰'"
                   :src="animals[0].avatar"
                   :alt="animals[0].name"
                   class="h-[34rem] w-auto object-contain"
                 />
               </div>
 
-              <!-- 중앙 말풍선 -->
-              <div class="relative">
+              <!-- 중앙 말풍선 (선택 시에만 표시) -->
+              <div class="relative" v-if="hasSelection">
                 <div
                   class="bg-card text-card-foreground px-8 py-5 rounded-2xl shadow-2xl drop-shadow-md border-2 max-w-2xl text-left text-xl leading-snug chat-bubble whitespace-nowrap overflow-x-auto"
-                  :class="[ getBubbleSideBorderClass(animals[selectedAnimalIndex].name), 'border-border', { 'chat-pop': justSpoke } ]"
+                  :class="[ bubbleSideBorderClass, 'border-border', { 'chat-pop': justSpoke } ]"
                 >
-                  {{ getAnimalSpeech(animals[selectedAnimalIndex].name) }}
+                  {{ selectedSpeech }}
                 </div>
                 <!-- 꼬리: 아이콘 방향으로 표시 (두 겹) -->
                 <div
-                  v-if="animals[selectedAnimalIndex].name === '북극곰'"
+                  v-if="selectedAnimalName === '북극곰'"
                   class="absolute top-1/2 -translate-y-1/2 left-[-16px] w-0 h-0 drop-shadow"
                 >
                   <div class="absolute -left-[2px] -translate-y-1/2 top-1/2 w-0 h-0 border-y-[14px] border-y-transparent border-r-[14px]" style="border-right-color: hsl(var(--border))"></div>
@@ -111,7 +112,7 @@
               <!-- 우 아이콘 슬롯 -->
               <div class="flex items-center justify-center w-[28rem] h-[28rem]">
                 <img
-                  v-if="animals[selectedAnimalIndex].name === '펭귄'"
+                  v-if="hasSelection && selectedAnimalName === '펭귄'"
                   :src="animals[2].avatar"
                   :alt="animals[2].name"
                   class="h-[34rem] w-auto object-contain"
@@ -129,16 +130,20 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Button } from '@/components/ui/button'
 import { useTopicSetStore } from '@/store/topicSet'
+import { useTopicSetController } from '@/composables/useTopicSetController'
 // import type { Topic } from '@/types/topic'
 
-// Store
+// Store & 컨트롤러(1초 타이머 포함)
 const topicSetStore = useTopicSetStore()
+const { remainingTimeSeconds } = useTopicSetController()
 
 // 상태 변수
 const currentTopicIndex = ref(0)
 const currentAnimalIndex = ref(0)
-const selectedAnimalIndex = ref<number>(0)
-const autoChangeInterval = ref<number | null>(null)
+// 아무 것도 선택되지 않은 상태가 기본
+const selectedAnimalIndex = ref<number | null>(null)
+// 자동 전환 토글 제거에 따라 불필요해짐
+// 자동 전환 관련 상태 제거됨
 const justSpoke = ref(false)
 
 // 동물 데이터
@@ -162,6 +167,28 @@ const getAnimalSpeech = (animalName: string): string => {
   if (animalName === '펭귄') return currentTopic.value?.option2 || '옵션 2'
   return ''
 }
+
+// 선택 파생값들
+const hasSelection = computed(() => selectedAnimalIndex.value !== null)
+const selectedAnimalName = computed(() =>
+  selectedAnimalIndex.value !== null ? animals[selectedAnimalIndex.value].name : ''
+)
+const selectedSpeech = computed(() =>
+  selectedAnimalName.value ? getAnimalSpeech(selectedAnimalName.value) : ''
+)
+const bubbleSideBorderClass = computed(() =>
+  selectedAnimalName.value ? getBubbleSideBorderClass(selectedAnimalName.value) : 'border-r-0'
+)
+
+  // 남은 시간 포맷 (MM:SS 또는 HH:MM:SS)
+  const formattedRemainingTime = computed(() => {
+    const total = remainingTimeSeconds.value || 0
+    const hours = Math.floor(total / 3600)
+    const minutes = Math.floor((total % 3600) / 60)
+    const seconds = total % 60
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return hours > 0 ? `${pad(hours)}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`
+  })
 
 // 메서드
 const nextTopic = () => {
@@ -188,30 +215,12 @@ const selectAnimal = (idx: number) => {
 }
 
 const ensureSelected = () => {
-  // 초기 진입 시 기본 선택 유지(북극곰)
-  triggerSpeakPop()
+  // 초기 진입 및 주제 변경 시 선택 해제
+  selectedAnimalIndex.value = null
 }
 
 // 자동 변경 타이머
-const startAutoChange = () => {
-  if (autoChangeInterval.value) return
-  autoChangeInterval.value = setInterval(() => {
-    nextTopic()
-    triggerSpeakPop()
-  }, 30000)
-}
-
-const stopAutoChange = () => {
-  if (autoChangeInterval.value) {
-    clearInterval(autoChangeInterval.value)
-    autoChangeInterval.value = null
-  }
-}
-
-const toggleAutoChange = () => {
-  if (autoChangeInterval.value) stopAutoChange()
-  else startAutoChange()
-}
+// 자동 전환 관련 로직 제거 (스토어 타이머 사용)
 
 // 말풍선 팝 애니메이션 트리거
 let popTimer: number | null = null
@@ -242,11 +251,10 @@ const getBubbleSideBorderClass = (animalName: string): string => {
 onMounted(async () => {
   await topicSetStore.fetchTopicSets()
   ensureSelected()
-  startAutoChange()
 })
 
 onUnmounted(() => {
-  stopAutoChange()
+  // useTopicSetController가 언마운트 시 정리함
 })
 </script>
 

@@ -310,34 +310,28 @@ const isVisible = computed(() => props.isOpen)
 
 // 현재 주제 정보
 const currentTopic = computed(() => {
-  // topicId가 유효하지 않으면 null 반환
   if (!props.topicId || props.topicId === 0) {
     console.log('⚠️ currentTopic: topicId가 유효하지 않음:', props.topicId)
     return null
   }
-  
-  // topicSetStore가 아직 로드되지 않았으면 null 반환
-  if (!topicSetStore.currentSet) {
-    console.log('⚠️ currentTopic: topicSetStore.currentSet이 null')
+  if (!topicSetStore.currentSet || !topicSetStore.currentSet.topics) {
+    console.log('⚠️ currentTopic: topicSet이 아직 준비되지 않음')
     return null
   }
-  
-  // topicSetStore.currentSet.topics가 없으면 null 반환
-  if (!topicSetStore.currentSet.topics) {
-    console.log('⚠️ currentTopic: topicSetStore.currentSet.topics가 null')
-    return null
+  const topics = topicSetStore.currentSet.topics
+  // 1차: id로 탐색
+  let topic = topics.find(t => t.id === props.topicId)
+  // 2차: index로 fallback (서버가 인덱스를 보낼 수 있음)
+  if (!topic) {
+    topic = topics.find(t => t.index === props.topicId)
   }
-  
-  const topic = topicSetStore.currentSet.topics.find(topic => topic.id === props.topicId)
-  
   console.log('🔍 currentTopic computed:', {
     topicId: props.topicId,
     foundTopic: topic,
-    availableTopics: topicSetStore.currentSet.topics.map(t => ({ id: t.id, title: t.title, option1: t.option1, option2: t.option2 })),
+    availableTopics: topics.map(t => ({ id: t.id, index: (t as any).index, title: t.title, option1: t.option1, option2: t.option2 })),
     topicSetStatus: topicSetStore.status
   })
-  
-  return topic
+  return topic || null
 })
 
 const option1Name = computed(() => currentTopic.value?.option1 || '찬성')

@@ -56,6 +56,8 @@ export function teamToStanceFlexible(team: unknown): Stance {
     const t = team.toLowerCase()
     if (t === '0') return 'option1'
     if (t === '1' || t === '2') return 'option2'
+    if (t === 'num1') return 'option1'
+    if (t === 'num2') return 'option2'
     if (t === 'pro' || t === 'option1' || t === 'agree' || t === '찬성') return 'option1'
     if (t === 'con' || t === 'option2' || t === 'disagree' || t === '반대') return 'option2'
   }
@@ -186,21 +188,31 @@ export function processMatchInvitation(data: any, topicSetStore: any) {
   const invitationData = data.data || {}
   
   const matchId = invitationData.matchId
-  const invitationTopicId = invitationData.topicId
-  const invitationTeam = invitationData.team || 0
-  const invitationType = invitationData.type || 0
+  // 서버 키 다양성 대비: topicId | matchTitle | topicIndex
+  const rawTopicId = invitationData.topicId ?? invitationData.matchTitle ?? invitationData.topicIndex
+  const invitationTeam = invitationData.team ?? invitationData.userTeam ?? invitationData.teamNumber ?? 0
+  // 서버 키 다양성 대비: type | matchType
+  const invitationType = invitationData.type ?? invitationData.matchType ?? 0
   
   // 서버 데이터를 UI 텍스트로 변환
   const invitationMode: '1:1' | '2:2' = invitationType === 0 ? '1:1' : '2:2'
   const invitationStance = teamToStanceFlexible(invitationTeam)
   
   // 토픽 ID 타입 변환 (string -> number 또는 number -> number)
-  const topicId = typeof invitationTopicId === 'string' ? parseInt(invitationTopicId) : invitationTopicId
-  const invitationTopicTitle = topicSetStore.currentSet?.topics.find((t: any) => t.id === topicId)?.title || '매칭된 주제'
+  const topicIdRaw = typeof rawTopicId === 'string' ? parseInt(rawTopicId) : rawTopicId
+  const topics: any[] = topicSetStore.currentSet?.topics || []
+  // 1) id로 찾기
+  let topic = topics.find((t: any) => t.id === topicIdRaw)
+  // 2) 실패 시 index로 찾기 (서버가 인덱스를 보낼 수 있음)
+  if (!topic) {
+    topic = topics.find((t: any) => t.index === topicIdRaw)
+  }
+  const resolvedTopicId = topic?.id ?? topicIdRaw
+  const invitationTopicTitle = topic?.title || '매칭된 주제'
   
   return {
     matchId,
-    topicId,
+    topicId: resolvedTopicId,
     team: invitationTeam,
     stance: invitationStance,
     mode: invitationMode,

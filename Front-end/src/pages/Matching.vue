@@ -314,8 +314,7 @@ const handleModalAccept = () => {
     startMatchingTimer(() => modals.showTimeoutModal())
   }
 
-  // 새 초대를 받을 수 있도록 초대장 상태 초기화
-  matchingStore.clearInvitation()
+  // 초대장 상태는 최종 결과 수신 후 정리 (여기서 초기화하면 주제/옵션 정보가 사라짐)
 }
 
 const handleModalReject = () => {
