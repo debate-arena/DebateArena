@@ -159,7 +159,7 @@ public class SummaryRedisRepository {
     /**
      * 의견 요약 조회
      */
-    public List<DebateSummaryResponse.OpinionSummary> getOpinionSummaries(Long roomId) {
+    public List<OpinionSummary> getOpinionSummaries(Long roomId) {
         try {
             String pattern = SUMMARY_PREFIX + roomId + ":opinion:*";
             Set<String> keys = redisTemplate.keys(pattern);

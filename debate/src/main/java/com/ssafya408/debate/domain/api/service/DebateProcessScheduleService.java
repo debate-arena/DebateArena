@@ -1,5 +1,9 @@
 package com.ssafya408.debate.domain.api.service;
 
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultRequest;
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultRequest.Entire;
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultRequest.TeamData;
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultResponse;
 import com.ssafya408.debate.domain.api.dto.ai.OpinionTextRequest;
 import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseRequest;
 import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseRequest.Side;
@@ -7,8 +11,12 @@ import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseResponse;
 import com.ssafya408.debate.domain.api.dto.debate.*;
 import com.ssafya408.debate.domain.api.dto.control.MediaControlInfo;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
+import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse.BattleSummary;
+import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse.OpinionSummary;
 import com.ssafya408.debate.domain.db.cache.DebateRedisInfo;
 import com.ssafya408.debate.domain.db.cache.DebateRedisRepository;
+import com.ssafya408.debate.domain.db.cache.SummaryRedisRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -32,6 +40,7 @@ public class DebateProcessScheduleService {
     private final TaskScheduler taskScheduler;
     private final DebateRedisRepository debateRedisRepository;
     private final AiService aiService;
+    private final SummaryRedisRepository summaryRedisRepository;
 
     public void gameStart(RoomManager roomManager) {
         if (roomManager == null) return;
@@ -415,6 +424,72 @@ public class DebateProcessScheduleService {
             roomManager.getCurrentIndex(),request);
     }
 
+    public Mono<Void> summarizeTotalText(RoomManager roomManager) {
+        DebateRedisInfo redisRoom = debateRedisRepository.findByRoomId(roomManager.getRoomId());
+
+        StringBuilder firstTeamText = new StringBuilder();
+        StringBuilder secondTeamText = new StringBuilder();
+        List<OpinionSummary> opinionSummaries = summaryRedisRepository.getOpinionSummaries(
+            roomManager.getRoomId());
+        List<BattleSummary> battleSummaries = summaryRedisRepository.getBattleSummaries(
+            roomManager.getRoomId());
+
+        int firstTeamScore=0, secondTeamScore=0;
+        for (int i = 0; i < roomManager.getPlayerCount(); i++) {
+            if(i<opinionSummaries.size()){
+                OpinionSummary opinionSummary = opinionSummaries.get(i);
+                if (opinionSummary.getTeam().equals("first")) {
+                        firstTeamText.append(opinionSummary.getText()).append(" ");
+                } else {
+                    secondTeamText.append(opinionSummary.getText()).append(" ");
+                }
+            }
+
+            if(i<battleSummaries.size()){
+                BattleSummary battleSummary = battleSummaries.get(i);
+                if (battleSummary.getAttack_team().equals("first")) {
+                    firstTeamText.append(battleSummary.getText()).append(" ");
+                    firstTeamScore+=battleSummary.getRebuttal_score();
+                } else {
+                    secondTeamText.append(battleSummary.getText()).append(" ");
+                    secondTeamScore+= battleSummary.getRebuttal_score();
+                }
+            }
+
+
+        }
+
+
+        double firstTeamAvg = ((double) firstTeamScore) / roomManager.getFirstTeam().size();
+        double secondTeamAvg = ((double) secondTeamScore) / roomManager.getSecondTeam().size();
+        log.info("first team score:{}\n summary >>> {}",firstTeamAvg, firstTeamText.toString());
+        log.info("second team score:{}\n >>> {}", secondTeamAvg, secondTeamText.toString());
+
+        DebateResultRequest resultRequest = DebateResultRequest.builder()
+            .topic(redisRoom.getTopicText())
+            .draw(true)
+            .entire(
+                Entire.builder()
+                    .num1(
+                        TeamData.builder()
+                            .position(redisRoom.getFirstOption())
+                            .text(firstTeamText.toString())
+                            .rebuttal_score(firstTeamAvg)
+                            .build()
+                    )
+                    .num2(
+                        TeamData.builder()
+                            .position(redisRoom.getSecondOption())
+                            .text(secondTeamText.toString())
+                            .rebuttal_score(secondTeamAvg)
+                            .build()
+                    )
+                    .build()
+            )
+            .build();
+        return aiService.requestDebateResult(roomManager.getRoomId(), resultRequest);
+
+    }
     /**
      * 사용자의 입장/진영 정보를 가져오는 헬퍼 메서드
      */
