@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useMatchingStore } from '@/store/matching'
@@ -218,11 +218,16 @@ const handleMatchResult = (data: WebSocketMessage) => {
     stopAcceptTimer()
 
     if (selfAcceptance.value === 'accepted') {
-      // 내가 수락한 경우: 게임 스테이터스 화면으로 전환 (재요청은 서버에서 처리)
-      matchingStore.startMatching()
+      // 내가 수락한 경우: 즉시 waiting 화면으로 전환 (matched -> waiting 강제)
+      matchingStore.setStatus('waiting')
+      // 타이머 재가동을 위해 isMatching/elapsedTime 명시 설정
+      matchingStore.isMatching = true
+      matchingStore.elapsedTime = 0
       startMatchingTimer(() => modals.showTimeoutModal())
-      // 초대장 상태 정리 (새 초대 가능)
-      matchingStore.clearInvitation()
+      // 초대장 상태 정리 (패널 언마운트 이후로 지연하여 topicId 0 로그 방지)
+      nextTick(() => {
+        matchingStore.clearInvitation()
+      })
     } else {
       // 내가 거절/미응답: 초기 화면 복귀(선택값 보존), 소켓 종료
       matchingStore.cancelMatching()

@@ -46,13 +46,13 @@
               <div class="relative select-none cursor-default">
                 <!-- 말풍선: 항상 표시 -->
                 <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2">
-                  <div class="bg-card text-card-foreground px-4 py-2 rounded-xl shadow-md border border-border text-sm">
+                  <div class="px-4 py-2 rounded-xl shadow-md border text-sm bg-debate-random text-debate-random border-debate-random">
                     <div class="flex items-center gap-2 whitespace-nowrap">
                       <span>{{ (currentTopic?.option1 || '옵션 1') + '?' }}</span>
                       <span>{{ (currentTopic?.option2 || '옵션 2') + '?' }}</span>
                     </div>
                   </div>
-                  <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[8px] border-transparent" style="border-top-color: hsl(var(--card))"></div>
+                  <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[8px] border-transparent" style="border-top-color: hsl(var(--debate-random-bg))"></div>
                 </div>
                 <div class="w-20 h-20 flex items-center justify-center opacity-90">
                   <img :src="animals[1].avatar" :alt="animals[1].name" class="w-16 h-16" />
@@ -87,8 +87,9 @@
               <!-- 중앙 말풍선 (선택 시에만 표시) -->
               <div class="relative" v-if="hasSelection">
                 <div
-                  class="bg-card text-card-foreground px-8 py-5 rounded-2xl shadow-2xl drop-shadow-md border-2 max-w-2xl text-left text-xl leading-snug chat-bubble whitespace-nowrap overflow-x-auto"
-                  :class="[ bubbleSideBorderClass, 'border-border', { 'chat-pop': justSpoke } ]"
+                  class="px-10 py-6 rounded-3xl shadow-2xl drop-shadow-lg border-2 max-w-3xl text-left text-2xl md:text-3xl leading-relaxed chat-bubble break-words"
+                  :class="[ bubbleBodyClass, bubbleSideBorderClass, 'backdrop-blur-sm', { 'chat-pop': justSpoke } ]"
+                  :style="bubbleInlineStyle"
                 >
                   {{ selectedSpeech }}
                 </div>
@@ -97,15 +98,15 @@
                   v-if="selectedAnimalName === '북극곰'"
                   class="absolute top-1/2 -translate-y-1/2 left-[-16px] w-0 h-0 drop-shadow"
                 >
-                  <div class="absolute -left-[2px] -translate-y-1/2 top-1/2 w-0 h-0 border-y-[14px] border-y-transparent border-r-[14px]" style="border-right-color: hsl(var(--border))"></div>
-                  <div class="absolute left-0 -translate-y-1/2 top-1/2 w-0 h-0 border-y-[13px] border-y-transparent border-r-[13px]" style="border-right-color: hsl(var(--card))"></div>
+                  <div class="absolute -left-[2px] -translate-y-1/2 top-1/2 w-0 h-0 border-y-[14px] border-y-transparent border-r-[14px]" :style="{ borderRightColor: bubbleBorderColor }"></div>
+                  <div class="absolute left-0 -translate-y-1/2 top-1/2 w-0 h-0 border-y-[13px] border-y-transparent border-r-[13px]" :style="{ borderRightColor: bubbleBgColor }"></div>
                 </div>
                 <div
                   v-else
                   class="absolute top-1/2 -translate-y-1/2 right-[-16px] w-0 h-0 drop-shadow"
                 >
-                  <div class="absolute -right-[2px] -translate-y-1/2 top-1/2 w-0 h-0 border-y-[14px] border-y-transparent border-l-[14px]" style="border-left-color: hsl(var(--border))"></div>
-                  <div class="absolute right-0 -translate-y-1/2 top-1/2 w-0 h-0 border-y-[13px] border-y-transparent border-l-[13px]" style="border-left-color: hsl(var(--card))"></div>
+                  <div class="absolute -right-[2px] -translate-y-1/2 top-1/2 w-0 h-0 border-y-[14px] border-y-transparent border-l-[14px]" :style="{ borderLeftColor: bubbleBorderColor }"></div>
+                  <div class="absolute right-0 -translate-y-1/2 top-1/2 w-0 h-0 border-y-[13px] border-y-transparent border-l-[13px]" :style="{ borderLeftColor: bubbleBgColor }"></div>
                 </div>
               </div>
 
@@ -179,6 +180,20 @@ const selectedSpeech = computed(() =>
 const bubbleSideBorderClass = computed(() =>
   selectedAnimalName.value ? getBubbleSideBorderClass(selectedAnimalName.value) : 'border-r-0'
 )
+
+// 말풍선 색 통일감: 보디/보더/텍스트/꼬리 동시에 조합
+const isLeft = computed(() => selectedAnimalName.value === '북극곰')
+const bubbleBgColor = computed(() => `hsl(var(${isLeft.value ? '--debate-left-bg' : '--debate-right-bg'}))`)
+const bubbleTextColor = computed(() => `hsl(var(${isLeft.value ? '--debate-left-text' : '--debate-right-text'}))`)
+const bubbleBorderColor = computed(() => `hsl(var(${isLeft.value ? '--debate-left-deep' : '--debate-right-deep'}))`)
+const bubbleBodyClass = computed(() => [
+  isLeft.value ? 'border-debate-left text-debate-left' : 'border-debate-right text-debate-right'
+])
+const bubbleInlineStyle = computed(() => ({
+  background: `linear-gradient(180deg, ${bubbleBgColor.value} / 0.96, ${bubbleBgColor.value} / 0.9)`,
+  color: bubbleTextColor.value,
+  borderColor: bubbleBorderColor.value
+}))
 
   // 남은 시간 포맷 (MM:SS 또는 HH:MM:SS)
   const formattedRemainingTime = computed(() => {

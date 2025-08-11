@@ -29,7 +29,7 @@
                 <!-- 중앙: 주제 변경 타이머 -->
                 <div class="flex flex-col items-center">
                   <div class="h-5"></div>
-                  <div class="flex items-center gap-3 px-5 h-12 rounded-full bg-card/90 dark:bg-card/90 backdrop-blur border border-border/50 shadow-sm">
+                  <div class="flex items-center gap-3 px-5 h-12 rounded-full bg-accent/40 backdrop-blur border border-border shadow-sm">
                     <div class="flex items-center gap-2">
                       <Hourglass class="w-5 h-5 text-foreground" aria-hidden="true" />
                       <span class="text-sm text-muted-foreground">새 주제까지</span>
@@ -43,10 +43,10 @@
                 <!-- 우측: 매칭 시작 버튼 -->
                 <div class="relative flex flex-col items-center">
                   <div class="h-5"></div>
-                  <Button 
+                   <Button 
                     @click="$emit('start-matching')"
                     :disabled="!matchingStore.canStartMatching || matchingStore.isMatching || props.isStartingMatch"
-                    class="relative min-w-[130px] h-12 text-base px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                     class="relative min-w-[130px] h-12 text-base px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     <!-- 버튼 내부 미묘한 하이라이트 -->
                     <div class="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent rounded-md"></div>

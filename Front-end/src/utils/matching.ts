@@ -124,11 +124,11 @@ export function getModeButtonClass(mode: PlayerMode): string {
 export function getStanceBadgeClass(stance: Stance): string {
   switch (stance) {
     case 'option1':
-      return 'bg-debate-left text-slate-800 border-debate-left'
+      return 'bg-debate-left text-debate-left border-debate-left'
     case 'option2':
-      return 'bg-debate-right text-white border-debate-right'
+      return 'bg-debate-right text-debate-right border-debate-right'
     case 'random':
-      return 'bg-debate-random text-slate-700 border-debate-random'
+      return 'bg-debate-random text-debate-random border-debate-random'
     default:
       return 'bg-slate-600 text-slate-300 border-slate-500'
   }
@@ -140,9 +140,9 @@ export function getStanceBadgeClass(stance: Stance): string {
 export function getModeBadgeClass(mode: PlayerMode): string {
   switch (mode) {
     case '1:1':
-      return 'bg-mode-1v1 text-slate-800 border-mode-1v1'
+      return 'bg-mode-1v1 text-mode-1v1 border-mode-1v1'
     case '2:2':
-      return 'bg-mode-2v2 text-slate-800 border-mode-2v2'
+      return 'bg-mode-2v2 text-mode-2v2 border-mode-2v2'
     default:
       return 'bg-slate-600 text-slate-300 border-slate-500'
   }
