@@ -9,12 +9,16 @@ import com.ssafya408.debate.domain.api.dto.stt.STTMessage;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.BroadcastResponse;
 import com.ssafya408.debate.domain.common.dto.ApiResponse;
+import com.ssafya408.debate.domain.common.exception.AudienceException;
 import com.ssafya408.debate.domain.db.rdb.MatchType;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +47,9 @@ public class RoomManager {
   // 공방전 데이터 어떻게?
   private List<STTAttackDefense> firstTeamAttack; //공방전 의견 {질문, 답변} 형식
   private List<STTAttackDefense> secondTeamAttack; //공방전 의견 {질문, 답변} 형식
+  private Set<String> audiences;
+
+  private Integer MAX_AUDIENCE=20;
 
   private RoomManager(Long roomId, MatchType type, Long topicId,
       List<String> firstTeam,List<String> secondTeam) {
@@ -57,19 +64,24 @@ public class RoomManager {
     firstTeamAttack = new ArrayList<>();
     secondTeamAttack = new ArrayList<>();
 
+    attackTarget=new HashMap<>();
+
     for (int i = 0; i < teamSize; i++) {
       firstTeamAttack.add(new STTAttackDefense(firstTeam.get(i))) ;
       secondTeamAttack.add(new STTAttackDefense(secondTeam.get(i))) ;
     }
+    audiences=new ConcurrentSkipListSet<>();
 
-    tempInitialize();
+//    tempInitialize();
 
   }
 
   public void tempInitialize() {
-    Map<String,String> map=new HashMap<>();
-    map.put("testuser@example.com", "testuser1@example.com");
-    map.put("testuser1@example.com", "testuser@example.com");
+    firstTeamAttack.get(0).setDefenseUser("testuser1@example.com");
+    secondTeamAttack.get(0).setDefenseUser("testuser@example.com");
+    attackTarget.put("testuser@example.com", "testuser1@example.com");
+    attackTarget.put("testuser1@example.com", "testuser@example.com");
+
   }
 
   public void setDefenseUsers(Map<String,String> partners) {
@@ -80,6 +92,71 @@ public class RoomManager {
       firstTeamAttack.get(i).setDefenseUser(partners.get(firstAttacker));
       secondTeamAttack.get(i).setDefenseUser(partners.get(secondAttacker));
     }
+  }
+
+  /**
+   * 시청자 입장 처리
+   * @param audienceId 시청자 ID
+   * @throws AudienceException 인원수 초과 또는 중복 입장 시
+   */
+  public void addAudience(String audienceId) {
+    log.info("=== 시청자 입장 요청 처리 시작 ===");
+    log.info("시청자: {}, 방ID: {}", audienceId, roomId);
+    log.info("현재 시청자 수: {}/{}", audiences.size(), MAX_AUDIENCE);
+    
+    // 중복 입장 체크
+    if (audiences.contains(audienceId)) {
+      log.warn("❌ 시청자 중복 입장 시도 - 시청자: {}, 방ID: {}", audienceId, roomId);
+      throw new AudienceException("이미 입장한 시청자입니다: " + audienceId);
+    }
+    
+    // 인원수 제한 체크
+    if (audiences.size() >= MAX_AUDIENCE) {
+      log.warn("❌ 시청자 인원수 초과 - 시청자: {}, 방ID: {}, 현재: {}/{}", 
+          audienceId, roomId, audiences.size(), MAX_AUDIENCE);
+      throw new AudienceException("시청자 인원수가 초과되었습니다. (최대 " + MAX_AUDIENCE + "명)");
+    }
+    
+    // 시청자 추가
+    audiences.add(audienceId);
+    log.info("✅ 시청자 입장 성공 - 시청자: {}, 방ID: {}, 현재 시청자 수: {}/{}", 
+        audienceId, roomId, audiences.size(), MAX_AUDIENCE);
+    log.info("=== 시청자 입장 요청 처리 완료 ===");
+  }
+
+  /**
+   * 시청자 퇴장 처리
+   * @param audienceId 시청자 ID
+   */
+  public void removeAudience(String audienceId) {
+    log.info("=== 시청자 퇴장 처리 시작 ===");
+    log.info("시청자: {}, 방ID: {}", audienceId, roomId);
+    
+    boolean removed = audiences.remove(audienceId);
+    if (removed) {
+      log.info("✅ 시청자 퇴장 성공 - 시청자: {}, 방ID: {}, 현재 시청자 수: {}/{}", 
+          audienceId, roomId, audiences.size(), MAX_AUDIENCE);
+    } else {
+      log.warn("⚠️ 시청자가 존재하지 않음 - 시청자: {}, 방ID: {}", audienceId, roomId);
+    }
+    
+    log.info("=== 시청자 퇴장 처리 완료 ===");
+  }
+
+  /**
+   * 현재 시청자 수 조회
+   * @return 시청자 수
+   */
+  public int getAudienceCount() {
+    return audiences.size();
+  }
+
+  /**
+   * 시청자 목록 조회
+   * @return 시청자 Set
+   */
+  public Set<String> getAudiences() {
+    return new HashSet<>(audiences);
   }
   public static RoomManager generateRoomManager(Long roomId,MatchType type,Long topicId,
       List<String> firstTeam,
@@ -160,7 +237,7 @@ public class RoomManager {
     log.info("배틀 텍스트 저장 완료");
   }
   public String getSpeakerTotalOpinion(String user) {
-    return opinions.get(user).getJoinedText();
+    return opinions.get(user)!=null? opinions.get(user).getJoinedText():"";
   }
   public String getCurrentSpeaker() {
     int teamIdx = this.getTeamIdx();
@@ -210,12 +287,13 @@ public class RoomManager {
     }
   }
 
+  public String getDefender(String attacker) {
+    return attackTarget.get(attacker);
+  }
   public boolean isFinished() {
-    if (status == RoomStatus.OPINION){
-      return currentOpinionIndex == playerCount;
-    }else{
-      return currentBattleIndex == playerCount;
-    }
+    if (status == RoomStatus.BATTLE_VOTE || status == RoomStatus.VOTING)
+      return true;
+    return false;
   }
 
   // Getter 메서드들 추가
@@ -259,6 +337,7 @@ public class RoomManager {
       if (currentOpinionIndex < playerCount) {
         log.info("⏭️ 의견 단계 턴 진행 - currentOpinionIndex: {} → {}", currentOpinionIndex, currentOpinionIndex + 1);
         currentOpinionIndex++;
+
         
         // 턴 진행 후 새로운 발화자 정보 로그
         int newTeamIdx = getTeamIdx();
@@ -271,10 +350,9 @@ public class RoomManager {
         
         // 의견 단계 완료 체크
         if (currentOpinionIndex >= playerCount) {
-          status = RoomStatus.BATTLE;
-          currentBattleIndex = 0;
+          status = RoomStatus.BATTLE_VOTE;
           log.info("✅ 의견 단계 완료 - 배틀 단계로 전환");
-          log.info("🔄 상태 전환: OPINION → BATTLE, currentBattleIndex 초기화: {}", currentBattleIndex);
+          log.info("🔄 상태 전환: OPINION → BATTLE_VOTE, currentBattleIndex 초기화: {}", currentBattleIndex);
           result.put("phaseChanged", true);
           result.put("newPhase", "battle");
         }
@@ -290,7 +368,14 @@ public class RoomManager {
         throw new RuntimeException("의견 단계가 이미 완료되었습니다");
       }
       
-    } else if (status == RoomStatus.BATTLE) {
+    }
+    else if(status == RoomStatus.BATTLE_VOTE) {
+      log.info("⚔️ 배틀 투표 단계 턴 진행");
+      currentBattleIndex = 0;
+
+      status=RoomStatus.BATTLE;
+    }
+    else if (status == RoomStatus.BATTLE) {
       // 배틀 단계에서 턴 진행
       if (currentBattleIndex < playerCount) {
         log.info("⚔️ 배틀 단계 턴 진행 - currentBattleIndex: {} → {}", currentBattleIndex, currentBattleIndex + 1);
@@ -308,23 +393,36 @@ public class RoomManager {
         // 배틀 단계 완료 체크
         if (currentBattleIndex >= playerCount) {
 
-          status = RoomStatus.FINISH;
+          status = RoomStatus.VOTING;
           log.info("🏁 배틀 단계 완료 - 토론 종료");
-          log.info("🔄 상태 전환: BATTLE → FINISH");
+          log.info("🔄 상태 전환: BATTLE → {}",status);
           result.put("debateFinished", true);
         }
         
         result.put("currentStatus", status);
         result.put("currentIndex", currentBattleIndex);
         result.put("isFinished", isFinished());
-        
-      } else {
+
+      }
+
+      else {
         log.warn("❌ 배틀 단계가 이미 완료됨 - currentBattleIndex: {}, playerCount: {}", 
             currentBattleIndex, playerCount);
         throw new RuntimeException("배틀 단계가 이미 완료되었습니다");
       }
       
-    } else {
+    }
+    else if(status == RoomStatus.VOTING) {
+      log.info("⚔️ 배틀 투표 단계 턴 진행");
+
+      status=RoomStatus.RESULT;
+    }
+    else if(status == RoomStatus.RESULT) {
+      log.info("⚔️ 배틀 투표 단계 턴 진행");
+
+      status=RoomStatus.FINISH;
+    }
+    else {
       log.error("알 수 없는 토론 상태: {}", status);
       throw new RuntimeException("알 수 없는 토론 상태: " + status);
     }

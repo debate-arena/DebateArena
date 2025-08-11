@@ -6,9 +6,16 @@ import com.ssafya408.debate.domain.api.dto.room.WebRTCStatus;
 import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
 import com.ssafya408.debate.domain.api.dto.stt.OpinionSTTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
+import com.ssafya408.debate.domain.api.dto.stt.STTMessage;
 import com.ssafya408.debate.domain.api.dto.stt.BroadcastResponse;
 import com.ssafya408.debate.domain.db.cache.DebateRedisInfo;
 import com.ssafya408.debate.domain.db.cache.DebateRedisRepository;
+import com.ssafya408.debate.domain.db.cache.SummaryRedisRepository;
+import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse;
+import com.ssafya408.debate.domain.api.dto.audience.AudienceJoinResponse;
+import com.ssafya408.debate.domain.api.dto.audience.OpinionData;
+import com.ssafya408.debate.domain.api.dto.audience.BattleData;
+import com.ssafya408.debate.domain.api.dto.stt.STTFullText;
 import com.ssafya408.debate.domain.db.rdb.DebateRoom;
 import com.ssafya408.debate.domain.db.rdb.DebateRoomRepository;
 import com.ssafya408.debate.domain.db.rdb.MatchType;
@@ -17,6 +24,7 @@ import com.ssafya408.debate.domain.db.rdb.TopicRepository;
 import jakarta.annotation.PostConstruct;
 
 import java.util.*;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,12 +34,14 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class DebateService {
   private final DebateRoomRepository debateRoomRepository;
   private final DebateRedisRepository debateRedisRepository;
+  private final SummaryRedisRepository summaryRedisRepository;
   private final TopicRepository topicRepository;
   private final RestClient.Builder builder;
   private Map<Long, RoomManager> roomInfos;
@@ -99,16 +109,6 @@ public class DebateService {
     log.info("STT 메시지 브로드캐스트 완료 - 방ID: {}", roomId);
   }
 
-
-  // AI 서버에 STT 모음 텍스트 전송
-  public void sendTotalTextToAIServer() {
-
-  }
-
-  // 카프카에 텍스트 저장
-  public void saveTextToKafka() {
-  }
-
   public void processOpinionSTTMessage(String user, Long roomId, OpinionSTTRequest req) {
     String text=req.getText();
     RoomManager roomManager = roomInfos.get(roomId);
@@ -130,11 +130,6 @@ public class DebateService {
     log.debug("현재 방의 참가자 수: {}", roomManager.getPlayerCount());
   }
 
-  public String finalizeOpinionTurnContent(RoomManager roomManager) {
-    String currentSpeaker = roomManager.getCurrentSpeaker();
-
-    return roomManager.getSpeakerTotalOpinion(currentSpeaker);
-  }
 
 
   public void processBattleSTTMessage(String user, Long roomId, STTRequest request) {
@@ -345,6 +340,35 @@ public class DebateService {
     }
     return roomManager.advanceTurn();
   }
+
+  // 토론 턴 초기화 (테스트용): 상태 OPINION으로, 인덱스 0으로 리셋
+  public Map<String, Object> resetDebateTurn(Long roomId) {
+    log.info("=== 토론 턴 초기화 시작 ===");
+    log.info("요청된 방ID: {}", roomId);
+
+    RoomManager roomManager = roomInfos.get(roomId);
+    if (roomManager == null) {
+      log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
+      log.error("현재 활성 방 목록: {}", roomInfos.keySet());
+      throw new RuntimeException("토론방을 찾을 수 없습니다: " + roomId);
+    }
+
+    roomManager.setStatus(RoomStatus.OPINION);
+    roomManager.setCurrentOpinionIndex(0);
+    roomManager.setCurrentBattleIndex(0);
+
+    Map<String, Object> result = new HashMap<>();
+    result.put("roomId", roomId);
+    result.put("currentStatus", roomManager.getStatus());
+    result.put("currentOpinionIndex", roomManager.getCurrentOpinionIndex());
+    result.put("currentBattleIndex", roomManager.getCurrentBattleIndex());
+    result.put("message", "턴이 초기화되었습니다");
+    result.put("timestamp", java.time.LocalDateTime.now().toString());
+
+    log.info("토론 턴 초기화 완료 - roomId: {}, status: {}, opinionIndex: {}, battleIndex: {}",
+        roomId, roomManager.getStatus(), roomManager.getCurrentOpinionIndex(), roomManager.getCurrentBattleIndex());
+    return result;
+  }
   public void selectAttackTarget(String user, SelectTargetRequestDto req) {
     // TODO : 방이 Stage 1,2 사이일때만 공격자 선택을 가능하도록 함
     RoomManager roomManager= roomInfos.get(req.getRoomId());
@@ -385,4 +409,162 @@ public class DebateService {
       log.info("투표를 할 수 없는 시간입니다.");
     }
   }
+  /**
+   * 시청자가 토론방에 입장할 때 현재까지의 요약 정보와 추가 데이터를 반환
+   */
+  public AudienceJoinResponse joinAsAudience(String user, Long roomId) {
+    log.info("=== 시청자 토론방 입장 처리 시작 ===");
+    log.info("시청자 입장 요청 - 사용자: {}, 방ID: {}", user, roomId);
+    
+    try {
+      // 방 존재 여부 확인
+      RoomManager roomManager = roomInfos.get(roomId);
+      if (roomManager == null) {
+        log.warn("토론방을 찾을 수 없습니다 - 방ID: {}", roomId);
+        throw new RuntimeException("토론방을 찾을 수 없습니다: " + roomId);
+      }
+      
+      // 시청자 입장 검증 및 추가
+      roomManager.addAudience(user);
+      
+      // Redis에서 현재까지의 요약 정보 조회
+      DebateSummaryResponse summaryData = summaryRedisRepository.getAllSummaries(roomId);
+      
+      // RoomManager에서 추가 데이터 조회
+      Map<String, STTMessage> opinions = roomManager.getOpinions();
+      List<STTAttackDefense> firstTeamAttack = roomManager.getFirstTeamAttack();
+      List<STTAttackDefense> secondTeamAttack = roomManager.getSecondTeamAttack();
+      
+      // 의견 데이터를 팀별로 분류하고 STTFullText로 변환
+      List<STTFullText> firstTeamOpinion = new ArrayList<>();
+      List<STTFullText> secondTeamOpinion = new ArrayList<>();
+      
+      List<String> firstTeam = roomManager.getFirstTeam();
+      List<String> secondTeam = roomManager.getSecondTeam();
+      
+      // 각 사용자의 의견을 해당 팀으로 분류하고 STTFullText로 변환
+      for (Map.Entry<String, STTMessage> entry : opinions.entrySet()) {
+        String userId = entry.getKey();
+        STTMessage sttMessage = entry.getValue();
+        
+        STTFullText fullText = STTFullText.builder()
+            .user(sttMessage.getUser())
+            .turn("의견")
+            .fullText(sttMessage.getJoinedText())
+            .timestamp(new Date().toString())
+            .build();
+        
+        if (firstTeam.contains(userId)) {
+          firstTeamOpinion.add(fullText);
+        } else if (secondTeam.contains(userId)) {
+          secondTeamOpinion.add(fullText);
+        }
+      }
+      
+      // 공방전 데이터를 STTFullText로 변환
+      List<STTFullText> firstTeamAttackFullText = new ArrayList<>();
+      List<STTFullText> secondTeamAttackFullText = new ArrayList<>();
+      
+      // 1팀 공방전 데이터 변환
+      for (STTAttackDefense attackDefense : firstTeamAttack) {
+        if (attackDefense.getAttack() != null && attackDefense.getAttack().getTexts() != null && !attackDefense.getAttack().getTexts().isEmpty()) {
+          firstTeamAttackFullText.add(STTFullText.builder()
+              .user(attackDefense.getAttack().getUser())
+              .turn("공격")
+              .fullText(attackDefense.getAttack().getJoinedText())
+              .timestamp(new Date().toString())
+              .build());
+        }
+        if (attackDefense.getDefense() != null && attackDefense.getDefense().getTexts() != null && !attackDefense.getDefense().getTexts().isEmpty()) {
+          firstTeamAttackFullText.add(STTFullText.builder()
+              .user(attackDefense.getDefense().getUser())
+              .turn("방어")
+              .fullText(attackDefense.getDefense().getJoinedText())
+              .timestamp(new Date().toString())
+              .build());
+        }
+      }
+      
+      // 2팀 공방전 데이터 변환
+      for (STTAttackDefense attackDefense : secondTeamAttack) {
+        if (attackDefense.getAttack() != null && attackDefense.getAttack().getTexts() != null && !attackDefense.getAttack().getTexts().isEmpty()) {
+          secondTeamAttackFullText.add(STTFullText.builder()
+              .user(attackDefense.getAttack().getUser())
+              .turn("공격")
+              .fullText(attackDefense.getAttack().getJoinedText())
+              .timestamp(new Date().toString())
+              .build());
+        }
+        if (attackDefense.getDefense() != null && attackDefense.getDefense().getTexts() != null && !attackDefense.getDefense().getTexts().isEmpty()) {
+          secondTeamAttackFullText.add(STTFullText.builder()
+              .user(attackDefense.getDefense().getUser())
+              .turn("방어")
+              .fullText(attackDefense.getDefense().getJoinedText())
+              .timestamp(new Date().toString())
+              .build());
+        }
+      }
+      
+      // OpinionData와 BattleData 생성
+      OpinionData opinionData = OpinionData.builder()
+          .firstTeamOpinion(firstTeamOpinion)
+          .secondTeamOpinion(secondTeamOpinion)
+          .build();
+      
+      BattleData battleData = BattleData.builder()
+          .firstTeamAttack(firstTeamAttackFullText)
+          .secondTeamAttack(secondTeamAttackFullText)
+          .build();
+      
+      // AudienceJoinResponse 생성
+      AudienceJoinResponse response = AudienceJoinResponse.builder()
+          .summaryData(summaryData)
+          .opinionData(opinionData)
+          .battleData(battleData)
+          .build();
+      
+      log.info("시청자 입장 처리 완료 - 사용자: {}, 방ID: {}, 의견 요약: {}개, 공방전 요약: {}개, 최종 요약: {}개, 1팀 의견: {}개, 2팀 의견: {}개, 1팀 공방전: {}개, 2팀 공방전: {}개",
+          user, roomId, 
+          summaryData.getOpinion().size(),
+          summaryData.getBattle().size(), 
+          summaryData.getFinal_summary().size(),
+          firstTeamOpinion.size(),
+          secondTeamOpinion.size(),
+          firstTeamAttackFullText.size(),
+          secondTeamAttackFullText.size());
+      
+      return response;
+      
+    } catch (Exception e) {
+      log.error("시청자 입장 처리 중 오류 발생 - 사용자: {}, 방ID: {}, 오류: {}", user, roomId, e.getMessage(), e);
+      throw e; // 예외를 그대로 전파하여 GlobalExceptionHandler가 처리하도록 함
+    }
+  }
+
+  /**
+   * 시청자가 토론방에서 퇴장할 때 처리
+   */
+  public void leaveAsAudience(String user, Long roomId) {
+    log.info("=== 시청자 토론방 퇴장 처리 시작 ===");
+    log.info("시청자 퇴장 요청 - 사용자: {}, 방ID: {}", user, roomId);
+    
+    try {
+      // 방 존재 여부 확인
+      RoomManager roomManager = roomInfos.get(roomId);
+      if (roomManager == null) {
+        log.warn("토론방을 찾을 수 없습니다 - 방ID: {}", roomId);
+        return; // 방이 없으면 조용히 처리
+      }
+      
+      // 시청자 제거
+      roomManager.removeAudience(user);
+      
+      log.info("시청자 퇴장 처리 완료 - 사용자: {}, 방ID: {}", user, roomId);
+      
+    } catch (Exception e) {
+      log.error("시청자 퇴장 처리 중 오류 발생 - 사용자: {}, 방ID: {}, 오류: {}", user, roomId, e.getMessage(), e);
+      // 퇴장 처리 중 오류는 조용히 처리
+    }
+  }
+
 }

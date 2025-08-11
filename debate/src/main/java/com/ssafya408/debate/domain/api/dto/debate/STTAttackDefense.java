@@ -32,6 +32,6 @@ public class STTAttackDefense {
   }
 
   public String getDefenseTotalMessage() {
-    return defense.getJoinedText();
+    return defense!=null ? defense.getJoinedText():"";
   }
 }

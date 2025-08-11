@@ -1,4 +1,4 @@
-package com.ssafya408.debate.domain.api.dto.stt.ai;
+package com.ssafya408.debate.domain.api.dto.ai;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
