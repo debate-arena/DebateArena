@@ -125,6 +125,7 @@ public class DebateProcessScheduleService {
     private void startBattle(RoomManager roomManager) {
         log.info("[ 공방전 시작 전 대기 ] {}",roomManager.getRoomId() );
         if(!roomManager.getStatus().equals(RoomStatus.BATTLE)){
+            startVote(roomManager);
             return;
         }
 
@@ -146,6 +147,7 @@ public class DebateProcessScheduleService {
             log.info(" {} {}  ",roomManager.getAttackTarget(),roomManager.getCurrentBattleIndex());
             log.info("[2페이즈 종료]");
             roomManager.setStatus(RoomStatus.VOTING);
+            startVote(roomManager);
             return;
         }
 
@@ -214,4 +216,39 @@ public class DebateProcessScheduleService {
             startBattleTurn(roomManager);
         }, Instant.now().plusSeconds(3));
     }
+
+
+    private void startVote(RoomManager roomManager) {
+
+        log.info("투표 진행 시작");
+
+        VoteStartResponseDto dto = VoteStartResponseDto.builder()
+                .voteStartAt(LocalDateTime.now())
+                .build();
+        simpMessagingTemplate.convertAndSend("/debate/room/" + roomManager.getRoomId()+"/vote/start",dto);
+        taskScheduler.schedule(() -> {
+            endVote(roomManager);
+        }, Instant.now().plusSeconds(30));
+    }
+
+    private void endVote(RoomManager roomManager) {
+
+        VoteEndResponseDto dto = VoteEndResponseDto.builder()
+                .voteEndAt(LocalDateTime.now())
+                .voteInfo(roomManager.getVoteTeam())
+                .voteResult(roomManager.calculateWinner())
+                .build();
+
+        simpMessagingTemplate.convertAndSend("/debate/room/" + roomManager.getRoomId()+"/vote/end",
+                dto);
+        taskScheduler.schedule(() -> {
+            endGame(roomManager);
+        }, Instant.now().plusSeconds(5));
+    }
+
+    private void endGame(RoomManager roomManager) {
+
+        log.info("[GAME ENDED]");
+    }
+
 }

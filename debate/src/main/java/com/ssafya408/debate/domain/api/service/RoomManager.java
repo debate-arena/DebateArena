@@ -2,6 +2,8 @@ package com.ssafya408.debate.domain.api.service;
 
 import com.ssafya408.debate.domain.api.dto.debate.DebateTurn;
 import com.ssafya408.debate.domain.api.dto.debate.STTAttackDefense;
+import com.ssafya408.debate.domain.api.dto.debate.Team;
+import com.ssafya408.debate.domain.api.dto.debate.VoteResult;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
 import com.ssafya408.debate.domain.api.dto.stt.STTMessage;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
@@ -35,6 +37,7 @@ public class RoomManager {
   private RoomStatus status =RoomStatus.OPINION;
   private DebateTurn turn = DebateTurn.ATTACK; //
   private Map<String,String> attackTarget;
+  private Map<String, Team> voteTeam;
 
   private Map<String, STTMessage> opinions; //각 사용자의 stt 텍스트가 저장됨
   // 공방전 데이터 어떻게?
@@ -350,5 +353,29 @@ public class RoomManager {
     log.info("=== 토론 턴 진행 완료 - roomId: {} ===", roomId);
     
     return result;
+  }
+
+  public VoteResult calculateWinner() {
+    int firstTeamCount = 0;
+    int secondTeamCount = 0;
+
+    if(voteTeam==null){
+      return VoteResult.DRAW;
+    }
+
+    for (Team team : voteTeam.values()) {
+      if (team == null) continue;
+      if (team == Team.FIRST_TEAM)
+        firstTeamCount++;
+      else if (team == Team.SECOND_TEAM)
+        secondTeamCount++;
+    }
+
+    if (firstTeamCount > secondTeamCount)
+      return VoteResult.FIRST_TEAM;
+    else if (secondTeamCount > firstTeamCount)
+      return VoteResult.SECOND_TEAM;
+    else
+      return VoteResult.DRAW;
   }
 }

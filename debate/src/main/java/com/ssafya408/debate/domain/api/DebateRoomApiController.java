@@ -1,6 +1,7 @@
 package com.ssafya408.debate.domain.api;
 
 import com.ssafya408.debate.domain.api.dto.debate.SelectTargetRequestDto;
+import com.ssafya408.debate.domain.api.dto.debate.VoteRequestDto;
 import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
 import com.ssafya408.debate.domain.api.dto.room.DebateRoomResponse;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
@@ -414,6 +415,8 @@ public class DebateRoomApiController {
       log.error("[토론자 생성] 실패 - 오류: {}", e.getMessage(), e);
     }
   }
+
+  // 테스트용
   @PostMapping("/attack")
   @Operation(
           summary = "공격자 선택",
@@ -426,6 +429,21 @@ public class DebateRoomApiController {
       log.info("[공격자 생성] 성공" );
     } catch (Exception e) {
       log.error("[공격자 생성] 실패 - 오류: {}", e.getMessage(), e);
+    }
+  }
+
+  @PostMapping("/rooms/{roomId}/vote")
+  @Operation(
+          summary = "투표",
+          description = "투표를 진행합니다."
+  )
+  public void postVoting(@PathVariable Long roomId,@RequestBody VoteRequestDto req) {
+    try {
+      log.info("[투표] 요청" );
+      debateService.voteWinnerTeam(roomId,req);
+      log.info("[투표] 성공" );
+    } catch (Exception e) {
+      log.error("[투표] 실패 - 오류: {}", e.getMessage(), e);
     }
   }
 

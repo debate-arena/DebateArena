@@ -1,9 +1,6 @@
 package com.ssafya408.debate.domain.api.service;
 
-import com.ssafya408.debate.domain.api.dto.debate.STTAttackDefense;
-import com.ssafya408.debate.domain.api.dto.debate.SelectTargetRequestDto;
-import com.ssafya408.debate.domain.api.dto.debate.SelectTargetResponseDto;
-import com.ssafya408.debate.domain.api.dto.debate.SpeakerOrder;
+import com.ssafya408.debate.domain.api.dto.debate.*;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
 import com.ssafya408.debate.domain.api.dto.room.WebRTCStatus;
 import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
@@ -376,4 +373,16 @@ public class DebateService {
     template.convertAndSend("/debate/room/"+req.getRoomId()+"/attack",res);
   }
 
+  public void voteWinnerTeam(Long roomId, VoteRequestDto req) {
+    RoomManager roomManager= roomInfos.get(roomId);
+    if(roomManager!=null && roomInfos.get(roomId).getStatus()==RoomStatus.VOTING){
+      Map<String, Team> voteTeam = roomManager.getVoteTeam();
+      if(voteTeam==null){
+        voteTeam = new HashMap<>();
+      }
+      voteTeam.put(req.getUserEmail(),req.getTeam());
+    }else{
+      log.info("투표를 할 수 없는 시간입니다.");
+    }
+  }
 }
