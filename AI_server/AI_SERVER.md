@@ -4,6 +4,15 @@ python process.py
 cd ..
 uvicorn main:app --reload
 
+## 기능별 AI 모델
+요청 별 사용하는 모델
+
+논리 요약 모델 : gpt 4.1 mini
+공방전 요약 모델 : gpt 4.1 mini
+최종 요약 모델 : gpt 4.1
+요약 임베딩 모델 : gpt 3 text embedding large
+대표자 투표 이유 생성 모델 : gpt 4.1 mini (temp 0.7로 자유로운 응답)
+
 # 폴더 내용
 ## app
 - 메인 폴더. 서버를 돌리기 위한 파일들 정리되어 있음.

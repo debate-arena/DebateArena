@@ -55,11 +55,149 @@ async def load_audience_embeddings():
     collection = client.get_or_create_collection("audience")
     audience = collection.get(include=["embeddings", "metadatas"])
     
+    ids = audience["ids"]
     embeddings = audience["embeddings"]
     metadata = audience["metadatas"]
     
-    return embeddings, metadata
+    zipped = list(zip(ids, embeddings, metadata))
+    zipped.sort(key = lambda x: x[2].get("index", 0))
+    ids, embeddings, metadata = zip(*zipped) if zipped else ([],[],[])
+    return list(ids), list(embeddings), list(metadata)
+
+def unit_norm(vec: np.ndarray, eps: float = 1e-12) -> np.ndarray:
+    n = np.linalg.norm(vec) + eps
+    return vec / n
+
+# 판정 이후 청중단을 학습시킬 함수
+import time
+async def memorize_audience(details:list, ids:list, audience_embeddings: np.ndarray, num1_emb: np.ndarray, num2_emb: np.ndarray, *, base_learn: float = 0.03, max_learn: float = 0.10, repel: float = 0.01, clamp_norm = True,) -> None:
+    """
+    details: judging()에서 만든 juror별 투표/유사도 목록
+    ids: chroma에 저장된 juror id 리스트 (ex. ["juror_0", ...])
+    audience_embeddings: (N, D) 배열
+    num1_embedding, num2_embedding: (D,)
+    """
     
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    chroma_path = os.path.join(current_dir, "..", "..", "data", "chroma_jurors")
+    client = PersistentClient(path=chroma_path)
+    collection = client.get_or_create_collection("audience")
+    
+    D = audience_embeddings.shape[1]
+    t_now = int(time.time())
+    
+    
+    updates_ids = []
+    updates_vecs = []
+    updates_metas = []
+    
+    N = min(len(details), len(ids), len(audience_embeddings))
+    for k in range(N):
+        juror_id = details[k]["juror"]
+        if juror_id >= len(ids):
+            continue
+        
+        #현재 아이디    
+        cid = ids[juror_id]
+        vote = details[k]["vote"]
+        sim1 = float(details[k]["sim1"])
+        sim2 = float(details[k]["sim2"])
+        
+        e = audience_embeddings[juror_id].astype(np.float32)
+        # 차원이 불일치 하는 경우 에러 방지
+        if e.shape[0] != D:
+            continue
+        
+        # 타겟 + 상대 벡터
+        target_vect = num1_emb if vote == "num1" else num2_emb
+        other = num2_emb if vote == "num1" else num1_emb
+        target = target_vect.astype(np.float32)
+        other = other.astype(np.float32)
+        
+        # 신뢰도(margin) 기반 학습률 : margin in [0, 1]
+        denom = (abs(sim1) + abs(sim2) + 1e-12)
+        margin = abs(sim1 - sim2) / denom
+        eta = min(max(base_learn * (0.5 + margin), base_learn), max_learn)
+        
+        e_new = e + eta * (target - e) - repel * (other - e)
+        
+        if clamp_norm:
+            e_new = unit_norm(e_new)
+            
+        # 기존 메타데이터
+        md = collection.get(ids=[cid], include=["metadatas"])
+        meta = (md["metadatas"][0] if md and md.get("metadatas") else {}) or {}
+        
+        votes_total = int(meta.get("votes_total", 0)) + 1
+        votes_num1 = int(meta.get("votes_num1", 0)) + (1 if vote == "num1" else 0)
+        votes_num2 = int(meta.get("votes_num2", 0)) + (1 if vote == "num2" else 0)
+        meta.update({
+            "votes_total": votes_total,
+            "votes_num1" : votes_num1,
+            "votes_num2" : votes_num2,
+            "last_conf" : round(margin, 4),
+            "last_updated": t_now,
+        })
+        
+        updates_ids.append(cid)
+        updates_vecs.append(e_new.tolist())
+        updates_metas.append(meta)
+        
+    if updates_ids:
+        collection.update(
+            ids = updates_ids,
+            embeddings=updates_vecs,
+            metadatas=updates_metas,
+        )
+
+# 학습이 제대로 되었는지 확인하는 함수
+def eval_memorization_once(
+    audience_embeddings: np.ndarray,
+    num1_emb: np.ndarray,
+    num2_emb: np.ndarray,
+    voted_details: list,
+):
+    """
+    memorize_audience() 호출 '전'의 상태에서 계산.
+    반환값을 저장해두고, memorize 후 동일 함수를 다시 호출해 delta 비교.
+    """
+    A = audience_embeddings.astype(np.float32)
+    s1 = cosine_similarity(A, num1_emb.reshape(1, -1)).ravel()
+    s2 = cosine_similarity(A, num2_emb.reshape(1, -1)).ravel()
+
+    eps = 1e-12
+    margin = np.abs(s1 - s2) / (np.abs(s1) + np.abs(s2) + eps)
+
+    # details의 vote 기준으로 선택/반대 쪽 유사도 벡터 만들기
+    votes = np.array([1 if d["vote"] == "num1" else 2 for d in voted_details], dtype=np.int32)
+    N = min(len(votes), len(s1))
+    sel = np.where(votes[:N] == 1, s1[:N], s2[:N])
+    oth = np.where(votes[:N] == 1, s2[:N], s1[:N])
+
+    return {
+        "sim1": s1,           # shape (M,)
+        "sim2": s2,
+        "margin": margin,
+        "sel": sel,           # 선택쪽 유사도 (상위 N)
+        "oth": oth,           # 반대쪽 유사도 (상위 N)
+        "limit": N
+    }
+
+# 어느 정도 수치로 학습이 되고있는지 확인을 위한 함수
+def summarize_delta(before: dict, after: dict):
+    N = min(before["limit"], after["limit"])
+    d_sel = after["sel"][:N] - before["sel"][:N]
+    d_oth = after["oth"][:N] - before["oth"][:N]
+    d_margin = after["margin"][:N] - before["margin"][:N]
+
+    metrics = {
+        "avg_margin_increase": float(np.mean(d_margin)),
+        "pct_margin_increase": float(np.mean(d_margin > 0)),
+        "pct_sel_sim_increase": float(np.mean(d_sel > 0)),
+        "pct_oth_sim_decrease": float(np.mean(d_oth < 0)),
+    }
+    return metrics
+
 #토론이 끝나면 summarize쪽에서 전체 요약을 받고 판정을 내릴 함수.
 async def judging(summary_texts: dict, entire_data: dict = None):
     # 진영 1, 2의 전체 요약본들
@@ -93,20 +231,20 @@ async def judging(summary_texts: dict, entire_data: dict = None):
     num2_embedding = np.array(num2_embedding)
 
     # 3. 청중 임베딩 불러오기, 오류 방지 들어감
-    audience_embeddings, audience_metadata = await load_audience_embeddings()
-    if audience_embeddings is None or len(audience_embeddings) == 0:
+    audience_ids, audience_embeddings, audience_metadata = await load_audience_embeddings()
+    if not audience_embeddings:
         raise ValueError("청중 임베딩이 비어 있습니다. process.py를 먼저 실행하세요.")
 
-    sorted_data = sorted(zip(audience_embeddings, audience_metadata), key=lambda x: x[1].get("id", 0))
-    audience_embeddings = np.array([x[0] for x in sorted_data])
+    audience_embeddings = np.array(audience_embeddings)
 
     # 4. 유사도 계산
     num1_similarities = cosine_similarity([num1_embedding], audience_embeddings)[0]
     num2_similarities = cosine_similarity([num2_embedding], audience_embeddings)[0]
 
     # 5. soft voting 점수 계산
-    soft_score_1 = sum([sim1 / (sim1 + sim2) for sim1, sim2 in zip(num1_similarities, num2_similarities)])
-    soft_score_2 = sum([sim2 / (sim1 + sim2) for sim1, sim2 in zip(num1_similarities, num2_similarities)])
+    eps = 1e-12
+    soft_score_1 = sum([sim1 / (sim1 + sim2 + eps) for sim1, sim2 in zip(num1_similarities, num2_similarities)])
+    soft_score_2 = sum([sim2 / (sim1 + sim2 + eps) for sim1, sim2 in zip(num1_similarities, num2_similarities)])
     total_soft = soft_score_1 + soft_score_2
     
     soft_ratio1 = soft_score_1 / total_soft if total_soft else 0.5
@@ -164,6 +302,43 @@ async def judging(summary_texts: dict, entire_data: dict = None):
     print(f"[WEIGHTED final ratio] score1: {final_ratio1:.3f}, score2: {final_ratio2:.3f}")
     print(f"최종 투표 수 : {num1_voting_head} vs {num2_voting_head}")
 
+    # 11. 학습 전 스냅샷
+    before = eval_memorization_once(
+        audience_embeddings=audience_embeddings,
+        num1_emb=num1_embedding,
+        num2_emb=num2_embedding,
+        voted_details=voted_details
+    )
+    
+    # 12. 메모리 기반 학습 업데이트
+    try:
+        await memorize_audience(
+            details=voted_details,
+            ids=audience_ids,
+            audience_embeddings=audience_embeddings,
+            num1_emb=num1_embedding,
+            num2_emb = num2_embedding,
+            base_learn=0.03,
+            max_learn=0.10,
+            repel=0.01,
+            clamp_norm=True,
+        )
+    except Exception as e:
+        print(f'청중 학습 실패 : {e}')
+
+    # 13. 최신 임베딩 다시 로드 후 after 측정
+    audience_ids2, audience_embeddings2, _ = await load_audience_embeddings()
+    audience_embeddings2 = np.array(audience_embeddings2)
+    after = eval_memorization_once(
+        audience_embeddings=audience_embeddings2,
+        num1_emb=num1_embedding,
+        num2_emb=num2_embedding,
+        voted_details=voted_details
+    )
+
+    delta_metrics = summarize_delta(before, after)
+    print("[EVAL] metrics:", delta_metrics)
+    
     return {
         "winner": winner,
         "votes": votes,
