@@ -4,6 +4,7 @@ public enum RoomStatus {
   CONNECTING,
   PREPARING,
   OPINION,
+  BATTLE_VOTE,
   BATTLE,
   VOTING,
   FINISH

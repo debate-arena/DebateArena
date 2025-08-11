@@ -349,7 +349,7 @@ public class DebateService {
     // TODO : 방이 Stage 1,2 사이일때만 공격자 선택을 가능하도록 함
     RoomManager roomManager= roomInfos.get(req.getRoomId());
 
-    if(roomManager == null){
+    if(roomManager == null || roomManager.getStatus() == RoomStatus.FINISH) {
       // TODO : EXCEPTION
       return ;
     }
