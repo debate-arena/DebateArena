@@ -315,7 +315,7 @@ public class MatchUtil {
         List<DebateMemberDto> secondTeamMembers = new ArrayList<>();
 
         if (matchInfo != null && matchInfo.getTeams() != null && matchInfo.getTeams().size() >= 2) {
-            // Team 1
+            // Team 0
             for (WaitingUser userInfo : matchInfo.getTeams().get(0)) {
                 String email = userInfo.getUser();
                 String nickname = userRepository.findByEmail(email)
@@ -326,7 +326,7 @@ public class MatchUtil {
                     .nickname(nickname)
                     .build());
             }
-            // Team 2
+            // Team 1
             for (WaitingUser userInfo : matchInfo.getTeams().get(1)) {
                 String email = userInfo.getUser();
                 String nickname = userRepository.findByEmail(email)
@@ -346,14 +346,18 @@ public class MatchUtil {
             .secondTeam(secondTeamMembers)
             .build();
 
-        for (Map.Entry<WaitingUser, MatchApplyRequest> e : matchInfo.getCandidates().entrySet()) {
+        ApiResponse<DebateRoomResponse> response =
+            established ?
+                ApiResponse.success(debateInfo) //성공하면 status: success
+                : ApiResponse.fail(debateInfo); // 실패하면 status: fail 로 전송
+
+        for (Map.Entry<WaitingUser, MatchApplyRequest> e : matchInfo.getCandidates()
+            .entrySet()) {
             WaitingUser userInfo = e.getKey();
-            // 매칭 결과(성공/실패 모두) DebateRoomResponse 포맷으로 전송
-            template.convertAndSendToUser(
-                userInfo.getUser(),
-                "/queue/match/acceptance/result",
-                debateInfo
-            );
+            // 매칭 실패 알림 전송
+            template.convertAndSendToUser(userInfo.getUser(),
+                "/queue/match/acceptance/result", response);
+
         }
     }
     private void removeMatchFromQueue(WaitingUser user) {
