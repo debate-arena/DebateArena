@@ -7,12 +7,16 @@ import com.ssafya408.debate.domain.api.dto.stt.STTMessage;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.BroadcastResponse;
 import com.ssafya408.debate.domain.common.dto.ApiResponse;
+import com.ssafya408.debate.domain.common.exception.AudienceException;
 import com.ssafya408.debate.domain.db.rdb.MatchType;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +44,9 @@ public class RoomManager {
   // 공방전 데이터 어떻게?
   private List<STTAttackDefense> firstTeamAttack; //공방전 의견 {질문, 답변} 형식
   private List<STTAttackDefense> secondTeamAttack; //공방전 의견 {질문, 답변} 형식
+  private Set<String> audiences;
+
+  private Integer MAX_AUDIENCE=20;
 
   private RoomManager(Long roomId, MatchType type, Long topicId,
       List<String> firstTeam,List<String> secondTeam) {
@@ -60,6 +67,7 @@ public class RoomManager {
       firstTeamAttack.add(new STTAttackDefense(firstTeam.get(i))) ;
       secondTeamAttack.add(new STTAttackDefense(secondTeam.get(i))) ;
     }
+    audiences=new ConcurrentSkipListSet<>();
 
     tempInitialize();
 
@@ -81,6 +89,71 @@ public class RoomManager {
       firstTeamAttack.get(i).setDefenseUser(partners.get(firstAttacker));
       secondTeamAttack.get(i).setDefenseUser(partners.get(secondAttacker));
     }
+  }
+
+  /**
+   * 시청자 입장 처리
+   * @param audienceId 시청자 ID
+   * @throws AudienceException 인원수 초과 또는 중복 입장 시
+   */
+  public void addAudience(String audienceId) {
+    log.info("=== 시청자 입장 요청 처리 시작 ===");
+    log.info("시청자: {}, 방ID: {}", audienceId, roomId);
+    log.info("현재 시청자 수: {}/{}", audiences.size(), MAX_AUDIENCE);
+    
+    // 중복 입장 체크
+    if (audiences.contains(audienceId)) {
+      log.warn("❌ 시청자 중복 입장 시도 - 시청자: {}, 방ID: {}", audienceId, roomId);
+      throw new AudienceException("이미 입장한 시청자입니다: " + audienceId);
+    }
+    
+    // 인원수 제한 체크
+    if (audiences.size() >= MAX_AUDIENCE) {
+      log.warn("❌ 시청자 인원수 초과 - 시청자: {}, 방ID: {}, 현재: {}/{}", 
+          audienceId, roomId, audiences.size(), MAX_AUDIENCE);
+      throw new AudienceException("시청자 인원수가 초과되었습니다. (최대 " + MAX_AUDIENCE + "명)");
+    }
+    
+    // 시청자 추가
+    audiences.add(audienceId);
+    log.info("✅ 시청자 입장 성공 - 시청자: {}, 방ID: {}, 현재 시청자 수: {}/{}", 
+        audienceId, roomId, audiences.size(), MAX_AUDIENCE);
+    log.info("=== 시청자 입장 요청 처리 완료 ===");
+  }
+
+  /**
+   * 시청자 퇴장 처리
+   * @param audienceId 시청자 ID
+   */
+  public void removeAudience(String audienceId) {
+    log.info("=== 시청자 퇴장 처리 시작 ===");
+    log.info("시청자: {}, 방ID: {}", audienceId, roomId);
+    
+    boolean removed = audiences.remove(audienceId);
+    if (removed) {
+      log.info("✅ 시청자 퇴장 성공 - 시청자: {}, 방ID: {}, 현재 시청자 수: {}/{}", 
+          audienceId, roomId, audiences.size(), MAX_AUDIENCE);
+    } else {
+      log.warn("⚠️ 시청자가 존재하지 않음 - 시청자: {}, 방ID: {}", audienceId, roomId);
+    }
+    
+    log.info("=== 시청자 퇴장 처리 완료 ===");
+  }
+
+  /**
+   * 현재 시청자 수 조회
+   * @return 시청자 수
+   */
+  public int getAudienceCount() {
+    return audiences.size();
+  }
+
+  /**
+   * 시청자 목록 조회
+   * @return 시청자 Set
+   */
+  public Set<String> getAudiences() {
+    return new HashSet<>(audiences);
   }
   public static RoomManager generateRoomManager(Long roomId,MatchType type,Long topicId,
       List<String> firstTeam,
@@ -358,4 +431,6 @@ public class RoomManager {
     
     return result;
   }
+
+  
 }

@@ -94,8 +94,8 @@ public class DebateApiController {
     debateService.selectAttackTarget(user,req);
   }
 
-  @MessageMapping("/debate/{roomId}/spectator/join")
-  public void joinAsSpectator(Principal principal, @DestinationVariable Long roomId) {
+  @MessageMapping("/debate/{roomId}/audience/join")
+  public void joinAsAudience(Principal principal, @DestinationVariable Long roomId) {
     String user = principal.getName();
     log.info("=== 시청자 토론방 입장 요청 수신 시작 ===");
     log.info("시청자: {}, 방ID: {}", user, roomId);
@@ -104,12 +104,12 @@ public class DebateApiController {
       log.info("시청자 토론방 입장 처리 시작 - 시청자: {}, 방ID: {}", user, roomId);
       
       // 현재까지의 요약 정보 조회
-      DebateSummaryResponse summaryData = debateService.joinAsSpectator(roomId);
+      DebateSummaryResponse summaryData = debateService.joinAsAudience(user, roomId);
       
       // 시청자에게 요약 정보 전송
       messagingTemplate.convertAndSendToUser(
         user,
-        "/queue/debate/spectator/summary",
+        "/queue/debate/audience/summary",
         summaryData
       );
       
@@ -122,12 +122,34 @@ public class DebateApiController {
       // 에러 메시지 전송
       messagingTemplate.convertAndSendToUser(
         user,
-        "/queue/debate/spectator/error",
+        "/queue/debate/audience/error",
         "시청자 입장에 실패했습니다: " + e.getMessage()
       );
     }
     
     log.info("=== 시청자 토론방 입장 요청 처리 완료 ===");
+  }
+
+  @MessageMapping("/debate/{roomId}/audience/leave")
+  public void leaveAsAudience(Principal principal, @DestinationVariable Long roomId) {
+    String user = principal.getName();
+    log.info("=== 시청자 토론방 퇴장 요청 수신 시작 ===");
+    log.info("시청자: {}, 방ID: {}", user, roomId);
+
+    try {
+      log.info("시청자 토론방 퇴장 처리 시작 - 시청자: {}, 방ID: {}", user, roomId);
+      
+      // 시청자 퇴장 처리
+      debateService.leaveAsAudience(user, roomId);
+      
+      log.info("시청자 토론방 퇴장 처리 완료 - 시청자: {}, 방ID: {}", user, roomId);
+      
+    } catch (Exception e) {
+      log.error("시청자 토론방 퇴장 처리 중 오류 발생 - 시청자: {}, 방ID: {}, 오류: {}", 
+          user, roomId, e.getMessage(), e);
+    }
+    
+    log.info("=== 시청자 토론방 퇴장 요청 처리 완료 ===");
   }
 
 }

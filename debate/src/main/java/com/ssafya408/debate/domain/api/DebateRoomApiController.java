@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -448,7 +449,7 @@ public class DebateRoomApiController {
     }
   }
 
-  @PostMapping("/{roomId}/spectator/join")
+  @PostMapping("/{roomId}/audience/join")
   @Operation(
     summary = "시청자 토론방 입장",
     description = "시청자가 토론방에 입장하여 현재까지의 요약 정보를 받습니다."
@@ -521,11 +522,11 @@ public class DebateRoomApiController {
       )
     )
   })
-  public ResponseEntity<ApiResponse<DebateSummaryResponse>> joinAsSpectator(@PathVariable Long roomId) {
+  public ResponseEntity<ApiResponse<DebateSummaryResponse>> joinAsAudience(Principal user,@PathVariable Long roomId) {
     log.info("[시청자 입장] 요청 수신 - roomId: {}", roomId);
     
     try {
-      DebateSummaryResponse summaryData = debateService.joinAsSpectator(roomId);
+      DebateSummaryResponse summaryData = debateService.joinAsAudience(user.getName(),roomId);
       
       log.info("[시청자 입장] 성공 - roomId: {}, 의견 요약: {}개, 공방전 요약: {}개, 최종 요약: {}개",
           roomId, 

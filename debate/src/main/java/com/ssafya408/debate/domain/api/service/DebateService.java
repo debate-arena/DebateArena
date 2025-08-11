@@ -397,9 +397,9 @@ public class DebateService {
   /**
    * 시청자가 토론방에 입장할 때 현재까지의 요약 정보를 반환
    */
-  public DebateSummaryResponse joinAsSpectator(Long roomId) {
+  public DebateSummaryResponse joinAsAudience(String user, Long roomId) {
     log.info("=== 시청자 토론방 입장 처리 시작 ===");
-    log.info("시청자 입장 요청 - 방ID: {}", roomId);
+    log.info("시청자 입장 요청 - 사용자: {}, 방ID: {}", user, roomId);
     
     try {
       // 방 존재 여부 확인
@@ -409,11 +409,14 @@ public class DebateService {
         throw new RuntimeException("토론방을 찾을 수 없습니다: " + roomId);
       }
       
+      // 시청자 입장 검증 및 추가
+      roomManager.addAudience(user);
+      
       // Redis에서 현재까지의 요약 정보 조회
       DebateSummaryResponse summaryData = summaryRedisRepository.getAllSummaries(roomId);
       
-      log.info("시청자 입장 처리 완료 - 방ID: {}, 의견 요약: {}개, 공방전 요약: {}개, 최종 요약: {}개",
-          roomId, 
+      log.info("시청자 입장 처리 완료 - 사용자: {}, 방ID: {}, 의견 요약: {}개, 공방전 요약: {}개, 최종 요약: {}개",
+          user, roomId, 
           summaryData.getOpinion().size(),
           summaryData.getBattle().size(), 
           summaryData.getFinal_summary().size());
@@ -421,8 +424,34 @@ public class DebateService {
       return summaryData;
       
     } catch (Exception e) {
-      log.error("시청자 입장 처리 중 오류 발생 - 방ID: {}, 오류: {}", roomId, e.getMessage(), e);
-      throw new RuntimeException("시청자 입장 처리에 실패했습니다: " + e.getMessage(), e);
+      log.error("시청자 입장 처리 중 오류 발생 - 사용자: {}, 방ID: {}, 오류: {}", user, roomId, e.getMessage(), e);
+      throw e; // 예외를 그대로 전파하여 GlobalExceptionHandler가 처리하도록 함
+    }
+  }
+
+  /**
+   * 시청자가 토론방에서 퇴장할 때 처리
+   */
+  public void leaveAsAudience(String user, Long roomId) {
+    log.info("=== 시청자 토론방 퇴장 처리 시작 ===");
+    log.info("시청자 퇴장 요청 - 사용자: {}, 방ID: {}", user, roomId);
+    
+    try {
+      // 방 존재 여부 확인
+      RoomManager roomManager = roomInfos.get(roomId);
+      if (roomManager == null) {
+        log.warn("토론방을 찾을 수 없습니다 - 방ID: {}", roomId);
+        return; // 방이 없으면 조용히 처리
+      }
+      
+      // 시청자 제거
+      roomManager.removeAudience(user);
+      
+      log.info("시청자 퇴장 처리 완료 - 사용자: {}, 방ID: {}", user, roomId);
+      
+    } catch (Exception e) {
+      log.error("시청자 퇴장 처리 중 오류 발생 - 사용자: {}, 방ID: {}, 오류: {}", user, roomId, e.getMessage(), e);
+      // 퇴장 처리 중 오류는 조용히 처리
     }
   }
 
