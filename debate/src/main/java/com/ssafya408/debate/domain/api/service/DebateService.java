@@ -9,11 +9,16 @@ import com.ssafya408.debate.domain.api.dto.room.WebRTCStatus;
 import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
 import com.ssafya408.debate.domain.api.dto.stt.OpinionSTTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
+import com.ssafya408.debate.domain.api.dto.stt.STTMessage;
 import com.ssafya408.debate.domain.api.dto.stt.BroadcastResponse;
 import com.ssafya408.debate.domain.db.cache.DebateRedisInfo;
 import com.ssafya408.debate.domain.db.cache.DebateRedisRepository;
 import com.ssafya408.debate.domain.db.cache.SummaryRedisRepository;
 import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse;
+import com.ssafya408.debate.domain.api.dto.audience.AudienceJoinResponse;
+import com.ssafya408.debate.domain.api.dto.audience.OpinionData;
+import com.ssafya408.debate.domain.api.dto.audience.BattleData;
+import com.ssafya408.debate.domain.api.dto.stt.STTFullText;
 import com.ssafya408.debate.domain.db.rdb.DebateRoom;
 import com.ssafya408.debate.domain.db.rdb.DebateRoomRepository;
 import com.ssafya408.debate.domain.db.rdb.MatchType;
@@ -22,6 +27,7 @@ import com.ssafya408.debate.domain.db.rdb.TopicRepository;
 import jakarta.annotation.PostConstruct;
 
 import java.util.*;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -395,9 +401,9 @@ public class DebateService {
   }
 
   /**
-   * 시청자가 토론방에 입장할 때 현재까지의 요약 정보를 반환
+   * 시청자가 토론방에 입장할 때 현재까지의 요약 정보와 추가 데이터를 반환
    */
-  public DebateSummaryResponse joinAsAudience(String user, Long roomId) {
+  public AudienceJoinResponse joinAsAudience(String user, Long roomId) {
     log.info("=== 시청자 토론방 입장 처리 시작 ===");
     log.info("시청자 입장 요청 - 사용자: {}, 방ID: {}", user, roomId);
     
@@ -415,13 +421,110 @@ public class DebateService {
       // Redis에서 현재까지의 요약 정보 조회
       DebateSummaryResponse summaryData = summaryRedisRepository.getAllSummaries(roomId);
       
-      log.info("시청자 입장 처리 완료 - 사용자: {}, 방ID: {}, 의견 요약: {}개, 공방전 요약: {}개, 최종 요약: {}개",
+      // RoomManager에서 추가 데이터 조회
+      Map<String, STTMessage> opinions = roomManager.getOpinions();
+      List<STTAttackDefense> firstTeamAttack = roomManager.getFirstTeamAttack();
+      List<STTAttackDefense> secondTeamAttack = roomManager.getSecondTeamAttack();
+      
+      // 의견 데이터를 팀별로 분류하고 STTFullText로 변환
+      List<STTFullText> firstTeamOpinion = new ArrayList<>();
+      List<STTFullText> secondTeamOpinion = new ArrayList<>();
+      
+      List<String> firstTeam = roomManager.getFirstTeam();
+      List<String> secondTeam = roomManager.getSecondTeam();
+      
+      // 각 사용자의 의견을 해당 팀으로 분류하고 STTFullText로 변환
+      for (Map.Entry<String, STTMessage> entry : opinions.entrySet()) {
+        String userId = entry.getKey();
+        STTMessage sttMessage = entry.getValue();
+        
+        STTFullText fullText = STTFullText.builder()
+            .user(sttMessage.getUser())
+            .turn("의견")
+            .fullText(sttMessage.getJoinedText())
+            .timestamp(new Date().toString())
+            .build();
+        
+        if (firstTeam.contains(userId)) {
+          firstTeamOpinion.add(fullText);
+        } else if (secondTeam.contains(userId)) {
+          secondTeamOpinion.add(fullText);
+        }
+      }
+      
+      // 공방전 데이터를 STTFullText로 변환
+      List<STTFullText> firstTeamAttackFullText = new ArrayList<>();
+      List<STTFullText> secondTeamAttackFullText = new ArrayList<>();
+      
+      // 1팀 공방전 데이터 변환
+      for (STTAttackDefense attackDefense : firstTeamAttack) {
+        if (attackDefense.getAttack() != null && attackDefense.getAttack().getTexts() != null && !attackDefense.getAttack().getTexts().isEmpty()) {
+          firstTeamAttackFullText.add(STTFullText.builder()
+              .user(attackDefense.getAttack().getUser())
+              .turn("공격")
+              .fullText(attackDefense.getAttack().getJoinedText())
+              .timestamp(new Date().toString())
+              .build());
+        }
+        if (attackDefense.getDefense() != null && attackDefense.getDefense().getTexts() != null && !attackDefense.getDefense().getTexts().isEmpty()) {
+          firstTeamAttackFullText.add(STTFullText.builder()
+              .user(attackDefense.getDefense().getUser())
+              .turn("방어")
+              .fullText(attackDefense.getDefense().getJoinedText())
+              .timestamp(new Date().toString())
+              .build());
+        }
+      }
+      
+      // 2팀 공방전 데이터 변환
+      for (STTAttackDefense attackDefense : secondTeamAttack) {
+        if (attackDefense.getAttack() != null && attackDefense.getAttack().getTexts() != null && !attackDefense.getAttack().getTexts().isEmpty()) {
+          secondTeamAttackFullText.add(STTFullText.builder()
+              .user(attackDefense.getAttack().getUser())
+              .turn("공격")
+              .fullText(attackDefense.getAttack().getJoinedText())
+              .timestamp(new Date().toString())
+              .build());
+        }
+        if (attackDefense.getDefense() != null && attackDefense.getDefense().getTexts() != null && !attackDefense.getDefense().getTexts().isEmpty()) {
+          secondTeamAttackFullText.add(STTFullText.builder()
+              .user(attackDefense.getDefense().getUser())
+              .turn("방어")
+              .fullText(attackDefense.getDefense().getJoinedText())
+              .timestamp(new Date().toString())
+              .build());
+        }
+      }
+      
+      // OpinionData와 BattleData 생성
+      OpinionData opinionData = OpinionData.builder()
+          .firstTeamOpinion(firstTeamOpinion)
+          .secondTeamOpinion(secondTeamOpinion)
+          .build();
+      
+      BattleData battleData = BattleData.builder()
+          .firstTeamAttack(firstTeamAttackFullText)
+          .secondTeamAttack(secondTeamAttackFullText)
+          .build();
+      
+      // AudienceJoinResponse 생성
+      AudienceJoinResponse response = AudienceJoinResponse.builder()
+          .summaryData(summaryData)
+          .opinionData(opinionData)
+          .battleData(battleData)
+          .build();
+      
+      log.info("시청자 입장 처리 완료 - 사용자: {}, 방ID: {}, 의견 요약: {}개, 공방전 요약: {}개, 최종 요약: {}개, 1팀 의견: {}개, 2팀 의견: {}개, 1팀 공방전: {}개, 2팀 공방전: {}개",
           user, roomId, 
           summaryData.getOpinion().size(),
           summaryData.getBattle().size(), 
-          summaryData.getFinal_summary().size());
+          summaryData.getFinal_summary().size(),
+          firstTeamOpinion.size(),
+          secondTeamOpinion.size(),
+          firstTeamAttackFullText.size(),
+          secondTeamAttackFullText.size());
       
-      return summaryData;
+      return response;
       
     } catch (Exception e) {
       log.error("시청자 입장 처리 중 오류 발생 - 사용자: {}, 방ID: {}, 오류: {}", user, roomId, e.getMessage(), e);

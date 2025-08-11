@@ -6,6 +6,7 @@ import com.ssafya408.debate.domain.api.dto.room.DebateRoomResponse;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
 import com.ssafya408.debate.domain.api.dto.room.WebRTCStatus;
 import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse;
+import com.ssafya408.debate.domain.api.dto.audience.AudienceJoinResponse;
 import com.ssafya408.debate.domain.api.service.DebateService;
 import com.ssafya408.debate.domain.common.dto.ApiResponse;
 import com.ssafya408.debate.domain.db.cache.DebateRedisInfo;
@@ -522,19 +523,23 @@ public class DebateRoomApiController {
       )
     )
   })
-  public ResponseEntity<ApiResponse<DebateSummaryResponse>> joinAsAudience(Principal user,@PathVariable Long roomId) {
+  public ResponseEntity<ApiResponse<AudienceJoinResponse>> joinAsAudience(Principal user,@PathVariable Long roomId) {
     log.info("[시청자 입장] 요청 수신 - roomId: {}", roomId);
     
     try {
-      DebateSummaryResponse summaryData = debateService.joinAsAudience(user.getName(),roomId);
+      AudienceJoinResponse response = debateService.joinAsAudience(user.getName(),roomId);
       
-      log.info("[시청자 입장] 성공 - roomId: {}, 의견 요약: {}개, 공방전 요약: {}개, 최종 요약: {}개",
+      log.info("[시청자 입장] 성공 - roomId: {}, 의견 요약: {}개, 공방전 요약: {}개, 최종 요약: {}개, 1팀 의견: {}개, 2팀 의견: {}개, 1팀 공방전: {}개, 2팀 공방전: {}개",
           roomId, 
-          summaryData.getOpinion().size(),
-          summaryData.getBattle().size(), 
-          summaryData.getFinal_summary().size());
+          response.getSummaryData().getOpinion().size(),
+          response.getSummaryData().getBattle().size(), 
+          response.getSummaryData().getFinal_summary().size(),
+          response.getOpinionData().getFirstTeamOpinion().size(),
+          response.getOpinionData().getSecondTeamOpinion().size(),
+          response.getBattleData().getFirstTeamAttack().size(),
+          response.getBattleData().getSecondTeamAttack().size());
       
-      return ResponseEntity.ok(ApiResponse.success(summaryData));
+      return ResponseEntity.ok(ApiResponse.success(response));
       
     } catch (Exception e) {
       log.error("[시청자 입장] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);

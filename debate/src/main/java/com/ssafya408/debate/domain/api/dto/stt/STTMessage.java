@@ -9,7 +9,6 @@ import lombok.Getter;
 @Getter
 public class STTMessage {
   private String user;
-  private DebateTurn turn;
   private List<String> texts;
 
   private STTMessage(String user) {

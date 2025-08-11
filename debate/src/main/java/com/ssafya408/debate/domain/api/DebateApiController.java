@@ -4,6 +4,7 @@ import com.ssafya408.debate.domain.api.dto.debate.SelectTargetRequestDto;
 import com.ssafya408.debate.domain.api.dto.stt.OpinionSTTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
 import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse;
+import com.ssafya408.debate.domain.api.dto.audience.AudienceJoinResponse;
 import com.ssafya408.debate.domain.api.service.DebateService;
 import java.security.Principal;
 import lombok.RequiredArgsConstructor;
@@ -103,14 +104,14 @@ public class DebateApiController {
     try {
       log.info("시청자 토론방 입장 처리 시작 - 시청자: {}, 방ID: {}", user, roomId);
       
-      // 현재까지의 요약 정보 조회
-      DebateSummaryResponse summaryData = debateService.joinAsAudience(user, roomId);
+      // 현재까지의 요약 정보 및 추가 데이터 조회
+      AudienceJoinResponse response = debateService.joinAsAudience(user, roomId);
       
-      // 시청자에게 요약 정보 전송
+      // 시청자에게 요약 정보 및 추가 데이터 전송
       messagingTemplate.convertAndSendToUser(
         user,
         "/queue/debate/audience/summary",
-        summaryData
+        response
       );
       
       log.info("시청자 토론방 입장 처리 완료 - 시청자: {}, 방ID: {}", user, roomId);
