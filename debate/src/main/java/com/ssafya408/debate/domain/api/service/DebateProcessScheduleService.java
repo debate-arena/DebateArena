@@ -41,9 +41,26 @@ public class DebateProcessScheduleService {
     }
     // 게임 시작 대기 30초
     private void startOpinion(RoomManager roomManager) {
-        log.info("[ 게임 시작 전 대기 ] {}",roomManager.getRoomId() );
-        if(!roomManager.getStatus().equals(RoomStatus.OPINION)){
-            startBattle(roomManager);
+        log.info("[ 게임 시작 전 대기 ] roomId: {}, 현재 상태: {}", roomManager.getRoomId(), roomManager.getStatus());
+        
+        // 상태가 OPINION이 아닌 경우, 적절한 단계로 이동
+        if (roomManager.getStatus() != RoomStatus.OPINION) {
+            log.info("[상태 전환] 현재 상태: {} → 적절한 단계로 이동", roomManager.getStatus());
+            
+            if (roomManager.getStatus() == RoomStatus.BATTLE_VOTE || 
+                roomManager.getStatus() == RoomStatus.BATTLE) {
+                startBattle(roomManager);
+            } else if (roomManager.getStatus() == RoomStatus.VOTING || 
+                       roomManager.getStatus() == RoomStatus.RESULT) {
+                startVote(roomManager);
+            } else if (roomManager.getStatus() == RoomStatus.FINISH) {
+                endGame(roomManager);
+            } else {
+                log.warn("[상태 오류] 예상치 못한 상태: {}", roomManager.getStatus());
+                // 기본적으로 OPINION 상태로 초기화
+                roomManager.setStatus(RoomStatus.OPINION);
+                roomManager.setCurrentOpinionIndex(0);
+            }
             return;
         }
 
@@ -155,10 +172,33 @@ public class DebateProcessScheduleService {
     }
 
     private void startBattle(RoomManager roomManager) {
-        log.info("[ 공방전 시작 전 대기 ] {}",roomManager.getRoomId() );
-        if(roomManager.getStatus().equals(RoomStatus.BATTLE)){
+        log.info("[ 공방전 시작 전 대기 ] roomId: {}, 현재 상태: {}", roomManager.getRoomId(), roomManager.getStatus());
+        
+        // 상태가 이미 BATTLE인 경우, 바로 배틀 턴 시작
+        if (roomManager.getStatus() == RoomStatus.BATTLE) {
+            log.info("[상태 확인] 이미 BATTLE 상태 - 배틀 턴 시작");
             startBattleTurn(roomManager);
             return;
+        }
+        
+        // BATTLE_VOTE 상태가 아닌 경우, 적절한 단계로 이동
+        if (roomManager.getStatus() != RoomStatus.BATTLE_VOTE) {
+            log.warn("[상태 오류] BATTLE_VOTE 상태가 아님: {}", roomManager.getStatus());
+            
+            if (roomManager.getStatus() == RoomStatus.OPINION) {
+                log.info("[상태 전환] OPINION → BATTLE_VOTE로 전환");
+                roomManager.setStatus(RoomStatus.BATTLE_VOTE);
+            } else if (roomManager.getStatus() == RoomStatus.VOTING || 
+                       roomManager.getStatus() == RoomStatus.RESULT) {
+                startVote(roomManager);
+                return;
+            } else if (roomManager.getStatus() == RoomStatus.FINISH) {
+                endGame(roomManager);
+                return;
+            } else {
+                log.error("[상태 오류] 예상치 못한 상태: {}", roomManager.getStatus());
+                return;
+            }
         }
 
         // 공방 시작 30초 남음 BROADCAST
@@ -169,7 +209,11 @@ public class DebateProcessScheduleService {
 
         simpMessagingTemplate.convertAndSend("/debate/room/" + roomManager.getRoomId()+"/start/battle", dto);
 
-        roomManager.advanceTurn();
+        // BATTLE_VOTE에서 BATTLE로 상태 전환
+        log.info("[상태 전환] BATTLE_VOTE → BATTLE");
+        roomManager.setStatus(RoomStatus.BATTLE);
+        roomManager.setCurrentBattleIndex(0);
+        
         taskScheduler.schedule(() -> {
             startBattleTurn(roomManager);
         }, Instant.now().plusSeconds(15));
@@ -263,18 +307,38 @@ public class DebateProcessScheduleService {
     }
 
     private void startVote(RoomManager roomManager) {
-        if(roomManager.getStatus() ==RoomStatus.RESULT){
-            log.info("[투표 종료] {}",roomManager.getStatus());
+        log.info("[투표 진행 시작] roomId: {}, 현재 상태: {}", roomManager.getRoomId(), roomManager.getStatus());
+        
+        if (roomManager.getStatus() == RoomStatus.RESULT) {
+            log.info("[투표 종료] 현재 상태: {}", roomManager.getStatus());
             endGame(roomManager);
             return;
         }
+        
+        // VOTING 상태가 아닌 경우, 적절한 단계로 이동
+        if (roomManager.getStatus() != RoomStatus.VOTING) {
+            log.warn("[상태 오류] VOTING 상태가 아님: {}", roomManager.getStatus());
+            
+            if (roomManager.getStatus() == RoomStatus.BATTLE || 
+                roomManager.getStatus() == RoomStatus.BATTLE_VOTE) {
+                log.info("[상태 전환] BATTLE → VOTING으로 전환");
+                roomManager.setStatus(RoomStatus.VOTING);
+            } else if (roomManager.getStatus() == RoomStatus.OPINION) {
+                log.warn("[상태 오류] 아직 OPINION 단계 - 투표를 시작할 수 없음");
+                return;
+            } else if (roomManager.getStatus() == RoomStatus.FINISH) {
+                endGame(roomManager);
+                return;
+            } else {
+                log.error("[상태 오류] 예상치 못한 상태: {}", roomManager.getStatus());
+                return;
+            }
+        }
 
-        log.info("[투표 진행 시작]");
-        log.info("{}",roomManager.getStatus());
+        log.info("[투표 진행 시작] 상태: {}", roomManager.getStatus());
 
         VoteStartResponseDto dto = VoteStartResponseDto.builder()
                 .voteStartAt(LocalDateTime.now())
-
                 .build();
         simpMessagingTemplate.convertAndSend("/debate/room/" + roomManager.getRoomId()+"/vote/start",dto);
         taskScheduler.schedule(() -> {
@@ -283,6 +347,8 @@ public class DebateProcessScheduleService {
     }
 
     private void endVote(RoomManager roomManager) {
+        log.info("[투표 종료] roomId: {}, 현재 상태: {}", roomManager.getRoomId(), roomManager.getStatus());
+        
         VoteEndResponseDto dto = VoteEndResponseDto.builder()
                 .voteEndAt(LocalDateTime.now())
                 .voteInfo(roomManager.getVoteTeam())
@@ -292,15 +358,26 @@ public class DebateProcessScheduleService {
 
         simpMessagingTemplate.convertAndSend("/debate/room/" + roomManager.getRoomId()+"/vote/end",
                 dto);
-        roomManager.advanceTurn();
+        
+        // VOTING에서 RESULT로 상태 전환
+        log.info("[상태 전환] VOTING → RESULT");
+        roomManager.setStatus(RoomStatus.RESULT);
+        
         taskScheduler.schedule(() -> {
             endGame(roomManager);
         }, Instant.now().plusSeconds(5));
     }
 
     private void endGame(RoomManager roomManager) {
-
-        log.info("[GAME ENDED]");
+        log.info("[GAME ENDED] roomId: {}, 현재 상태: {}", roomManager.getRoomId(), roomManager.getStatus());
+        
+        // RESULT에서 FINISH로 상태 전환
+        if (roomManager.getStatus() != RoomStatus.FINISH) {
+            log.info("[상태 전환] {} → FINISH", roomManager.getStatus());
+            roomManager.setStatus(RoomStatus.FINISH);
+        }
+        
+        log.info("[토론 완료] roomId: {}, 최종 상태: {}", roomManager.getRoomId(), roomManager.getStatus());
     }
 
     public Mono<Void> summarizeBattle(RoomManager roomManager) {

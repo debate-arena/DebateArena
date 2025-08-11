@@ -158,6 +158,63 @@ public class RoomManager {
   public Set<String> getAudiences() {
     return new HashSet<>(audiences);
   }
+
+  /**
+   * 상태 유효성 검증
+   * @return 상태가 유효한지 여부
+   */
+  public boolean isValidStatus() {
+    return status != null && (
+      status == RoomStatus.CONNECTING ||
+      status == RoomStatus.PREPARING ||
+      status == RoomStatus.OPINION ||
+      status == RoomStatus.BATTLE_VOTE ||
+      status == RoomStatus.BATTLE ||
+      status == RoomStatus.VOTING ||
+      status == RoomStatus.RESULT ||
+      status == RoomStatus.FINISH
+    );
+  }
+
+  /**
+   * 토론 진행 가능 상태인지 확인
+   * @return 토론 진행 가능 여부
+   */
+  public boolean canProceedDebate() {
+    return status == RoomStatus.OPINION || 
+           status == RoomStatus.BATTLE_VOTE || 
+           status == RoomStatus.BATTLE;
+  }
+
+  /**
+   * 투표 가능 상태인지 확인
+   * @return 투표 가능 여부
+   */
+  public boolean canVote() {
+    return status == RoomStatus.VOTING;
+  }
+
+  /**
+   * 토론 완료 상태인지 확인
+   * @return 토론 완료 여부
+   */
+  public boolean isDebateFinished() {
+    return status == RoomStatus.FINISH;
+  }
+
+  /**
+   * 상태 동기화 - DebateProcessScheduleService와 동기화
+   * @param expectedStatus 예상 상태
+   * @return 동기화 성공 여부
+   */
+  public boolean synchronizeStatus(RoomStatus expectedStatus) {
+    if (status != expectedStatus) {
+      log.warn("[상태 동기화] 현재 상태: {} → 예상 상태: {}", status, expectedStatus);
+      status = expectedStatus;
+      return true;
+    }
+    return false;
+  }
   public static RoomManager generateRoomManager(Long roomId,MatchType type,Long topicId,
       List<String> firstTeam,
       List<String> secondTeam) {
@@ -351,10 +408,10 @@ public class RoomManager {
         // 의견 단계 완료 체크
         if (currentOpinionIndex >= playerCount) {
           status = RoomStatus.BATTLE_VOTE;
-          log.info("✅ 의견 단계 완료 - 배틀 단계로 전환");
+          log.info("✅ 의견 단계 완료 - 배틀 투표 단계로 전환");
           log.info("🔄 상태 전환: OPINION → BATTLE_VOTE, currentBattleIndex 초기화: {}", currentBattleIndex);
           result.put("phaseChanged", true);
-          result.put("newPhase", "battle");
+          result.put("newPhase", "battle_vote");
         }
         
         result.put("currentStatus", status);
@@ -370,10 +427,12 @@ public class RoomManager {
       
     }
     else if(status == RoomStatus.BATTLE_VOTE) {
-      log.info("⚔️ 배틀 투표 단계 턴 진행");
-      currentBattleIndex = 0;
-
-      status=RoomStatus.BATTLE;
+      log.info("⚔️ 배틀 투표 단계 - DebateProcessScheduleService에서 처리됨");
+      // BATTLE_VOTE 단계는 DebateProcessScheduleService에서 처리
+      // 여기서는 상태 변경하지 않음
+      result.put("currentStatus", status);
+      result.put("currentIndex", currentBattleIndex);
+      result.put("isFinished", isFinished());
     }
     else if (status == RoomStatus.BATTLE) {
       // 배틀 단계에서 턴 진행
@@ -384,7 +443,7 @@ public class RoomManager {
         // 턴 진행 후 새로운 발화자 정보 로그
         int newTeamIdx = getTeamIdx();
         int newOrderInTeam = getOrderInTeam();
-        String nextSpeaker = (currentOpinionIndex< playerCount)?  getCurrentSpeaker(): "turn over";
+        String nextSpeaker = (currentBattleIndex < playerCount)?  getCurrentSpeaker(): "turn over";
 
         log.info("📈 턴 진행 후 상태 - currentBattleIndex: {}/{}", currentBattleIndex, playerCount);
         log.info("🎯 다음 발화자 정보 - teamIdx: {}, orderInTeam: {}, speaker: {}",
@@ -392,11 +451,11 @@ public class RoomManager {
         
         // 배틀 단계 완료 체크
         if (currentBattleIndex >= playerCount) {
-
           status = RoomStatus.VOTING;
-          log.info("🏁 배틀 단계 완료 - 토론 종료");
-          log.info("🔄 상태 전환: BATTLE → {}",status);
+          log.info("🏁 배틀 단계 완료 - 투표 단계로 전환");
+          log.info("🔄 상태 전환: BATTLE → VOTING");
           result.put("debateFinished", true);
+          result.put("newPhase", "voting");
         }
         
         result.put("currentStatus", status);
@@ -404,7 +463,6 @@ public class RoomManager {
         result.put("isFinished", isFinished());
 
       }
-
       else {
         log.warn("❌ 배틀 단계가 이미 완료됨 - currentBattleIndex: {}, playerCount: {}", 
             currentBattleIndex, playerCount);
@@ -413,14 +471,26 @@ public class RoomManager {
       
     }
     else if(status == RoomStatus.VOTING) {
-      log.info("⚔️ 배틀 투표 단계 턴 진행");
-
-      status=RoomStatus.RESULT;
+      log.info("🗳️ 투표 단계 - DebateProcessScheduleService에서 처리됨");
+      // VOTING 단계는 DebateProcessScheduleService에서 처리
+      // 여기서는 상태 변경하지 않음
+      result.put("currentStatus", status);
+      result.put("currentIndex", 0);
+      result.put("isFinished", isFinished());
     }
     else if(status == RoomStatus.RESULT) {
-      log.info("⚔️ 배틀 투표 단계 턴 진행");
-
-      status=RoomStatus.FINISH;
+      log.info("🏆 결과 단계 - DebateProcessScheduleService에서 처리됨");
+      // RESULT 단계는 DebateProcessScheduleService에서 처리
+      // 여기서는 상태 변경하지 않음
+      result.put("currentStatus", status);
+      result.put("currentIndex", 0);
+      result.put("isFinished", isFinished());
+    }
+    else if(status == RoomStatus.FINISH) {
+      log.info("🏁 토론 완료");
+      result.put("currentStatus", status);
+      result.put("currentIndex", 0);
+      result.put("isFinished", true);
     }
     else {
       log.error("알 수 없는 토론 상태: {}", status);
