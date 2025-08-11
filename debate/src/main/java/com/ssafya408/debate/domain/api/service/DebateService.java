@@ -405,6 +405,7 @@ public class DebateService {
         voteTeam = new HashMap<>();
       }
       voteTeam.put(req.getUserEmail(),req.getTeam());
+      roomManager.setVoteTeam(voteTeam);
     }else{
       log.info("투표를 할 수 없는 시간입니다.");
     }

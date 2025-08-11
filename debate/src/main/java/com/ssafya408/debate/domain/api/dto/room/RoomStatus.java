@@ -7,6 +7,7 @@ public enum RoomStatus {
   BATTLE_VOTE,
   BATTLE,
   VOTING,
-  RESULT,
+  VOTE_RESULT,
+  AI_RESULT,
   FINISH
 }
