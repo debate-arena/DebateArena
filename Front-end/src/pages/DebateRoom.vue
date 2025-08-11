@@ -1132,6 +1132,7 @@ import {
   watch,
   computed,
   onBeforeMount,
+  watchEffect,
 } from "vue";
 import { useRoute } from "vue-router";
 import debateLeftProfile from "@/assets/images/profile/debate_left.png";
@@ -1182,8 +1183,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useTargetSelectionStore } from "@/store/targetSelection";
+import { useStt } from "@/composables/useSpeechRecognition";
 
 const client = ref<Client | null>(null);
+const route = useRoute();
 
 // Debate Store 사용
 const debateStore = useDebateStore();
@@ -1219,20 +1222,99 @@ const setParticipantAudioRef = (userEmail: string, el: any) => {
   }
 };
 
-// 테스트용 참가자 데이터 추가
-roomStore.setRoom({
-  roomId: "11",
-  participants: [
-    { userId: "user01@test.com", displayName: "김정택", side: "L" },
-    {
-      userId: "user02@test.com",
-      displayName: "권우상권우상권우권우상권우상권우",
-      side: "R",
-    },
-    { userId: "user03@test.com", displayName: "김형수", side: "L" },
-    { userId: "user04@test.com", displayName: "지준오", side: "R" },
-  ],
+// 커스텀 방에서 진입 시 방 정보가 이미 세팅되었을 수 있으므로, 비어있을 때만 기본값 주입
+if (!roomStore.room) {
+  roomStore.setRoom({
+    roomId: "11",
+    participants: [
+      { userId: "user01@test.com", displayName: "김정택", side: "L" },
+      {
+        userId: "user02@test.com",
+        displayName: "권우상권우상권우권우상권우상권우",
+        side: "R",
+      },
+      { userId: "user03@test.com", displayName: "김형수", side: "L" },
+      { userId: "user04@test.com", displayName: "지준오", side: "R" },
+    ],
+  });
+}
+
+// STT 관련
+
+const sttStompClient = ref<Client | null>(null);
+const isSttConnected = ref(false);
+
+
+const connectStt = () => {
+  return new Promise((resolve, reject) => {
+    const client = new Client({
+      brokerURL: `${import.meta.env.VITE_API_BASE_URL}:8082/ws`, // 8082 포트로 연결
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000
+    });
+
+    client.onConnect = () => {
+      console.log('🔗 STT WebSocket 연결 성공 (8082)');
+      isSttConnected.value = true;
+      sttStompClient.value = client;
+      resolve(void 0);
+    };
+
+    client.onStompError = (error) => {
+      console.error('❌ STT WebSocket 연결 실패:', error);
+      isSttConnected.value = false;
+      reject(error);
+    };
+
+    client.activate();
+  });
+};
+
+const disconnectStt = () => {
+  if (sttStompClient.value && isSttConnected.value) {
+    sttStompClient.value.deactivate();
+    isSttConnected.value = false;
+    sttStompClient.value = null;
+  }
+};
+
+connectStt().catch(console.error);
+
+const {
+  isRecognizing,
+  previewText,
+  start,
+  stop: stopStt,
+  onSegmentReady,
+  onSttMessage
+} = useStt(sttStompClient, roomStore.room?.roomId ?? 0);
+
+const joined = ref(false);
+watchEffect(() => {
+  if (isSttConnected.value && !joined.value && roomId.value) {
+    sttStompClient.value?.publish({ destination: '/pub/debate/join', body: String(roomId.value) });
+    joined.value = true;
+  }
 });
+watch(isSttConnected, (isConnected)=>{ if(!isConnected) joined.value = false; });
+
+// 로그
+const recv = ref<Array<{ ts: number; payload: unknown }>>([]),
+  sent = ref<Array<{ ts: number; segment: unknown }>>([]);
+onSttMessage((p: any)=> recv.value.unshift({ ts: Date.now(), payload: p }));
+onSegmentReady((s: any)=> sent.value.unshift({ ts: Date.now(), segment: s }));
+
+const startOpinion = () => start({ phase: "OPINION" });
+const startAttack = () => start({ phase: "BATTLE", isAttack: true });
+const startDefense = () => start({ phase: "BATTLE", isAttack: false });
+const clear = () => {
+  recv.value = [];
+  sent.value = [];
+};
+const fmt = (o: any) => JSON.stringify(o, null, 2);
+
+
+
 
 const firstTeam = ref<Team[]>([]);
 const secondTeam = ref<Team[]>([]);
@@ -1281,7 +1363,7 @@ const {
 } = useWebRTCConnection({
   audioController: audioControls,
   participantsCount: roomStore.room?.participants.length ?? 1,
-  stompClient: createStompClientWrapper(client.value),
+  stompClient: createStompClientWrapper(client),
 });
 
 const connectionStep = computed(() => {
@@ -1289,9 +1371,9 @@ const connectionStep = computed(() => {
 });
 
 // 토론 주제
-const debateSubject = ref("이곳에 토론 주제가 들어갑니다.");
-const debateLeftTeam = ref("좌측 진영");
-const debateRightTeam = ref("우측 진영");
+const debateSubject = ref(roomStore.room?.topic || "이곳에 토론 주제가 들어갑니다.");
+const debateLeftTeam = ref(roomStore.room?.leftTeamName || "좌측 진영");
+const debateRightTeam = ref(roomStore.room?.rightTeamName || "우측 진영");
 const debateStartAt = ref("");
 const currentTime = ref(0);
 
@@ -1911,20 +1993,24 @@ const getAuthToken = async () => {
 onMounted(async () => {
   console.log("🚀 토론방 초기화 시작");
 
-  // TODO: 실제 사용자 정보와 방 정보로 대체
-  debateStore.setRoomId("11");
-  debateStore.setMyInfo("user1@test.com", "L", true);
+  // 라우트 파라미터 기반 설정 (이미 설정되어 있으면 유지)
+  if (!debateStore.roomId) {
+    const rid = String(route.params.id || roomStore.room?.roomId || "");
+    if (rid) debateStore.setRoomId(rid);
+  }
+  if (!debateStore.myEmail) {
+    // 기본값: 현재 사용자 이메일만 설정, 팀/프로듀서는 기존 값 유지
+    debateStore.setMyInfo(authStore.userEmail || "", debateStore.myTeam, debateStore.isProducer);
+  }
 
+  // 개발용 빠른 시작: 커스텀 방에서 온 경우에는 건너뜀
   setTimeout(() => {
-    stepDone.completed.resolve();
-    // startPreparationTimer();
-    isPreparationTime.value = false;
-    // isTransitionStarted.value = true;
-    // startSpeakingTransitionTimer();
-    // startSpeakingTimer();
-    //isSelectTarget.value = true;
-    // startSelectTargetTimer();
-  }, 1000);
+    // 서버 이벤트로 해제되지 않았으면 자동 해제
+    if (isPreparationTime.value) {
+      stepDone.completed.resolve();
+      isPreparationTime.value = false;
+    }
+  }, 1200);
 
   await subscribeToDebateRoom();
   await startWebRTCConnection(roomStore.room?.roomId ?? "404");
