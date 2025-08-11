@@ -1925,6 +1925,25 @@ roomStore.setRoom({
   rightTeamName: "성악설",
   mode: "1",
 });
+watch(isSttConnected, (isConnected)=>{ if(!isConnected) joined.value = false; });
+
+// 로그
+const recv = ref<Array<{ ts: number; payload: unknown }>>([]),
+  sent = ref<Array<{ ts: number; segment: unknown }>>([]);
+onSttMessage((p: any)=> recv.value.unshift({ ts: Date.now(), payload: p }));
+onSegmentReady((s: any)=> sent.value.unshift({ ts: Date.now(), segment: s }));
+
+const startOpinion = () => start({ phase: "OPINION" });
+const startAttack = () => start({ phase: "BATTLE", isAttack: true });
+const startDefense = () => start({ phase: "BATTLE", isAttack: false });
+const clear = () => {
+  recv.value = [];
+  sent.value = [];
+};
+const fmt = (o: any) => JSON.stringify(o, null, 2);
+
+
+
 
 // STT 관련
 const isSttConnected = ref(false);
@@ -1993,7 +2012,7 @@ const {
 } = useWebRTCConnection({
   audioController: audioControls,
   participantsCount: roomStore.room?.participants.length ?? 1,
-  stompClient: createStompClientWrapper(client.value),
+  stompClient: createStompClientWrapper(client),
 });
 
 const connectionStep = computed(() => {
@@ -2837,6 +2856,7 @@ onMounted(async () => {
   debateStore.setRoomId("11");
   debateStore.setMyInfo("user01@test.com", "L", false);
 
+  // 개발용 빠른 시작: 커스텀 방에서 온 경우에는 건너뜀
   setTimeout(() => {
     stepDone.completed.resolve();
     state.value.isConnecting = false;
