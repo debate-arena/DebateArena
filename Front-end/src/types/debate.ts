@@ -80,3 +80,13 @@ export interface DebateSelectTargetResponse {
   attacker: string;
   defender: string;
 }
+
+export interface DebateVoteStartMessage {
+  voteStartAt: string;
+}
+
+export interface DebateVoteEndMessage {
+  voteInfo: Record<string, number>; // 투표 안한 사람은 안뜸
+  voteResult: number, // 0: 좌측 진영, 1: 우측 진영, 2: 무승부
+  voteEndAt: string;
+}

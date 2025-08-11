@@ -71,9 +71,6 @@
             <div class="flex flex-wrap justify-between items-center gap-4">
               <!-- 좌측 진영 -->
               <div class="flex-1 min-w-[300px] text-center">
-                <div class="text-2xl text-debate-left mb-4 font-bold">
-                  좌측 진영
-                </div>
                 <div class="flex justify-center space-x-2">
                   <div
                     v-for="participant in roomStore.leftTeam"
@@ -81,8 +78,21 @@
                     class="flex flex-col items-center space-y-2 w-32"
                   >
                     <div class="relative">
-                      <Avatar class="w-16 h-16">
-                        <AvatarImage :src="debateLeftProfile" alt="좌측 진영" />
+                      <Avatar
+                        :class="[
+                          'w-16 h-16',
+                          audioControls.getParticipantSpeaking(
+                            participant.userId
+                          )
+                            ? 'speaking-glow'
+                            : '',
+                        ]"
+                      >
+                        <AvatarImage
+                          :src="debateLeftProfile"
+                          alt="좌측 진영"
+                          class="border-2 border-black rounded-full bg-white"
+                        />
                       </Avatar>
                       <!-- 연결 상태 표시 -->
                       <div
@@ -112,7 +122,7 @@
                       </div>
                     </div>
                     <span
-                      class="text-sm text-white text-center font-bold max-w-full break-words"
+                      class="text-sm text-white text-center font-bold max-w-full break-words h-[2.6rem] flex justify-center items-center"
                       style="
                         word-break: keep-all;
                         overflow-wrap: break-word;
@@ -152,9 +162,6 @@
 
               <!-- 우측 진영 -->
               <div class="flex-1 min-w-[300px] text-center">
-                <div class="text-2xl text-debate-right mb-4 font-bold">
-                  우측 진영
-                </div>
                 <div class="flex justify-center space-x-2">
                   <div
                     v-for="participant in roomStore.rightTeam"
@@ -162,10 +169,20 @@
                     class="flex flex-col items-center space-y-2 w-32"
                   >
                     <div class="relative">
-                      <Avatar class="w-16 h-16">
+                      <Avatar
+                        :class="[
+                          'w-16 h-16',
+                          audioControls.getParticipantSpeaking(
+                            participant.userId
+                          )
+                            ? 'speaking-glow'
+                            : '',
+                        ]"
+                      >
                         <AvatarImage
                           :src="debateRightProfile"
                           alt="우측 진영"
+                          class="border-2 border-black rounded-full bg-white"
                         />
                       </Avatar>
                       <!-- 연결 상태 표시 -->
@@ -181,7 +198,7 @@
                       </div>
                     </div>
                     <span
-                      class="text-sm text-white text-center max-w-full break-words font-bold"
+                      class="text-sm text-white text-center max-w-full break-words font-bold h-[2.6rem] flex justify-center items-center"
                       style="
                         word-break: keep-all;
                         overflow-wrap: break-word;
@@ -217,22 +234,30 @@
       >
         <div class="text-center">
           <!-- 메인 카운트다운 숫자 -->
-          <div class="text-9xl font-bold text-white mb-8 animate-pulse">
+          <div
+            :class="[
+              'text-9xl font-bold mb-8 animate-pulse',
+              preparationTimeLeft <= 10 ? 'text-red-500' : 'text-white',
+            ]"
+          >
             {{ preparationTimeLeft }}
           </div>
 
           <!-- 준비시간 텍스트 -->
-          <div class="text-3xl text-white mb-4">준비시간</div>
+          <div class="text-3xl text-white mb-4 font-bold">준비시간</div>
 
           <!-- 설명 텍스트 -->
-          <div class="text-lg text-gray-300 mb-8">
+          <div class="text-lg text-gray-300 mb-8 font-bold">
             토론이 곧 시작됩니다. 마음의 준비를 하세요!
           </div>
 
           <!-- 프로그레스 바 -->
           <div class="w-96 bg-gray-700 rounded-full h-3 mx-auto mb-8">
             <div
-              class="bg-blue-500 h-3 rounded-full transition-all duration-1000 ease-linear"
+              :class="[
+                'h-3 rounded-full transition-all duration-1000 ease-linear',
+                preparationTimeLeft <= 10 ? 'bg-red-500' : 'bg-blue-500',
+              ]"
               :style="{
                 width: `${((preparationTimeLeft || 0) / (PREPARATION_DURATION / 1000)) * 100}%`,
               }"
@@ -253,7 +278,7 @@
             >
               <!-- 좌측 진영 -->
               <div class="text-center">
-                <div class="text-2xl font-bold text-debate-left mb-4">
+                <div class="text-2xl font-bold text-white mb-4">
                   {{ debateLeftTeam }}
                 </div>
                 <div class="flex justify-center space-x-2">
@@ -262,14 +287,22 @@
                     :key="participant.userId"
                     class="flex flex-col items-center space-y-2 w-32"
                   >
-                    <Avatar class="w-16 h-16">
+                    <Avatar
+                      :class="[
+                        'w-16 h-16',
+                        audioControls.getParticipantSpeaking(participant.userId)
+                          ? 'speaking-glow'
+                          : '',
+                      ]"
+                    >
                       <AvatarImage
                         :src="debateLeftProfile"
                         :alt="participant.displayName"
+                        class="border-2 border-black rounded-full bg-white"
                       />
                     </Avatar>
                     <span
-                      class="text-sm text-white text-center max-w-full break-words font-bold"
+                      class="text-sm text-white text-center max-w-full break-words font-bold h-[2.6rem] flex justify-center items-center"
                       style="
                         word-break: keep-all;
                         overflow-wrap: break-word;
@@ -285,8 +318,8 @@
                           : participant.displayName
                       }}
                     </span>
-                    <span class="text-xs px-2 py-1 text-gray-300">
-                      {{ speakingOrderMap[participant.userId] }}번째
+                    <span class="px-2 py-1 text-white font-bold">
+                      {{ speakingOrderMap[participant.userId] }}번
                     </span>
                   </div>
                 </div>
@@ -299,7 +332,7 @@
 
               <!-- 우측 진영 -->
               <div class="text-center">
-                <div class="text-2xl font-bold text-debate-right mb-4">
+                <div class="text-2xl font-bold text-white mb-4">
                   {{ debateRightTeam }}
                 </div>
                 <div class="flex justify-center space-x-2">
@@ -308,14 +341,22 @@
                     :key="participant.userId"
                     class="flex flex-col items-center space-y-2 w-32"
                   >
-                    <Avatar class="w-16 h-16">
+                    <Avatar
+                      :class="[
+                        'w-16 h-16',
+                        audioControls.getParticipantSpeaking(participant.userId)
+                          ? 'speaking-glow'
+                          : '',
+                      ]"
+                    >
                       <AvatarImage
                         :src="debateRightProfile"
                         :alt="participant.displayName"
+                        class="border-2 border-white rounded-full bg-white"
                       />
                     </Avatar>
                     <span
-                      class="text-sm text-white text-center max-w-full break-words font-bold"
+                      class="text-sm text-white text-center max-w-full break-words font-bold h-[2.6rem] flex justify-center items-center"
                       style="
                         word-break: keep-all;
                         overflow-wrap: break-word;
@@ -331,8 +372,8 @@
                           : participant.displayName
                       }}
                     </span>
-                    <span class="text-xs px-2 py-1 text-gray-300">
-                      {{ speakingOrderMap[participant.userId] }}번째
+                    <span class="px-2 py-1 text-white font-bold">
+                      {{ speakingOrderMap[participant.userId] }}번
                     </span>
                   </div>
                 </div>
@@ -450,38 +491,123 @@
                       :key="participant.userId"
                       class="flex flex-col items-center space-y-1"
                     >
-                      <Avatar
-                        :class="[
-                          'w-16 h-16 relative overflow-visible',
-                          // participant.id === debateSession.currentSpeakerId
-                          //   ? 'speaking-glow'
-                          //   : '',
-                        ]"
-                      >
-                        <AvatarImage
-                          :src="debateLeftProfile"
-                          :alt="participant.displayName"
-                        />
-                        <!-- 공격/수비 아이콘 -->
-                        <div
-                          v-if="participantStates[participant.userId]"
-                          class="absolute -top-8 z-10 w-16 h-16 flex items-center justify-center"
+                      <Popover>
+                        <PopoverTrigger as-child>
+                          <Avatar
+                            :class="[
+                              'w-16 h-16 relative overflow-visible cursor-pointer',
+                              audioControls.getParticipantSpeaking(
+                                participant.userId
+                              )
+                                ? 'speaking-glow'
+                                : '',
+                            ]"
+                          >
+                            <AvatarImage
+                              :src="debateLeftProfile"
+                              :alt="participant.displayName"
+                              class="border-2 border-black rounded-full bg-white"
+                            />
+                            <!-- 공격/수비 아이콘 -->
+                            <div
+                              v-if="participantStates[participant.userId]"
+                              class="absolute -top-8 z-10 w-16 h-16 flex items-center justify-center"
+                            >
+                              <img
+                                :src="
+                                  participantStates[participant.userId] ===
+                                  'attack'
+                                    ? attackIcon
+                                    : defenseIcon
+                                "
+                                :alt="
+                                  participantStates[participant.userId] ===
+                                  'attack'
+                                    ? '공격'
+                                    : '수비'
+                                "
+                                class="w-8 h-8"
+                              />
+                            </div>
+                            <!-- 음소거 배지 -->
+                            <div
+                              v-if="isParticipantMuted(participant.userId)"
+                              class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-black bg-red-500 text-white text-[10px] flex items-center justify-center"
+                              title="음소거됨"
+                            >
+                              🔇
+                            </div>
+                          </Avatar>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          class="w-72 bg-white text-black shadow-lg border border-gray-200"
                         >
-                          <img
-                            :src="
-                              participantStates[participant.userId] === 'attack'
-                                ? attackIcon
-                                : defenseIcon
-                            "
-                            :alt="
-                              participantStates[participant.userId] === 'attack'
-                                ? '공격'
-                                : '수비'
-                            "
-                            class="w-8 h-8"
-                          />
-                        </div>
-                      </Avatar>
+                          <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                              <Label class="text-sm">음소거</Label>
+                              <Switch
+                                :modelValue="
+                                  audioControls.getParticipantMuted(
+                                    participant.userId
+                                  )
+                                "
+                                @update:modelValue="
+                                  (v: boolean) =>
+                                    audioControls.setParticipantMuted(
+                                      participant.userId,
+                                      v
+                                    )
+                                "
+                                class="border-gray-200"
+                              />
+                            </div>
+                            <div
+                              v-if="participant.userId === debateStore.myEmail"
+                              class="flex items-center justify-between"
+                            >
+                              <Label class="text-sm">음성 변조</Label>
+                              <Switch
+                                :modelValue="audioControls.isVoiceModulated.value"
+                                @update:modelValue="onToggleVoiceMod"
+                                class="border-gray-200"
+                              />
+                            </div>
+                            <div class="space-y-2">
+                              <div class="flex items-center justify-between">
+                                <Label class="text-sm">볼륨</Label>
+                                <span class="text-xs text-gray-600 font-mono"
+                                  >{{
+                                    Math.round(
+                                      audioControls.getParticipantVolume(
+                                        participant.userId
+                                      ) * 100
+                                    )
+                                  }}%</span
+                                >
+                              </div>
+                              <Slider
+                                :min="0"
+                                :max="1"
+                                :step="0.01"
+                                :modelValue="[
+                                  audioControls.getParticipantVolume(
+                                    participant.userId
+                                  ),
+                                ]"
+                                @update:modelValue="
+                                  (vals?: number[]) =>
+                                    vals &&
+                                    audioControls.setParticipantVolume(
+                                      participant.userId,
+                                      vals[0]
+                                    )
+                                "
+                                class="bg-gray-200 rounded-full"
+                              />
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <span
                         class="text-xs font-medium text-center break-words max-w-full h-[2.6em] flex leading-tight justify-center items-center"
                         style="
@@ -504,14 +630,16 @@
                   <div class="mt-3 text-center">
                     <div class="text-xs">발언 시간</div>
                     <div class="text-lg font-bold">
-                      {{ speakingTimeLeft || 0 }}초
+                      {{ isLeftSpeaking ? speakingTimeLeft || 0 : 0 }}초
                     </div>
                     <!-- 프로그레스 바 -->
                     <div class="w-full bg-gray-800 rounded-full h-3 mx-auto">
                       <div
                         class="bg-blue-500 h-3 rounded-full transition-all duration-1000 ease-linear"
                         :style="{
-                          width: `${((speakingTimeLeft || 0) / (speakingDuration / 1000)) * 100}%`,
+                          width: isLeftSpeaking
+                            ? `${((speakingTimeLeft || 0) / (speakingDuration / 1000)) * 100}%`
+                            : '0%',
                         }"
                       ></div>
                     </div>
@@ -536,38 +664,123 @@
                       :key="participant.userId"
                       class="flex flex-col items-center space-y-1"
                     >
-                      <Avatar
-                        :class="[
-                          'w-16 h-16 relative overflow-visible',
-                          // participant.id === debateSession.currentSpeakerId
-                          //   ? 'speaking-glow'
-                          //   : '',
-                        ]"
-                      >
-                        <AvatarImage
-                          :src="debateRightProfile"
-                          :alt="participant.displayName"
-                        />
-                        <!-- 공격/수비 아이콘 -->
-                        <div
-                          v-if="participantStates[participant.userId]"
-                          class="absolute -top-8 z-10 w-16 h-16 flex items-center justify-center"
+                      <Popover>
+                        <PopoverTrigger as-child>
+                          <Avatar
+                            :class="[
+                              'w-16 h-16 relative overflow-visible cursor-pointer',
+                              audioControls.getParticipantSpeaking(
+                                participant.userId
+                              )
+                                ? 'speaking-glow'
+                                : '',
+                            ]"
+                          >
+                            <AvatarImage
+                              :src="debateRightProfile"
+                              :alt="participant.displayName"
+                              class="border-2 border-white rounded-full bg-white"
+                            />
+                            <!-- 공격/수비 아이콘 -->
+                            <div
+                              v-if="participantStates[participant.userId]"
+                              class="absolute -top-8 z-10 w-16 h-16 flex items-center justify-center"
+                            >
+                              <img
+                                :src="
+                                  participantStates[participant.userId] ===
+                                  'attack'
+                                    ? attackIcon
+                                    : defenseIcon
+                                "
+                                :alt="
+                                  participantStates[participant.userId] ===
+                                  'attack'
+                                    ? '공격'
+                                    : '수비'
+                                "
+                                class="w-8 h-8"
+                              />
+                            </div>
+                            <!-- 음소거 배지 -->
+                            <div
+                              v-if="isParticipantMuted(participant.userId)"
+                              class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-black bg-red-500 text-white text-[10px] flex items-center justify-center"
+                              title="음소거됨"
+                            >
+                              🔇
+                            </div>
+                          </Avatar>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          class="w-72 bg-white text-black shadow-lg border border-gray-200"
                         >
-                          <img
-                            :src="
-                              participantStates[participant.userId] === 'attack'
-                                ? attackIcon
-                                : defenseIcon
-                            "
-                            :alt="
-                              participantStates[participant.userId] === 'attack'
-                                ? '공격'
-                                : '수비'
-                            "
-                            class="w-8 h-8"
-                          />
-                        </div>
-                      </Avatar>
+                          <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                              <Label class="text-sm">음소거</Label>
+                              <Switch
+                                :modelValue="
+                                  audioControls.getParticipantMuted(
+                                    participant.userId
+                                  )
+                                "
+                                @update:modelValue="
+                                  (v: boolean) =>
+                                    audioControls.setParticipantMuted(
+                                      participant.userId,
+                                      v
+                                    )
+                                "
+                                class="border-gray-200"
+                              />
+                            </div>
+                            <div
+                              v-if="participant.userId === debateStore.myEmail"
+                              class="flex items-center justify-between"
+                            >
+                              <Label class="text-sm">음성 변조</Label>
+                              <Switch
+                                :modelValue="audioControls.isVoiceModulated.value"
+                                @update:modelValue="onToggleVoiceMod"
+                                class="border-gray-200"
+                              />
+                            </div>
+                            <div class="space-y-2">
+                              <div class="flex items-center justify-between">
+                                <Label class="text-sm">볼륨</Label>
+                                <span class="text-xs text-gray-600 font-mono"
+                                  >{{
+                                    Math.round(
+                                      audioControls.getParticipantVolume(
+                                        participant.userId
+                                      ) * 100
+                                    )
+                                  }}%</span
+                                >
+                              </div>
+                              <Slider
+                                :min="0"
+                                :max="1"
+                                :step="0.01"
+                                :modelValue="[
+                                  audioControls.getParticipantVolume(
+                                    participant.userId
+                                  ),
+                                ]"
+                                @update:modelValue="
+                                  (vals?: number[]) =>
+                                    vals &&
+                                    audioControls.setParticipantVolume(
+                                      participant.userId,
+                                      vals[0]
+                                    )
+                                "
+                                class="bg-gray-200 rounded-full"
+                              />
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <span
                         class="text-xs font-medium text-center break-words max-w-full h-[2.6em] flex leading-tight justify-center items-center"
                         style="
@@ -590,14 +803,16 @@
                   <div class="mt-3 text-center">
                     <div class="text-xs">발언 시간</div>
                     <div class="text-lg font-bold">
-                      {{ speakingTimeLeft || 0 }}초
+                      {{ isRightSpeaking ? speakingTimeLeft || 0 : 0 }}초
                     </div>
                     <!-- 프로그레스 바 -->
                     <div class="w-full bg-white rounded-full h-3 mx-auto">
                       <div
                         class="bg-blue-500 h-3 rounded-full transition-all duration-1000 ease-linear"
                         :style="{
-                          width: `${(speakingTimeLeft || 0 / (speakingDuration / 1000)) * 100}%`,
+                          width: isRightSpeaking
+                            ? `${((speakingTimeLeft || 0) / (speakingDuration / 1000)) * 100}%`
+                            : '0%',
                         }"
                       ></div>
                     </div>
@@ -657,67 +872,368 @@
                 <div
                   :class="[
                     'absolute top-0 flex flex-col items-center space-y-2',
-                    message.team === 'left' ? 'left-0' : 'right-0',
+                    message.team === 0 ? 'left-0' : 'right-0',
                   ]"
                   style="width: 100px"
                 >
-                  <!-- 프로필 이미지 -->
-                  <Avatar
-                    :class="'w-[min(6vw,64px)] h-[min(6vw,64px)] relative overflow-visible'"
-                  >
-                    <AvatarImage
-                      :src="debateLeftProfile"
-                      :alt="message.sender"
-                    />
-                    <div
-                      class="absolute -top-8 z-10 w-16 h-16 flex items-center justify-center"
-                    >
-                      <img
-                        :src="
-                          message.team === 'left' ? attackIcon : defenseIcon
-                        "
-                        :alt="message.team === 'left' ? '공격' : '수비'"
-                        class="w-8 h-8"
-                      />
-                    </div>
-                  </Avatar>
-
-                  <!-- 발언자 이름 (8글자 넘으면 개행) -->
+                  <!-- STT 메시지 -->
                   <div
-                    class="text-xs font-semibold text-slate-700 text-center leading-tight"
-                    style="width: 100px"
+                    v-if="message.type === 'stt'"
+                    class="flex flex-col items-center"
                   >
-                    <span v-if="message.sender.length <= 8">{{
-                      message.sender
-                    }}</span>
-                    <span v-else class="block">
-                      {{ message.sender.substring(0, 8) }}<br />{{
-                        message.sender.substring(8)
-                      }}
-                    </span>
+                    <Avatar
+                      :class="[
+                        'w-[min(6vw,64px)] h-[min(6vw,64px)] relative overflow-visible',
+                        message.sender
+                          ? audioControls.getParticipantSpeaking(message.sender)
+                            ? 'speaking-glow'
+                            : ''
+                          : '',
+                      ]"
+                    >
+                      <AvatarImage
+                        :src="
+                          message.team === 0
+                            ? debateLeftProfile
+                            : debateRightProfile
+                        "
+                        :alt="message.sender"
+                        class="border-2 border-black rounded-full bg-white"
+                      />
+                      <div
+                        v-if="message.mode === 'battle'"
+                        class="absolute -top-8 z-10 w-16 h-16 flex items-center justify-center"
+                      >
+                        <img
+                          :src="message.isAttacker ? attackIcon : defenseIcon"
+                          :alt="message.isAttacker ? '공격' : '수비'"
+                          class="w-6 h-6"
+                        />
+                      </div>
+                    </Avatar>
+
+                    <!-- 발언자 이름 (8글자 넘으면 개행) -->
+                    <div
+                      class="text-xs font-semibold text-slate-700 text-center leading-tight h-[2.6em] flex items-center justify-center"
+                      style="width: 100px"
+                    >
+                      <span
+                        v-if="message.sender && message.sender.length <= 8"
+                        >{{ message.sender }}</span
+                      >
+                      <span v-else-if="message.sender" class="block">
+                        {{ message.sender.substring(0, 8) }}<br />{{
+                          message.sender.substring(8)
+                        }}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 <!-- 말풍선 영역 (프로필 영역 피해서) -->
-                <div
-                  :class="[
-                    'relative p-8 rounded-4xl text-lg shadow-sm',
-                    message.team === 'left'
-                      ? 'bg-debate-left text-slate-800 ml-28 mr-28'
-                      : 'bg-debate-right text-white mr-28 ml-28',
-                  ]"
-                  style="min-height: 80px; display: flex; align-items: center"
-                >
-                  <!-- 말풍선 꼬리 -->
+                <div v-if="message.type === 'stt'">
                   <div
-                    v-if="message.team === 'left'"
-                    class="absolute top-6 left-[-10px] w-0 h-0 border-t-[12px] border-b-[12px] border-r-[12px] border-t-transparent border-b-transparent border-r-debate-left"
-                  ></div>
+                    @click="toggleDisplay(message)"
+                    :class="[
+                      'relative p-8 rounded-4xl text-lg shadow-sm cursor-pointer select-text',
+                      message.team === 0
+                        ? 'bg-debate-left text-slate-800 ml-28 mr-28'
+                        : 'bg-debate-right text-white mr-28 ml-28',
+                    ]"
+                    style="min-height: 80px; display: flex; align-items: center"
+                    :title="
+                      message.summaryText
+                        ? message.display === 'summary'
+                          ? 'STT 보기'
+                          : '요약 보기'
+                        : ''
+                    "
+                    role="button"
+                    :aria-pressed="message.display === 'summary'"
+                  >
+                    <!-- 말풍선 꼬리 -->
+                    <div
+                      v-if="message.team === 0"
+                      class="absolute top-6 left-[-10px] w-0 h-0 border-t-[12px] border-b-[12px] border-r-[12px] border-t-transparent border-b-transparent border-r-debate-left"
+                    ></div>
+                    <div
+                      v-if="message.team === 1"
+                      class="absolute top-6 right-[-10px] w-0 h-0 border-t-[12px] border-b-[12px] border-l-[12px] border-t-transparent border-b-transparent border-l-debate-right"
+                    ></div>
+                    <div class="whitespace-pre-wrap">
+                      {{ displayedText(message) }}
+                    </div>
+
+                    <!-- 상태 배지 -->
+                    <div class="absolute top-2 right-3 text-xs opacity-80">
+                      <span
+                        v-if="message.summaryPending"
+                        class="px-2 py-0.5 rounded-full bg-black/20"
+                        >요약중…</span
+                      >
+                      <span
+                        v-else-if="message.summaryText"
+                        class="px-2 py-0.5 rounded-full bg-black/20"
+                        >{{
+                          message.display === "summary" ? "요약" : "원문"
+                        }}</span
+                      >
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 투표 결과 -->
+                <div v-if="message.type === 'vote'">
                   <div
-                    v-if="message.team === 'right'"
-                    class="absolute top-6 right-[-10px] w-0 h-0 border-t-[12px] border-b-[12px] border-l-[12px] border-t-transparent border-b-transparent border-l-debate-right"
-                  ></div>
-                  {{ message.text }}
+                    :class="[
+                      'relative p-8 rounded-4xl text-lg shadow-sm mx-28 bg-gray-400',
+                    ]"
+                    style="
+                      min-height: 80px;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                    "
+                  >
+                    <div class="flex flex-col items-center">
+                      <h2 class="text-3xl font-bold">투표 결과</h2>
+                      <div
+                        class="flex flex-row text-center justify-center gap-8 mt-4"
+                      >
+                        <div class="flex flex-col items-center">
+                          <div class="text-4xl font-bold text-debate-left">
+                            {{
+                              Object.values(message.voteInfo ?? {}).filter(
+                                (v) => v === 0
+                              ).length
+                            }}
+                          </div>
+                        </div>
+                        <div class="text-3xl font-bold self-center">VS</div>
+                        <div class="flex flex-col items-center">
+                          <div class="text-4xl font-bold text-debate-right">
+                            {{
+                              Object.values(message.voteInfo ?? {}).filter(
+                                (v) => v === 1
+                              ).length
+                            }}
+                          </div>
+                        </div>
+                      </div>
+                      <h3 class="text-center text-2xl font-bold mt-4">
+                        {{
+                          message.voteResult === 0
+                            ? debateLeftTeam + " 승리!"
+                            : message.voteResult === 1
+                              ? debateRightTeam + " 승리!"
+                              : "무승부!"
+                        }}
+                      </h3>
+                      <div
+                        class="flex flex-row items-center justify-center mt-4 gap-4"
+                      >
+                        <div
+                          v-for="leftTeam in roomStore.leftTeam"
+                          :key="leftTeam.userId"
+                          class="flex flex-col items-center"
+                        >
+                          <Avatar
+                            :class="[
+                              'w-[min(6vw,64px)] h-[min(6vw,64px)] relative overflow-visible',
+                              audioControls.getParticipantSpeaking(
+                                leftTeam.userId
+                              )
+                                ? 'speaking-glow'
+                                : '',
+                            ]"
+                          >
+                            <AvatarImage
+                              :src="debateLeftProfile"
+                              :alt="leftTeam.displayName"
+                              class="border-2 border-black rounded-full bg-white"
+                            />
+                          </Avatar>
+
+                          <!-- 발언자 이름 (8글자 넘으면 개행) -->
+                          <div
+                            class="text-xs font-semibold text-slate-700 text-center leading-tight h-[2.6em] flex items-center justify-center"
+                            style="width: 100px"
+                          >
+                            <span
+                              v-if="
+                                leftTeam.displayName &&
+                                leftTeam.displayName.length <= 8
+                              "
+                              >{{ leftTeam.displayName }}</span
+                            >
+                            <span
+                              v-else-if="leftTeam.displayName"
+                              class="block"
+                            >
+                              {{ leftTeam.displayName.substring(0, 8) }}<br />{{
+                                leftTeam.displayName.substring(8)
+                              }}
+                            </span>
+                          </div>
+                          <!-- 진영색깔 원 -->
+                          <div
+                            class="w-12 h-12 rounded-full mt-2 flex items-center justify-center shadow-md font-bold border-2 border-black"
+                            :class="[
+                              message.voteInfo?.[leftTeam.userId] === undefined
+                                ? 'bg-red-400'
+                                : message.voteInfo?.[leftTeam.userId] === 0
+                                  ? 'bg-debate-left'
+                                  : 'bg-debate-right text-white',
+                            ]"
+                          >
+                            {{
+                              message.voteInfo?.[leftTeam.userId] === undefined
+                                ? "X"
+                                : message.voteInfo?.[leftTeam.userId] === 0
+                                  ? "L"
+                                  : "R"
+                            }}
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        class="flex flex-row items-center justify-center mt-4 gap-4"
+                      >
+                        <div
+                          v-for="rightTeam in roomStore.rightTeam"
+                          :key="rightTeam.userId"
+                          class="flex flex-col items-center"
+                        >
+                          <Avatar
+                            :class="[
+                              'w-[min(6vw,64px)] h-[min(6vw,64px)] relative overflow-visible',
+                              audioControls.getParticipantSpeaking(
+                                rightTeam.userId
+                              )
+                                ? 'speaking-glow'
+                                : '',
+                            ]"
+                          >
+                            <AvatarImage
+                              :src="debateRightProfile"
+                              :alt="rightTeam.displayName"
+                              class="border-2 border-black rounded-full bg-white"
+                            />
+                          </Avatar>
+
+                          <!-- 발언자 이름 (8글자 넘으면 개행) -->
+                          <div
+                            class="text-xs font-semibold text-slate-700 text-center leading-tight h-[2.6em] flex items-center justify-center"
+                            style="width: 100px"
+                          >
+                            <span
+                              v-if="
+                                rightTeam.displayName &&
+                                rightTeam.displayName.length <= 8
+                              "
+                              >{{ rightTeam.displayName }}</span
+                            >
+                            <span
+                              v-else-if="rightTeam.displayName"
+                              class="block"
+                            >
+                              {{ rightTeam.displayName.substring(0, 8)
+                              }}<br />{{ rightTeam.displayName.substring(8) }}
+                            </span>
+                          </div>
+                          <!-- 진영색깔 원 -->
+                          <div
+                            class="w-12 h-12 rounded-full mt-2 flex items-center justify-center shadow-md font-bold"
+                            :class="[
+                              message.voteInfo?.[rightTeam.userId] === undefined
+                                ? 'bg-gray-400'
+                                : message.voteInfo?.[rightTeam.userId] === 0
+                                  ? 'bg-debate-left'
+                                  : 'bg-debate-right text-white',
+                            ]"
+                          >
+                            {{
+                              message.voteInfo?.[rightTeam.userId] === undefined
+                                ? "X"
+                                : message.voteInfo?.[rightTeam.userId] === 0
+                                  ? "L"
+                                  : "R"
+                            }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- AI 판정단 결과 -->
+                <div v-if="message.type === 'ai' && isTie">
+                  <div
+                    :class="[
+                      'relative p-8 rounded-4xl text-lg shadow-sm mx-28 bg-gray-400',
+                    ]"
+                  >
+                    <div class="flex flex-col items-center">
+                      <h2 class="text-3xl font-bold text-gray-800">
+                        AI 판정단 결과
+                      </h2>
+                      <div v-if="isLoadingAIMessage">
+                        <!-- 로딩 점들 -->
+                        <div
+                          class="flex space-x-2 justify-center items-center my-20"
+                        >
+                          <div
+                            class="w-3 h-3 bg-gray-600 rounded-full animate-bounce"
+                          ></div>
+                          <div
+                            class="w-3 h-3 bg-gray-600 rounded-full animate-bounce"
+                            style="animation-delay: 0.1s"
+                          ></div>
+                          <div
+                            class="w-3 h-3 bg-gray-600 rounded-full animate-bounce"
+                            style="animation-delay: 0.2s"
+                          ></div>
+                        </div>
+
+                        <p class="text-gray-700 mt-4 text-center">
+                          AI가 토론 내용을 분석하고 있습니다...
+                        </p>
+                      </div>
+                      <div v-if="!isLoadingAIMessage">
+                        <!-- 좌/우 점수 -->
+                        <div
+                          class="flex items-center justify-center space-x-16 mt-6"
+                        >
+                          <div class="text-6xl font-bold text-debate-left">
+                            {{ message.aiInfo?.L }}
+                          </div>
+                          <div class="text-6xl font-bold text-debate-right">
+                            {{ message.aiInfo?.R }}
+                          </div>
+                        </div>
+
+                        <!-- 블록 그리드 -->
+                        <div
+                          class="flex items-start justify-center space-x-12 mt-6"
+                        >
+                          <div class="grid grid-cols-5 gap-2">
+                            <div
+                              v-for="n in message.aiInfo?.L"
+                              :key="`ai-left-${n}`"
+                              class="w-4 h-4 bg-debate-left rounded-sm shadow-md"
+                            ></div>
+                          </div>
+                          <div class="grid grid-cols-5 gap-2">
+                            <div
+                              v-for="n in message.aiInfo?.R"
+                              :key="`ai-right-${n}`"
+                              class="w-4 h-4 bg-debate-right rounded-sm shadow-md"
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -735,7 +1251,10 @@
       </div>
 
       <!-- 공격 대상 선택 모달 -->
-      <Dialog :open="isSelectTarget" @update:open="handleModalClose">
+      <Dialog
+        :open="isSelectTarget"
+        @update:open="handleSelectTargetModalClose"
+      >
         <DialogContent class="z-51 w-[1000px] max-w-none">
           <DialogHeader>
             <DialogTitle class="text-center">공격 대상 선택</DialogTitle>
@@ -755,10 +1274,18 @@
                     : 'border-gray-200 dark:border-gray-700 hover:bg-blue-300 dark:hover:bg-blue-300 hover:shadow-md hover:-translate-y-0.5',
                 ]"
               >
-                <Avatar class="w-10 h-10">
+                <Avatar
+                  :class="[
+                    'w-10 h-10',
+                    audioControls.getParticipantSpeaking(participant.userId)
+                      ? 'speaking-glow'
+                      : '',
+                  ]"
+                >
                   <AvatarImage
                     :src="debateLeftProfile"
                     :alt="participant.displayName"
+                    class="border-2 border-black rounded-full"
                   />
                 </Avatar>
                 <div class="flex-1 min-w-0">
@@ -808,10 +1335,18 @@
                     : 'border-gray-200 dark:border-gray-700 hover:bg-blue-300 dark:hover:bg-blue-300 hover:shadow-md hover:-translate-y-0.5',
                 ]"
               >
-                <Avatar class="w-10 h-10">
+                <Avatar
+                  :class="[
+                    'w-10 h-10',
+                    audioControls.getParticipantSpeaking(participant.userId)
+                      ? 'speaking-glow'
+                      : '',
+                  ]"
+                >
                   <AvatarImage
                     :src="debateRightProfile"
                     :alt="participant.displayName"
+                    class="border-2 border-black rounded-full"
                   />
                 </Avatar>
                 <div class="flex-1 min-w-0">
@@ -864,10 +1399,22 @@
                   <div
                     class="col-span-1 grid grid-cols-1 items-center justify-items-center"
                   >
-                    <Avatar class="w-16 h-16 overflow-visible">
+                    <Avatar
+                      :class="[
+                        'w-16 h-16 overflow-visible',
+                        row.left
+                          ? audioControls.getParticipantSpeaking(
+                              row.left.userId
+                            )
+                            ? 'speaking-glow'
+                            : ''
+                          : '',
+                      ]"
+                    >
                       <AvatarImage
                         :src="debateLeftProfile"
                         :alt="row.left.displayName"
+                        class="border-2 border-black rounded-full"
                       />
                     </Avatar>
                     <div
@@ -927,10 +1474,22 @@
                   <div
                     class="col-span-1 grid grid-cols-1 items-center justify-items-center"
                   >
-                    <Avatar class="w-16 h-16 overflow-visible">
+                    <Avatar
+                      :class="[
+                        'w-16 h-16 overflow-visible',
+                        row.right
+                          ? audioControls.getParticipantSpeaking(
+                              row.right.userId
+                            )
+                            ? 'speaking-glow'
+                            : ''
+                          : '',
+                      ]"
+                    >
                       <AvatarImage
                         :src="debateRightProfile"
                         :alt="row.right.displayName"
+                        class="border-2 border-black rounded-full"
                       />
                     </Avatar>
                     <div
@@ -947,7 +1506,7 @@
           <!-- 공격 대상 선택 시간 -->
           <DialogFooter class="mt-2">
             <div class="text-center w-full">
-              <div class="text-xs">공격 대상 선택 시간</div>
+              <div class="text-xs">남은 시간</div>
               <div
                 class="text-lg font-bold"
                 :class="[
@@ -960,13 +1519,78 @@
               <div class="w-full bg-gray-800 rounded-full h-3 mx-auto">
                 <div
                   :class="[
-                    'h-3 rounded-full transition-all duration-500 ease-linear',
+                    'h-3 rounded-full transition-all duration-1000 ease-linear',
                     (selectTargetTimeLeft || 0) <= 10
                       ? 'bg-red-500'
                       : 'bg-blue-500',
                   ]"
                   :style="{
                     width: `${((selectTargetTimeLeft || 0) / (SELECT_TARGET_DURATION / 1000)) * 100}%`,
+                  }"
+                ></div>
+              </div>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <!-- 투표 모달 -->
+      <Dialog :open="isVoteTime" @update:open="handleVoteModalClose">
+        <DialogContent class="z-51 w-[1000px] max-w-none">
+          <DialogHeader>
+            <DialogTitle class="text-center text-3xl">최종 투표</DialogTitle>
+            <DialogTitle class="text-center text-2xl py-2">
+              {{ debateSubject }}
+            </DialogTitle>
+          </DialogHeader>
+          <div class="grid grid-cols-2 gap-4 text-center">
+            <Button
+              variant="outline"
+              class="w-full h-full hover:bg-blue-200 rounded-xl"
+              @click="vote(debateStore.myEmail, 0)"
+              :disabled="isVoteDisabled"
+              :class="[voteTeam === 0 ? 'bg-blue-500' : '']"
+            >
+              <Card class="border-none shadow-none">
+                <CardContent class="flex items-center justify-center h-full">
+                  <div class="text-2xl">{{ debateLeftTeam }}</div>
+                </CardContent>
+              </Card>
+            </Button>
+            <Button
+              variant="outline"
+              class="w-full h-full hover:bg-blue-200 rounded-xl"
+              @click="vote(debateStore.myEmail, 1)"
+              :disabled="isVoteDisabled"
+              :class="[voteTeam === 1 ? 'bg-blue-500' : '']"
+            >
+              <Card class="border-none shadow-none">
+                <CardContent class="flex items-center justify-center h-full">
+                  <div class="text-2xl">{{ debateRightTeam }}</div>
+                </CardContent>
+              </Card>
+            </Button>
+          </div>
+
+          <!-- 공격 대상 선택 시간 -->
+          <DialogFooter class="mt-2">
+            <div class="text-center w-full">
+              <div class="text-xs">남은 시간</div>
+              <div
+                class="text-lg font-bold"
+                :class="[(voteTimeLeft || 0) <= 10 ? 'text-red-600 blink' : '']"
+              >
+                {{ voteTimeLeft || 0 }}초
+              </div>
+              <!-- 프로그레스 바 -->
+              <div class="w-full bg-gray-800 rounded-full h-3 mx-auto">
+                <div
+                  :class="[
+                    'h-3 rounded-full transition-all duration-1000 ease-linear',
+                    (voteTimeLeft || 0) <= 10 ? 'bg-red-500' : 'bg-blue-500',
+                  ]"
+                  :style="{
+                    width: `${((voteTimeLeft || 0) / (VOTE_DURATION / 1000)) * 100}%`,
                   }"
                 ></div>
               </div>
@@ -1066,7 +1690,11 @@
                   >
                     <!-- 왼쪽: 시청자 아바타 이미지 -->
                     <Avatar class="w-12 h-12 mt-2">
-                      <AvatarImage :src="audienceProfile" alt="시청자" />
+                      <AvatarImage
+                        :src="audienceProfile"
+                        alt="시청자"
+                        class="border-2 border-black rounded-full"
+                      />
                     </Avatar>
 
                     <!-- 오른쪽: 닉네임과 메시지 -->
@@ -1166,6 +1794,8 @@ import type {
   DebateSpeakEndMessage,
   DebateSelectTargetMessage,
   DebateSelectTargetResponse,
+  DebateVoteStartMessage,
+  DebateVoteEndMessage,
 } from "@/types/debate";
 import {
   useWebRTCConnection,
@@ -1184,9 +1814,42 @@ import {
 } from "@/components/ui/dialog";
 import { useTargetSelectionStore } from "@/store/targetSelection";
 import { useStt } from "@/composables/useSpeechRecognition";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const client = ref<Client | null>(null);
 const route = useRoute();
+
+// @stomp/stompjs Client를 StompClient 인터페이스에 맞게 래핑
+const createStompClientWrapper = (client: any): StompClient | undefined => {
+  if (!client) return undefined;
+
+  return {
+    connected: client.connected,
+    connect: (url: string, token: string, userEmail?: string) => {
+      // 이미 연결된 경우 아무것도 하지 않음
+    },
+    disconnect: () => client.deactivate(),
+    subscribe: (destination: string, callback: (message: any) => void) => {
+      const subscription = client.subscribe(destination, callback);
+      return {
+        unsubscribe: () => subscription.unsubscribe(),
+      };
+    },
+    publish: (destination: string, body: any) => {
+      client.publish({
+        destination,
+        body: typeof body === "string" ? body : JSON.stringify(body),
+      });
+    },
+  };
+};
 
 // Debate Store 사용
 const debateStore = useDebateStore();
@@ -1222,79 +1885,45 @@ const setParticipantAudioRef = (userEmail: string, el: any) => {
   }
 };
 
-// 커스텀 방에서 진입 시 방 정보가 이미 세팅되었을 수 있으므로, 비어있을 때만 기본값 주입
-if (!roomStore.room) {
-  roomStore.setRoom({
-    roomId: "11",
-    participants: [
-      { userId: "user01@test.com", displayName: "김정택", side: "L" },
-      {
-        userId: "user02@test.com",
-        displayName: "권우상권우상권우권우상권우상권우",
-        side: "R",
-      },
-      { userId: "user03@test.com", displayName: "김형수", side: "L" },
-      { userId: "user04@test.com", displayName: "지준오", side: "R" },
-    ],
-  });
-}
-
-// STT 관련
-
-const sttStompClient = ref<Client | null>(null);
-const isSttConnected = ref(false);
-
-
-const connectStt = () => {
-  return new Promise((resolve, reject) => {
-    const client = new Client({
-      brokerURL: `${import.meta.env.VITE_API_BASE_URL}:8082/ws`, // 8082 포트로 연결
-      heartbeatIncoming: 10000,
-      heartbeatOutgoing: 10000
-    });
-
-    client.onConnect = () => {
-      console.log('🔗 STT WebSocket 연결 성공 (8082)');
-      isSttConnected.value = true;
-      sttStompClient.value = client;
-      resolve(void 0);
-    };
-
-    client.onStompError = (error) => {
-      console.error('❌ STT WebSocket 연결 실패:', error);
-      isSttConnected.value = false;
-      reject(error);
-    };
-
-    client.activate();
-  });
+// 프로필 음소거 표시 조건: 음소거 상태이거나 볼륨이 0
+const isParticipantMuted = (userId: string) => {
+  const muted = audioControls.getParticipantMuted(userId);
+  const volume = audioControls.getParticipantVolume(userId);
+  return muted || volume <= 0;
 };
 
-const disconnectStt = () => {
-  if (sttStompClient.value && isSttConnected.value) {
-    sttStompClient.value.deactivate();
-    isSttConnected.value = false;
-    sttStompClient.value = null;
+// 내 프로필 팝오버에서 음성 변조 토글 핸들러
+const onToggleVoiceMod = async (next: boolean) => {
+  try {
+    if (next !== audioControls.isVoiceModulated.value) {
+      await audioControls.toggleVoiceModulation();
+    }
+    // 변조 적용 후 현재 로컬 트랙을 WebRTC Producer에 반영
+    if (audioControls.localAudioTrack.value) {
+      await replaceLocalAudioTrack(audioControls.localAudioTrack.value);
+    }
+  } catch (e) {
+    console.error('음성 변조 토글 실패:', e);
   }
 };
 
-connectStt().catch(console.error);
-
-const {
-  isRecognizing,
-  previewText,
-  start,
-  stop: stopStt,
-  onSegmentReady,
-  onSttMessage
-} = useStt(sttStompClient, roomStore.room?.roomId ?? 0);
-
-const joined = ref(false);
-watchEffect(() => {
-  if (isSttConnected.value && !joined.value && roomId.value) {
-    sttStompClient.value?.publish({ destination: '/pub/debate/join', body: String(roomId.value) });
-    joined.value = true;
-  }
+// 테스트용 참가자 데이터 추가가
+roomStore.setRoom({
+  roomId: "11",
+  participants: [
+    { userId: "user01@test.com", displayName: "김정택", side: "L" },
+    {
+      userId: "user02@test.com",
+      displayName: "권우상권우상권우권우상권우상권우",
+      side: "R",
+    },
+    { userId: "user03@test.com", displayName: "김형수", side: "L" },
+    { userId: "user04@test.com", displayName: "지준오", side: "R" },
+  ],
+  topic: "인간은 성선설인가 성악설인가?",
+  leftTeamName: "성선설",
+  rightTeamName: "성악설",
+  mode: "1",
 });
 watch(isSttConnected, (isConnected)=>{ if(!isConnected) joined.value = false; });
 
@@ -1316,34 +1945,53 @@ const fmt = (o: any) => JSON.stringify(o, null, 2);
 
 
 
+// STT 관련
+const isSttConnected = ref(false);
+
+const stt = useStt(client, roomStore.room?.roomId ?? 0, {
+  lang: "ko-KR",
+});
+
+stt.onSttMessage((payload: any) => {
+  const body = payload?.data?.text ? payload.data : payload;
+  const user = body?.user ?? "-";
+  const text = body?.text ?? JSON.stringify(payload);
+  const now = new Date();
+
+  // 같은 화자의 같은 발언 턴(speakerStartAt 기준)에서는 한 말풍선으로 합치기
+  const turnKey = `${currentSpeaker.value}|${speakerStartAt.value}`;
+  const last = messages.value[messages.value.length - 1];
+
+  if (
+    last &&
+    last.type === "stt" &&
+    last.sender === user &&
+    last.turnKey === turnKey
+  ) {
+    // 마지막 STT 말풍선에 이어 붙이기
+    last.sttText = [last.sttText, text].filter(Boolean).join(" ");
+    last.timestamp = now;
+  } else {
+    messages.value.push({
+      id: messageIdCounter++,
+      type: "stt",
+      mode: "normal",
+      timestamp: now,
+      sender: user,
+      sttText: text,
+      turnKey,
+    });
+  }
+
+  if (messages.value.length > 200) messages.value.pop();
+});
+
+const isRec = computed(() => !!stt.isRecognizing.value);
+
 const firstTeam = ref<Team[]>([]);
 const secondTeam = ref<Team[]>([]);
 
-// @stomp/stompjs Client를 StompClient 인터페이스에 맞게 래핑
-const createStompClientWrapper = (client: any): StompClient | undefined => {
-  if (!client) return undefined;
-
-  return {
-    connected: client.connected,
-    connect: (url: string, token: string, userEmail?: string) => {
-      // 이미 연결된 경우 아무것도 하지 않음
-    },
-    disconnect: () => client.deactivate(),
-    subscribe: (destination: string, callback: (message: any) => void) => {
-      const subscription = client.subscribe(destination, callback);
-      return {
-        unsubscribe: () => subscription.unsubscribe(),
-      };
-    },
-    publish: (destination: string, body: any) => {
-      client.publish({
-        destination,
-        body: typeof body === "string" ? body : JSON.stringify(body),
-      });
-    },
-  };
-};
-
+// WebRTC
 const {
   // 상태
   state,
@@ -1360,6 +2008,7 @@ const {
   // 연결 관리
   startWebRTCConnection,
   disconnectWebRTC,
+  replaceLocalAudioTrack,
 } = useWebRTCConnection({
   audioController: audioControls,
   participantsCount: roomStore.room?.participants.length ?? 1,
@@ -1371,7 +2020,9 @@ const connectionStep = computed(() => {
 });
 
 // 토론 주제
-const debateSubject = ref(roomStore.room?.topic || "이곳에 토론 주제가 들어갑니다.");
+const debateSubject = ref(
+  roomStore.room?.topic || "이곳에 토론 주제가 들어갑니다."
+);
 const debateLeftTeam = ref(roomStore.room?.leftTeamName || "좌측 진영");
 const debateRightTeam = ref(roomStore.room?.rightTeamName || "우측 진영");
 const debateStartAt = ref("");
@@ -1393,23 +2044,29 @@ const speakingTimeLeft = ref(0);
 const isSpeakingStarted = ref(false);
 const speakingTimer = ref<number | null>(null);
 const speakingDuration = ref(60 * 1000);
+const isLeftSpeaking = ref(false);
+const isRightSpeaking = ref(false);
 
 const speakingOrderMap = computed(() => {
   const map: Record<string, number> = {};
-  const maxLength = Math.max(firstTeam.value.length, secondTeam.value.length);
+  const maxLength = Math.max(
+    roomStore.leftTeam.length,
+    roomStore.rightTeam.length
+  );
   let order = 1;
 
   for (let i = 0; i < maxLength; i++) {
-    const left = firstTeam.value.find((p) => p.order === i);
-    const right = secondTeam.value.find((p) => p.order === i);
-
-    if (left) {
-      map[left.user] = order;
+    // 왼쪽 팀 먼저
+    if (i < roomStore.leftTeam.length) {
+      const left = roomStore.leftTeam[i];
+      map[left.userId] = order;
       order++;
     }
 
-    if (right) {
-      map[right.user] = order;
+    // 오른쪽 팀 다음
+    if (i < roomStore.rightTeam.length) {
+      const right = roomStore.rightTeam[i];
+      map[right.userId] = order;
       order++;
     }
   }
@@ -1423,7 +2080,7 @@ const startSpeakingTimer = () => {
   currentTime.value = Date.now();
   const elapsedMs = currentTime.value - serverStartMs;
   const remainingMs = Math.max(speakingDuration.value - elapsedMs, 0);
-  speakingTimeLeft.value = Math.ceil(remainingMs / 1000);
+  speakingTimeLeft.value = Math.ceil(30000 / 1000);
   isSpeakingStarted.value = true;
   if (speakingTimer.value) {
     clearInterval(speakingTimer.value);
@@ -1456,13 +2113,22 @@ const selectedCurrentTarget = ref<{
 } | null>(null);
 const selectTargetConfirmed = ref(false);
 
-const handleModalClose = (newValue: boolean) => {
+const handleSelectTargetModalClose = (newValue: boolean) => {
   if (selectTargetTimeLeft.value > 0) {
     console.log("모달 닫기 시도가 차단됨 - 아직 제한시간이 남아있습니다.");
     return;
   }
 
   isSelectTarget.value = newValue;
+};
+
+const handleVoteModalClose = (newValue: boolean) => {
+  if (voteTimeLeft.value > 0) {
+    console.log("모달 닫기 시도가 차단됨 - 아직 제한시간이 남아있습니다.");
+    return;
+  }
+
+  isVoteTime.value = newValue;
 };
 
 const isLocked = computed(() => {
@@ -1580,22 +2246,78 @@ const attackersFor = (userId: string) => {
   return targetSelectionStore.attackersFor(userId);
 };
 
+// 최종 투표
+const voteTeam = ref<number | null>(null);
+const isVoteTime = ref(false);
+const voteStartAt = ref("");
+const VOTE_DURATION = 30 * 1000;
+const voteTimeLeft = ref(0);
+const voteTimer = ref<number | null>(null);
+const isVoteDisabled = ref(false);
+const voteResult = ref<number | null>(null);
+const voteInfo = ref<Record<string, number>>({});
+const isTie = ref(false);
+const isLoadingAIMessage = ref(true);
+
+const vote = (userId: string, side: number) => {
+  voteTeam.value = side;
+  isVoteDisabled.value = true;
+  client.value?.publish({
+    destination: `/rooms/${roomId.value}/vote`,
+    body: JSON.stringify({
+      userEmail: userId,
+      voteTeam: side,
+    }),
+  });
+};
+
+const startVoteTimer = () => {
+  console.log("startVoteTimer");
+  const serverStartMs = new Date(voteStartAt.value).getTime();
+  currentTime.value = Date.now();
+  const elapsedMs = currentTime.value - serverStartMs;
+  const remainingMs = Math.max(VOTE_DURATION - elapsedMs, 0);
+  voteTimeLeft.value = Math.ceil(remainingMs / 1000);
+  isVoteTime.value = true;
+  if (voteTimer.value) {
+    clearInterval(voteTimer.value);
+  }
+  voteTimer.value = setInterval(() => {
+    voteTimeLeft.value--;
+    if (voteTimeLeft.value < 0) {
+      voteTimeLeft.value = 0;
+      if (voteTimer.value) {
+        clearInterval(voteTimer.value);
+      }
+      voteTimer.value = null;
+      isVoteTime.value = false;
+    }
+  }, 1000);
+};
+
 // 참가자별 공격/수비 상태 관리 (userId는 문자열이므로 string 키 사용)
 const participantStates = ref<Record<string, "attack" | "defense" | null>>({});
-
-// 진영별 남은 시간
-const leftTeamTime = ref("01:00");
-const rightTeamTime = ref("00:00");
 
 // 메시지 관련 변수들
 const messages = ref<
   Array<{
     id: number;
-    text: string;
-    sender: string;
-    timestamp: Date;
-    team: "left" | "right";
-    profileImage: string;
+    type: string;
+    mode?: "normal" | "battle";
+    isAttacker?: boolean;
+    isDefender?: boolean;
+    sender?: string;
+    timestamp?: Date;
+    team?: number;
+    profileImage?: string;
+    voteInfo?: Record<string, number>;
+    voteResult?: number;
+    aiInfo?: Record<string, number>;
+    sttText?: string;
+    summaryText?: string;
+    display?: "stt" | "summary";
+    summaryPending?: boolean;
+    turnKey?: string;
   }>
 >([]);
 const messagesContainer = ref<HTMLElement>();
@@ -1608,14 +2330,22 @@ const sttSupported = ref(false);
 const currentInterimText = ref("");
 const currentFinalText = ref("");
 const stopTimer = ref<number | null>(null);
-const STT_DURATION = 60 * 1000; // 1분
+const STT_DURATION = 60 * 1000;
+
+const displayedText = (m: any) =>
+  m.display === "summary" && m.summaryText ? m.summaryText : m.sttText;
+
+const toggleDisplay = (m: any) => {
+  if (!m.summaryText) return;
+  m.display = m.display === "summary" ? "stt" : "summary";
+};
 
 // 준비시간 관련 변수
 const preparationTimeLeft = ref(30);
 const isPreparationTime = ref(true);
 const isTimerStarted = ref(false);
 const preparationTimer = ref<number | null>(null);
-const PREPARATION_DURATION = 30 * 1000; // 30초
+const PREPARATION_DURATION = 30 * 1000;
 
 // 준비시간 타이머 시작
 const startPreparationTimer = () => {
@@ -1624,7 +2354,7 @@ const startPreparationTimer = () => {
   currentTime.value = Date.now();
   const elapsedMs = currentTime.value - serverStartMs;
   const remainingMs = Math.max(PREPARATION_DURATION - elapsedMs, 0);
-  preparationTimeLeft.value = Math.ceil(remainingMs / 1000);
+  preparationTimeLeft.value = Math.ceil(30000 / 1000);
   isTimerStarted.value = true;
   if (preparationTimer.value) {
     clearInterval(preparationTimer.value);
@@ -1751,31 +2481,144 @@ const sendChatMessage = () => {
 };
 
 // 테스트용 메시지 추가 함수 (개발 중에만 사용)
-const addTestMessage = () => {
+const addTestAIMessage = () => {
+  console.log("addTestAIMessage");
+  messages.value.push({
+    id: messageIdCounter++,
+    type: "ai",
+    aiInfo: {
+      L: 10,
+      R: 40,
+    },
+    timestamp: new Date(),
+  });
+};
+
+const addTestVoteMessage = () => {
+  console.log("addTestVoteMessage");
+  messages.value.push({
+    id: messageIdCounter++,
+    type: "vote",
+    voteInfo: {
+      "user01@test.com": 0,
+      "user02@test.com": 0,
+      "user04@test.com": 1,
+    },
+    voteResult: 0,
+    timestamp: new Date(),
+  });
+};
+
+let STTCount = 0;
+
+const addTestSTTMessage = () => {
+  console.log("addTestSTTMessage");
+  const testMessages = {
+    text: STTCount + "번째 메시지입니다.",
+  };
+
+  const last = messages.value[messages.value.length - 1];
+  
+  if (STTCount === 0) {
+    messages.value.push({
+      id: messageIdCounter++,
+      type: "stt",
+      mode: "normal",
+      timestamp: new Date(),
+      sender: leftTeam.value[0].displayName,
+      sttText: testMessages.text,
+    });
+  } else {
+    last.sttText = [last.sttText, testMessages.text].filter(Boolean).join(" ");
+  }
+  STTCount++;
+};
+
+const addTestMessageNormal = () => {
+  console.log("addTestMessage");
   const testMessages = [
     {
-      text: "보도하여 공군을 방향에 월드, 투자에 많다. 손꼽고 칠월과 지금이 아직 크고 하다 자동차의 것 활동은 지적하여 새 북서쪽을, 있다 이후는 건강이라도 짙으라면 금융에 양국도, 몇 되다. 페인트는 의견에게 평균이, 우선 돈에 다듬다 여러 5회 놓은 더 선거는, 형성되다. 개방을 역할인 이곳은 전반도 예상됩니다. 맡지만 집회는 대한다 발부받아 하다 알 늘어 남을, 생각하라. 말 유치원을, 투수는 맞을 가두다. 처분은 있고 부분적에, 요구로 포워드를 피해가 전과 외롭다. 된 숙면이라 거짓까지 힘세나 가족을 공격하다. 세침이 그동안이다 4명, 돈을 이 수수료마저 유발하다 떨어뜨린 짧은 같는 오고, 큰 통계의 낙태죄는 걷다 있다. 하구나 여러 자청하여 부분으로 오른 대하다. 2024년 줄인 보다 계파로 나타나거나 첫 본격적에 범행의 게임은 중과세로 완화하다. 총선에 것 재사용의 자본의 거주다, 수용이 갑자기 일그러지다. 성숙하기 눈치가 수자원에 93메가바이트 통신에 발전이 살다. 군축에 발전되면서 도전은 앞쪽의 인상되라. 도시를 유리되다 개발한 열리어 없이 킬로칼로리 기다리다. 23세 21일 신호등에 아쿠아로빅스를 있은 말하다.",
+      text: "난 사람은 태어날 때부터 착하다고 봄. 아기들 보면 알잖아, 누가 울면 같이 울고, 웃으면 같이 웃고, 남 도와주려는 본능이 있음. 이게 기본값임. 근데 커가면서 이상한 환경, 개판 사회 분위기, 쓰레기 교육 이런 거 만나면 그 마음이 서서히 가려짐. 그렇게 굳어져서 남 등치는 놈도 생기는 거고. 근데 그게 애초에 악해서 그런 건 아님. 주변이 망이라서 그렇게 변한 거임. 그래서 사람을 바꾸려면 성질 고치라는 소리보다, 좋은 환경이랑 제대로 된 교육부터 깔아야 함. 그러면 가려졌던 선한 본성이 다시 살아나고, 오히려 더 강해짐. 난 이게 인간의 진짜 기본값이라고 생각함. 잘못된 건 사람 자체가 아니라 그 사람을 만든 환경임. 환경만 바꿔주면 원래대로 돌아올 가능성 충분하다고 봄.",
+      summaryText:
+        "사람은 원래 착한데, 환경이 망하면 변함. 환경만 좋아지면 선한 본성은 다시 살아남.",
       sender: leftTeam.value[0].displayName,
-      team: "left",
+      team: 0,
+      mode: "normal",
     },
     {
-      text: "그 사장은 시작은 여성이 이제는 않은 네 어둡어서 나로 호조에 입다. 난다 자르면 체포는, 인식을 태웁니다 하류로 없이 하나에 냉장고 전해지게 갈다. 말을 것 측 시간이 들리다. 8가지 우리를 그 높은 모기업으로 낮다, 어느 살벌하다. 죽자면 본 재생으로 나아 안 지방이 한식집에 독특하다. 지도로 시대를 느껴지어 부처를 주는 돈이고 즐기다. 우리가 이어서 마구 구필에 상대적, 도입은 허둥거린 검사받은 조성되어야지. 없이 있은 참조는 가지는 회사에 시각화한 신규도 통과도 말하여서 말하다. 앵무새를 앞을 된 혼합이 혈에 게임에, 된다 움츠러들다. 수 쇠고기다 그래서 뜨다, 같는 그러나 변화되더니 본다 그다음이 기름이다 엷다. 반점은 말면 언젠가 보급은 많다나 낸다. 무엇을 아이고 벌이며 세력의 모든 성장시키다 보게, 숨차아 말미암아요. 생산의 회복은 낸 말을 산 진입하여서 진짜, 결과로 갖아 훌륭하다. 줄넘기를 볼 번개의 나에 결의하게 거기에 것 위하다. 것 집에서 보는데 하여간 탐독한 줄까 국산화하고 지난해와 포기하여요. 소금보다 시비에 또는 혜안도, 없다.",
+      text: "난 사람은 원래 이기적이고 욕심 많은 존재라고 봄. 애들만 봐도 장난감 뺏고, 자기 거 먼저 챙기려는 게 본능임. 이게 인간 기본값이라서, 안 가르치면 남 생각 안 하고 자기 이익부터 챙기는 게 당연한 거임. 사회 규칙이랑 법, 교육이 있는 이유도 이 본능을 억누르려고 있는 거고. 좋은 환경이라고 해도, 그 속에서 자기 이익을 챙길 기회가 보이면 사람은 결국 그쪽으로 움직임. 겉으로 착한 척해도 속마음은 자기 손해 안 보려고 계산하고 있음. 그래서 난 인간이 본래 선하다는 건 너무 이상적인 생각이라고 봄. 사람은 본래 자기 중심적이고, 선한 행동은 결국 자기 이익이랑 이미지 관리 때문에 하는 경우가 많음. 진짜 착해 보이는 사람도, 상황만 바뀌면 자기 욕심을 드러내는 게 인간 본성이라고 생각함.",
+      summaryText:
+        "사람은 본래 이기적이고 욕심 많음. 선한 행동도 결국 자기 이익을 위한 계산에서 나옴.",
       sender: rightTeam.value[0].displayName,
-      team: "right",
+      team: 1,
+      mode: "normal",
     },
   ];
 
   const message = testMessages[testMessageIndex];
   const profileImage =
-    message.team === "left" ? debateLeftProfile : debateRightProfile;
+    message.team === 0 ? debateLeftProfile : debateRightProfile;
 
   messages.value.push({
     id: messageIdCounter++,
-    text: message.text,
+    type: "stt",
+    sttText: message.text,
     sender: message.sender,
     timestamp: new Date(),
-    team: message.team as "left" | "right",
+    team: message.team as number,
     profileImage: profileImage,
+    display: "summary",
+    summaryText: message.summaryText,
+    summaryPending: false,
+    mode: message.mode as "normal" | "battle",
+  });
+
+  if (testMessageIndex === testMessages.length - 1) {
+    testMessageIndex = 0;
+  } else {
+    testMessageIndex++;
+  }
+};
+
+const addTestMessageBattle = () => {
+  console.log("addTestMessageBattle");
+  const testMessages = [
+    {
+      text: "애들이 장난감 뺏는 건 악해서가 아니라 아직 사회 규칙을 배우지 못해서임. 이기적 행동은 본성이라기보다 미성숙함의 결과고, 성장하면서 배려와 공감 능력이 발달함. 선한 본성이 교육과 경험으로 드러나는 거지, 본래부터 악한 건 아님.",
+      summaryText: "이기심은 미성숙함의 결과일 뿐, 본성은 선함.",
+      sender: leftTeam.value[1].displayName,
+      team: 0,
+      mode: "battle",
+      isAttacker: true,
+    },
+    {
+      text: "사람이 착한 행동을 배우는 것도 결국 규칙과 처벌, 보상의 영향임. 선한 본성이 있다면 왜 제도와 교육이 없으면 쉽게 무너질까? 착해 보이는 행동도 환경이 억누르기 때문에 가능한 거고, 본성은 여전히 이기적인 상태임.",
+      summaryText: "선함은 제도·환경의 억제 결과일 뿐, 본성은 이기적임.",
+      sender: rightTeam.value[1].displayName,
+      team: 1,
+      mode: "battle",
+      isDefender: true,
+    },
+  ];
+
+  const message = testMessages[testMessageIndex];
+  const profileImage =
+    message.team === 0 ? debateLeftProfile : debateRightProfile;
+
+  messages.value.push({
+    id: messageIdCounter++,
+    type: "stt",
+    sttText: message.text,
+    sender: message.sender,
+    timestamp: new Date(),
+    team: message.team as number,
+    profileImage: profileImage,
+    display: "summary",
+    summaryText: message.summaryText,
+    summaryPending: false,
+    mode: message.mode as "normal" | "battle",
+    isAttacker: message.isAttacker,
+    isDefender: message.isDefender,
   });
 
   if (testMessageIndex === testMessages.length - 1) {
@@ -1787,6 +2630,7 @@ const addTestMessage = () => {
 
 // 테스트용 시청자 채팅 추가
 const addTestAudienceChat = () => {
+  console.log("addTestAudienceChat");
   const testChats = [
     { text: "이것은 짧은 채팅", nickname: "짧은닉" },
     {
@@ -1808,40 +2652,6 @@ const addTestAudienceChat = () => {
     nickname: randomChat.nickname,
     timestamp: new Date(),
   });
-};
-
-const addMessages = () => {
-  // 개발용: 테스트 메시지 자동 추가 (실제 배포시에는 제거)
-  setTimeout(() => {
-    addTestMessage();
-  }, 1000);
-
-  setTimeout(() => {
-    addTestMessage();
-  }, 2000);
-
-  setTimeout(() => {
-    addTestMessage();
-  }, 3000);
-
-  setTimeout(() => {
-    addTestMessage();
-  }, 4000);
-
-  setTimeout(() => {
-    addTestMessage();
-  }, 5000);
-
-  setTimeout(() => {
-    addTestMessage();
-  }, 6000);
-
-  // 시청자 채팅 메시지를 더 많이 추가
-  for (let i = 0; i < 30; i++) {
-    setTimeout(() => {
-      addTestAudienceChat();
-    }, 100 * i);
-  }
 };
 
 // 토론 정보 영역 토글 함수
@@ -1879,6 +2689,12 @@ const subscribeToDebateRoom = () => {
         currentStageIndex.value = 0;
         currentStage.value = stages[currentStageIndex.value];
         speakingDuration.value = 60 * 1000;
+        if (roomStore.leftTeam.find((p) => p.userId === currentSpeaker.value)) {
+          isLeftSpeaking.value = true;
+        } else {
+          isRightSpeaking.value = true;
+        }
+        stt.startOpinion();
         startSpeakingTimer();
       }
     );
@@ -1888,6 +2704,7 @@ const subscribeToDebateRoom = () => {
         const msg = JSON.parse(message.body) as DebateSpeakEndMessage;
         console.log("🔍 진영논리 발언 종료: ", msg);
         speakerEndAt.value = msg.speakerEndAt + "+09:00";
+        stt.stop();
         startSpeakingTransitionTimer();
       }
     );
@@ -1923,6 +2740,12 @@ const subscribeToDebateRoom = () => {
         currentStageIndex.value = 2;
         currentStage.value = stages[currentStageIndex.value];
         speakingDuration.value = 30 * 1000;
+        if (roomStore.leftTeam.find((p) => p.userId === currentSpeaker.value)) {
+          isLeftSpeaking.value = true;
+        } else {
+          isRightSpeaking.value = true;
+        }
+        stt.startBattleAttack();
         startSpeakingTimer();
       }
     );
@@ -1932,6 +2755,7 @@ const subscribeToDebateRoom = () => {
         const msg = JSON.parse(message.body) as DebateSpeakEndMessage;
         console.log("🔍 공격 발언 종료: ", msg);
         speakerEndAt.value = msg.speakerEndAt + "+09:00";
+        stt.stop();
         startSpeakingTransitionTimer();
       }
     );
@@ -1945,6 +2769,12 @@ const subscribeToDebateRoom = () => {
         currentStageIndex.value = 2;
         currentStage.value = stages[currentStageIndex.value];
         speakingDuration.value = 30 * 1000;
+        if (roomStore.leftTeam.find((p) => p.userId === currentSpeaker.value)) {
+          isLeftSpeaking.value = true;
+        } else {
+          isRightSpeaking.value = true;
+        }
+        stt.startBattleDefense();
         startSpeakingTimer();
       }
     );
@@ -1954,18 +2784,48 @@ const subscribeToDebateRoom = () => {
         const msg = JSON.parse(message.body) as DebateSpeakEndMessage;
         console.log("🔍 방어 발언 종료: ", msg);
         speakerEndAt.value = msg.speakerEndAt + "+09:00";
+        stt.stop();
         startSpeakingTransitionTimer();
       }
     );
     stompClient.subscribe(
-      `/sub/debate/${roomId.value}/vote/start`,
+      `/sub/debate/room/${roomId.value}/vote/start`,
       (message) => {
-        console.log("🔍 투표 시작 알림: ", message);
+        const msg = JSON.parse(message.body) as DebateVoteStartMessage;
+        console.log("🔍 투표 시작 알림: ", msg);
+        isVoteTime.value = true;
+        voteStartAt.value = msg.voteStartAt + "+09:00";
+        voteTimeLeft.value = Math.ceil(VOTE_DURATION / 1000);
+        currentStageIndex.value = 3;
+        currentStage.value = stages[currentStageIndex.value];
+        startVoteTimer();
       }
     );
-    stompClient.subscribe(`/sub/debate/${roomId.value}/vote/end`, (message) => {
-      console.log("🔍 투표 종료 알림: ", message);
-    });
+    stompClient.subscribe(
+      `/sub/debate/room/${roomId.value}/vote/end`,
+      (message) => {
+        const msg = JSON.parse(message.body) as DebateVoteEndMessage;
+        console.log("🔍 투표 종료 알림: ", msg);
+        isVoteTime.value = false;
+        voteTimeLeft.value = 0;
+        currentStageIndex.value = 4;
+        currentStage.value = stages[currentStageIndex.value];
+        voteTeam.value = null;
+        isVoteDisabled.value = false;
+        voteInfo.value = msg.voteInfo;
+        voteResult.value = msg.voteResult;
+        if (msg.voteResult === 2) {
+          isTie.value = true;
+        }
+        messages.value.push({
+          id: messageIdCounter++,
+          type: "vote",
+          voteResult: msg.voteResult,
+          voteInfo: msg.voteInfo,
+          timestamp: new Date(),
+        });
+      }
+    );
   }
 };
 
@@ -1993,24 +2853,29 @@ const getAuthToken = async () => {
 onMounted(async () => {
   console.log("🚀 토론방 초기화 시작");
 
-  // 라우트 파라미터 기반 설정 (이미 설정되어 있으면 유지)
-  if (!debateStore.roomId) {
-    const rid = String(route.params.id || roomStore.room?.roomId || "");
-    if (rid) debateStore.setRoomId(rid);
-  }
-  if (!debateStore.myEmail) {
-    // 기본값: 현재 사용자 이메일만 설정, 팀/프로듀서는 기존 값 유지
-    debateStore.setMyInfo(authStore.userEmail || "", debateStore.myTeam, debateStore.isProducer);
-  }
+  debateStore.setRoomId("11");
+  debateStore.setMyInfo("user01@test.com", "L", false);
 
   // 개발용 빠른 시작: 커스텀 방에서 온 경우에는 건너뜀
   setTimeout(() => {
-    // 서버 이벤트로 해제되지 않았으면 자동 해제
-    if (isPreparationTime.value) {
-      stepDone.completed.resolve();
-      isPreparationTime.value = false;
-    }
-  }, 1200);
+    stepDone.completed.resolve();
+    state.value.isConnecting = false;
+    startPreparationTimer();
+    isPreparationTime.value = false;
+    // isTransitionStarted.value = true;
+    // startSpeakingTransitionTimer();
+    // startSpeakingTimer();
+    // isSelectTarget.value = true;
+    // startSelectTargetTimer();
+    // isVoteTime.value = true;
+    // startVoteTimer();
+    addTestMessageNormal();
+    addTestMessageNormal();
+    addTestMessageBattle();
+    addTestMessageBattle();
+    addTestVoteMessage();
+    addTestAIMessage();
+  }, 1000);
 
   await subscribeToDebateRoom();
   await startWebRTCConnection(roomStore.room?.roomId ?? "404");
@@ -2028,7 +2893,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 발언 중인 참가자의 프로필 이미지 빛나는 효과 */
+/* 발언 중인 참가자의 프로필 이미지 초록색 빛남 효과 */
 .speaking-glow {
   position: relative;
 }
@@ -2047,23 +2912,20 @@ onUnmounted(() => {
 .speaking-glow::before {
   content: "";
   position: absolute;
-  top: -4px;
-  left: -4px;
-  right: -4px;
-  bottom: -4px;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
   border-radius: 50%;
-  background: linear-gradient(
-    45deg,
-    #ff6b6b,
-    #4ecdc4,
-    #45b7d1,
-    #96ceb4,
-    #ffeaa7,
-    #dda0dd
+  background: radial-gradient(
+    closest-side,
+    rgba(16, 185, 129, 0.6),
+    rgba(16, 185, 129, 0.15),
+    transparent
   );
-  background-size: 300% 300%;
-  animation: glow-pulse 2s ease-in-out infinite;
+  animation: green-pulse 1.6s ease-in-out infinite;
   z-index: -1;
+  filter: blur(2px);
 }
 
 .speaking-glow::after {
@@ -2074,42 +2936,36 @@ onUnmounted(() => {
   right: -2px;
   bottom: -2px;
   border-radius: 50%;
-  background: linear-gradient(
-    45deg,
-    #ff6b6b,
-    #4ecdc4,
-    #45b7d1,
-    #96ceb4,
-    #ffeaa7,
-    #dda0dd
-  );
-  background-size: 300% 300%;
-  animation: glow-rotate 3s linear infinite;
-  opacity: 0.8;
+  box-shadow:
+    0 0 12px 3px rgba(16, 185, 129, 0.8),
+    0 0 24px 6px rgba(16, 185, 129, 0.45);
+  animation: green-breathe 2.2s ease-in-out infinite;
   z-index: -1;
-  filter: blur(8px);
 }
 
-@keyframes glow-pulse {
+@keyframes green-pulse {
   0%,
   100% {
-    background-position: 0% 50%;
     transform: scale(1);
     opacity: 0.8;
   }
   50% {
-    background-position: 100% 50%;
     transform: scale(1.05);
     opacity: 1;
   }
 }
 
-@keyframes glow-rotate {
-  0% {
-    background-position: 0% 50%;
-  }
+@keyframes green-breathe {
+  0%,
   100% {
-    background-position: 200% 50%;
+    box-shadow:
+      0 0 12px 3px rgba(16, 185, 129, 0.8),
+      0 0 24px 6px rgba(16, 185, 129, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 0 18px 4px rgba(16, 185, 129, 0.95),
+      0 0 36px 10px rgba(16, 185, 129, 0.55);
   }
 }
 </style>

@@ -1,6 +1,22 @@
 import { ref, computed, onUnmounted, markRaw, watch } from 'vue'
 import { Device } from 'mediasoup-client'
 import { Deferred } from '../utils/deferred'
+import { useAudioControls } from './useAudioControls'
+
+const audio = useAudioControls()
+
+const onConsumerCreated = ({userId, consumer}: {userId: string, consumer: any}) => {
+  const stream = new MediaStream([consumer.track])
+  audio.connectParticipantAudio(userId, stream) 
+}
+
+const onConsumerClosed = ({userId}: {userId: string}) => {
+  audio.disconnectParticipantAudio(userId)
+}
+
+const onLeaveRoom = () => {
+  audio.cleanup()
+}
 
 //#region 인터페이스 정의
 export interface StompClient {
@@ -65,6 +81,7 @@ export interface WebRTCConnectionState {
   producerTransport?: any
   consumerTransport?: any
   localAudioTrack?: MediaStreamTrack | null
+  audioProducer?: any
 }
 //#endregion
 
@@ -134,7 +151,8 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
     routerRtpCapabilities: undefined,
     producerTransport: undefined,
     consumerTransport: undefined,
-    localAudioTrack: null
+    localAudioTrack: null,
+    audioProducer: undefined
   })
 
   const connectionError = ref<string | null>(null)
@@ -171,7 +189,7 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
     return Math.round((currentStepIndex / (steps.length - 1)) * 100)
   })
 
-  const signalingUrl = computed(() => `${config.wsBaseUrl}/signaling`)
+  const signalingUrl = computed(() => `${import.meta.env.VITE_WS_BASE_URL}/signaling`)
   
   // MediaSoup 관련 변수들
   const pendingTransportConnect = new Map<string, Deferred<void>>()
@@ -390,7 +408,7 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       }
       
       // 토큰 요청
-      const response = await fetch(`${config.apiBaseUrl}/api/auth/token`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/token`, {
         method: 'POST',
         mode: 'cors',
         headers: {
@@ -539,7 +557,15 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       video: false,
     })
     const track = stream.getAudioTracks()[0]
-    await transport.produce({ track })
+    // 로컬 오디오 트랙 상태 및 오디오 컨트롤러에 설정
+    try {
+      state.value.localAudioTrack = track
+      audioController?.setLocalAudioTrack(track)
+    } catch (e) {
+      console.warn('로컬 오디오 트랙 설정 중 경고:', e)
+    }
+    const producer = await transport.produce({ track })
+    state.value.audioProducer = producer
     
     // Transport 연결과 Producer 생성 둘 다 완료될 때까지 기다림
     await Promise.all([transportConnectDeferred.promise, producerCreateDeferred.promise])
@@ -567,9 +593,10 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       // Audio Controller에 트랙 설정 (옵셔널)
       audioController?.setLocalAudioTrack(audioTrack)
       
-      await state.value.producerTransport.produce({
+      const producer = await state.value.producerTransport.produce({
         track: audioTrack,
       })
+      state.value.audioProducer = producer
       
       console.log('✅ 오디오 Producer 생성 완료')
       return audioTrack
@@ -1034,6 +1061,11 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       state.value.producerTransport.close()
       state.value.producerTransport = undefined
     }
+    // Producer 정리
+    if (state.value.audioProducer) {
+      try { state.value.audioProducer.close?.() } catch {}
+      state.value.audioProducer = undefined
+    }
     
     // Device 정리
     if (state.value.device) {
@@ -1093,6 +1125,22 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
     // 연결 관리
     startWebRTCConnection,
     disconnectWebRTC,
+    // 추가: 로컬 트랙 교체 API (Producer 트랙 교체)
+    replaceLocalAudioTrack: async (newTrack: MediaStreamTrack) => {
+      try {
+        if (state.value.audioProducer && newTrack) {
+          await state.value.audioProducer.replaceTrack({ track: newTrack })
+          state.value.localAudioTrack?.stop?.()
+          state.value.localAudioTrack = newTrack
+          audioController?.setLocalAudioTrack(newTrack)
+          console.log('🔄 송신 트랙이 새 트랙으로 교체됨')
+          return true
+        }
+      } catch (e) {
+        console.error('❌ 송신 트랙 교체 실패:', e)
+      }
+      return false
+    },
     
     // 핸들러 함수들 (디버깅/테스트용)
     setupStompMessageHandlers,
