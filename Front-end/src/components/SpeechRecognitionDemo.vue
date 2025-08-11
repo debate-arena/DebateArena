@@ -1,167 +1,199 @@
 <template>
-  <div class="p-4 space-y-4 max-w-3xl mx-auto">
-    <!-- 연결 상태 & 버튼 -->
-    <header class="flex items-center gap-3">
-      <h1 class="text-xl font-bold">STT 테스트</h1>
-      <span :class="['inline-flex items-center gap-2 px-2 py-0.5 rounded text-sm',
-                     isSttConnected ? 'bg-green-100' : 'bg-gray-100']">
-        <span :style="{ width:'8px', height:'8px', borderRadius:'9999px',
-                        background: isSttConnected ? '#16a34a' : '#9ca3af' }"></span>
-        {{ isSttConnected ? '연결됨' : '연결 끊김' }}
+  <div class="mx-auto max-w-4xl p-4 space-y-6">
+    <!-- Header -->
+    <header class="flex items-center justify-between">
+      <h1 class="text-lg font-semibold">STT Demo (Only STT)</h1>
+      <span
+        class="text-xs rounded-full px-2 py-0.5"
+        :class="connected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+      >
+        {{ connected ? 'CONNECTED' : 'DISCONNECTED' }}
       </span>
-      <div class="ml-auto flex gap-2">
-        <button class="btn" :disabled="isSttConnected" @click="connectStt">연결</button>
-        <button class="btn" :disabled="!isSttConnected" @click="disconnectStt">해제</button>
-      </div>
     </header>
 
-    <!-- 제어 버튼 -->
-    <section class="space-y-2">
-      <h2 class="font-semibold">🎛️ 제어</h2>
-      <div class="grid grid-cols-3 gap-2">
-        <!-- isReady computed 속성을 통해 버튼의 활성화/비활성화 상태를 제어합니다. -->
-        <button class="btn" :disabled="!isReady" @click="startOpinion">발언 시작</button>
-        <button class="btn" :disabled="!isStopping" @click="stopStt">발언 중지</button>
+    <!-- Connection: 자동 연결 (표시는 헤더 배지로만) -->
 
-        <button class="btn" :disabled="!isReady" @click="startAttack">공격 시작</button>
-        <button class="btn" :disabled="!isStopping" @click="stopStt">공격 중지</button>
-
-        <button class="btn" :disabled="!isReady" @click="startDefense">방어 시작</button>
-        <button class="btn" :disabled="!isStopping" @click="stopStt">방어 중지</button>
+    <!-- Room / Config -->
+    <section class="grid gap-3 md:grid-cols-4">
+      <div>
+        <label class="text-sm font-medium">Room ID</label>
+        <input v-model="roomId" class="w-full rounded border px-3 py-2" />
+      </div>
+      <div>
+        <label class="text-sm font-medium">Language</label>
+        <select v-model="lang" class="w-full rounded border px-3 py-2">
+          <option value="ko-KR">ko-KR</option>
+          <option value="en-US">en-US</option>
+          <option value="ja-JP">ja-JP</option>
+        </select>
+      </div>
+      <div class="md:col-span-2 text-xs text-gray-500 flex items-center">
+        * 언어 변경은 새로 시작(Start) 시 반영됩니다.
       </div>
     </section>
 
-    <!-- 프리뷰 -->
-    <section class="space-y-2">
-      <h2 class="font-semibold">🎧 프리뷰(내 음성 실시간)</h2>
-      <div class="min-h-12 p-3 rounded border bg-white whitespace-pre-wrap">
-        {{ previewText || '마이크에 말씀해 보세요...' }}
+    <!-- Controls -->
+    <section class="flex flex-wrap gap-2">
+      <button class="rounded bg-blue-600 text-white px-3 py-2 disabled:opacity-50"
+              :disabled="!connected || isRec"
+              @click="startOpinion">🎤 Start (Opinion)</button>
+
+      <button class="rounded bg-indigo-600 text-white px-3 py-2 disabled:opacity-50"
+              :disabled="!connected || isRec"
+              @click="startBattleAttack">⚔️ Start (Battle · Attack)</button>
+
+      <button class="rounded bg-purple-600 text-white px-3 py-2 disabled:opacity-50"
+              :disabled="!connected || isRec"
+              @click="startBattleDefense">🛡 Start (Battle · Defense)</button>
+
+      <button class="rounded border px-3 py-2 disabled:opacity-50"
+              :disabled="!isRec"
+              @click="stop">⏹ Stop</button>
+    </section>
+
+    <!-- Preview / Received -->
+    <section class="grid gap-4 md:grid-cols-2">
+      <div class="space-y-2">
+        <h2 class="font-semibold">Interim Preview</h2>
+        <div class="rounded border p-3 min-h-12 text-gray-700">
+          {{ stt.previewText || '...' }}
+        </div>
+        <p class="text-xs text-gray-500">브라우저 Web Speech API의 interim 결과</p>
+      </div>
+
+      <div class="space-y-2">
+        <h2 class="font-semibold">Last 10 STT Broadcasts</h2>
+        <div class="rounded border p-0 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-3 py-2 text-left">Time</th>
+                <th class="px-3 py-2 text-left">User</th>
+                <th class="px-3 py-2 text-left">Text</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="m in lastStt" :key="m.key" class="odd:bg-white even:bg-gray-50">
+                <td class="px-3 py-2">{{ m.time }}</td>
+                <td class="px-3 py-2">{{ m.user }}</td>
+                <td class="px-3 py-2 break-words">{{ m.text }}</td>
+              </tr>
+              <tr v-if="!lastStt.length">
+                <td colspan="3" class="px-3 py-6 text-center text-gray-500">No messages</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-xs text-gray-500">수신 토픽은 컴포저블에서 자동 구독합니다.</p>
       </div>
     </section>
 
-    <!-- 수신 로그 -->
+    <!-- Room preview (RoomStore) -->
     <section class="space-y-2">
-      <div class="flex items-center justify-between">
-        <h2 class="font-semibold">📨 브로드캐스트 수신 (/user/queue/stt/broadcast)</h2>
-        <button class="px-2 py-1 rounded border" @click="clear">로그 비우기</button>
-      </div>
-      <div class="log-box">
-        <div v-if="recv.length===0" class="text-gray-500">수신된 메시지가 없습니다.</div>
-        <div v-for="(m,i) in recv" :key="i" class="entry"><pre>{{ fmt(m) }}</pre></div>
-      </div>
-    </section>
-
-    <!-- 내가 보낸 세그먼트 -->
-    <section class="space-y-2">
-      <h2 class="font-semibold">✅ 내가 보낸 세그먼트</h2>
-      <div class="log-box">
-        <div v-if="sent.length===0" class="text-gray-500">전송 내역이 없습니다.</div>
-        <div v-for="(m,i) in sent" :key="i" class="entry"><pre>{{ fmt(m) }}</pre></div>
+      <h2 class="font-semibold">Room Preview (RoomStore)</h2>
+      <div class="rounded border p-3 text-sm whitespace-pre-wrap">
+        {{ roomPreview }}
       </div>
     </section>
   </div>
 </template>
 
-<script setup>
-import { ref, computed, watch, watchEffect } from 'vue'; // watch, computed 추가
-import { useRoute } from 'vue-router';
-import { Client } from '@stomp/stompjs';
-import { useStt } from '@/composables/useSpeechRecognition';
-import { config } from '@/config/env';
+<script setup lang="ts">
+import { Client } from '@stomp/stompjs'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { useStt } from '@/composables/useSpeechRecognition'
+import { config } from '@/config/env'
+import { useRoomStore } from '@/store/roomStore'
 
-const route = useRoute();
-const roomId = computed(() => {
-  const id = route.params.id;
-  return typeof id === 'string' ? id : Array.isArray(id) ? id[0] : '123';
-}); // URL 파라미터에서 roomId 가져오기
+// --- connection (기본 8082 환경변수 사용) ---
+const defaultWsUrl = `${config.STT_WS_URL}/ws`
+const wsUrl = ref(defaultWsUrl)
+const client = ref<Client | null>(null)
+const connected = ref(false)
 
-// STT용 WebSocket 클라이언트 (8082 포트)
-const sttStompClient = ref(null);
-const isSttConnected = ref(false);
+function connect() {
+  if (client.value) client.value.deactivate()
+  const c = new Client({
+    brokerURL: wsUrl.value,
+    reconnectDelay: 3000,
+    onConnect: () => { connected.value = true },
+    onWebSocketClose: () => { connected.value = false },
+    onStompError: (f) => { console.error('[STOMP ERROR]', f) },
+  })
+  client.value = c
+  c.activate()
+}
+function disconnect() {
+  client.value?.deactivate()
+  connected.value = false
+}
 
-// STT WebSocket 연결
-const connectStt = () => {
-  return new Promise((resolve, reject) => {
-    const client = new Client({
-      brokerURL: `${config.STT_WS_URL}/ws`, // 8082 포트로 연결
-      heartbeatIncoming: 10000,
-      heartbeatOutgoing: 10000
-    });
+// --- room/config ---
+const roomId = ref<string | number>('123')
+const lang = ref<'ko-KR' | 'en-US' | 'ja-JP'>('ko-KR')
 
-    client.onConnect = () => {
-      console.log('🔗 STT WebSocket 연결 성공 (8082)');
-      isSttConnected.value = true;
-      sttStompClient.value = client;
-      resolve();
-    };
+// --- useStt (현재 컴포저블 시그니처에 맞춤) ---
+const stt = useStt(client, roomId, {
+  lang: lang.value,
+  // 나머지 세그먼테이션 설정이 필요하면 여기서 추가 가능
+})
 
-    client.onStompError = (error) => {
-      console.error('❌ STT WebSocket 연결 실패:', error);
-      isSttConnected.value = false;
-      reject(error);
-    };
+// 방송 수신 로그
+const sttFeed = ref<{ key: string; time: string; user: string; text: string }[]>([])
 
-    client.activate();
-  });
-};
+// ApiResponse<BroadcastResponse> 또는 BroadcastResponse 둘 다 대비
+stt.onSttMessage((payload: any) => {
+  const body = payload?.data?.text ? payload.data : payload
+  const user = body?.user ?? '-'
+  const text = body?.text ?? JSON.stringify(payload)
+  const now = new Date()
+  sttFeed.value.unshift({
+    key: `${now.getTime()}_${Math.random()}`,
+    time: now.toLocaleTimeString(),
+    user,
+    text,
+  })
+  if (sttFeed.value.length > 200) sttFeed.value.pop()
+})
 
-// STT WebSocket 연결 해제
-const disconnectStt = () => {
-  if (sttStompClient.value && isSttConnected.value) {
-    sttStompClient.value.deactivate();
-    isSttConnected.value = false;
-    sttStompClient.value = null;
+// controls
+function startOpinion()      { stt.startOpinion() }
+function startBattleAttack() { stt.startBattleAttack() }
+function startBattleDefense(){ stt.startBattleDefense() }
+function stop()              { stt.stop() }
+
+const lastStt = computed(() => sttFeed.value.slice(0, 10))
+
+// refs for boolean props to satisfy TS Booleanish
+const isRec = computed(() => !!stt.isRecognizing.value)
+
+// router에서 roomId 수신, 마운트 시 자동 연결
+const route = useRoute()
+const routeRoomId = computed(() => {
+  const id = route.params.id
+  return typeof id === 'string' ? id : Array.isArray(id) ? id[0] : ''
+})
+
+// RoomStore preview
+const roomStore = useRoomStore()
+const roomPreview = computed(() => {
+  const r = roomStore.room
+  if (!r) return 'No room in store'
+  const left = r.participants.filter(p => p.side === 'L').map(p => p.displayName)
+  const right = r.participants.filter(p => p.side === 'R').map(p => p.displayName)
+  return JSON.stringify({ roomId: r.roomId, leftTeam: left, rightTeam: right }, null, 2)
+})
+
+onMounted(() => {
+  if (routeRoomId.value) {
+    roomId.value = routeRoomId.value
   }
-};
-
-// STT WebSocket 연결 시도
-connectStt().catch(console.error);
-
-const {
-  isRecognizing,
-  previewText,
-  start,
-  stop: stopStt,
-  onSegmentReady,
-  onSttMessage
-} = useStt(sttStompClient, roomId);
-
-// 입장(join) 로직 – 연결 직후 1회
-const joined = ref(false);
-watchEffect(() => {
-  if (isSttConnected.value && !joined.value && roomId.value) {
-    sttStompClient.value?.publish({ destination: '/pub/debate/join', body: String(roomId.value) });
-    joined.value = true;
-  }
-});
-watch(isSttConnected, (isConnected)=>{ if(!isConnected) joined.value = false; });
-
-// 로그
-const recv = ref([]), sent = ref([]);
-onSttMessage((p)=> recv.value.unshift({ ts: Date.now(), payload: p }));
-onSegmentReady((s)=> sent.value.unshift({ ts: Date.now(), segment: s }));
-
-// 버튼 상태 helpers
-// isRecognizing 상태와 동일. STT가 활성화되었을 때 true. 중지 버튼의 활성화 조건입니다.
-const isStopping = computed(()=> isRecognizing.value);
-// [수정됨] STT를 시작할 준비가 되었는지 확인하는 computed 속성입니다.
-// WebSocket이 연결되어 있고, STT가 비활성화 상태일 때만 true가 됩니다.
-// 매개변수가 필요 없으므로 computed 속성으로 만들어 가독성과 성능을 개선합니다.
-const isReady = computed(()=> !isRecognizing.value && isSttConnected.value);
-
-// 버튼 핸들러
-const startOpinion = ()=> start({ phase:'OPINION' });
-const startAttack  = ()=> start({ phase:'BATTLE', isAttack:true  });
-const startDefense = ()=> start({ phase:'BATTLE', isAttack:false });
-
-const clear = ()=> { recv.value=[]; sent.value=[]; };
-const fmt = (o)=> JSON.stringify(o, null, 2);
+  connect()
+})
+onUnmounted(() => { disconnect() })
 </script>
 
 <style scoped>
-*{box-sizing:border-box}
-.btn{padding:.5rem .75rem;border:1px solid #d4d4d8;border-radius:.375rem}
-.btn:disabled{opacity:0.5;cursor:not-allowed;}
-.log-box{max-height:40vh;overflow:auto;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;padding:.5rem}
-.entry{border:1px solid #e2e8f0;padding:.5rem;border-radius:.375rem;margin-bottom:.5rem;font-size:0.875rem}
-</style> 
+.min-h-12 { min-height: 3rem; }
+</style>

@@ -1,8 +1,8 @@
 <template>
   <div class="min-h-screen bg-background">
-    <!-- 에러 메시지 표시 -->
-    <div v-if="matchingStore.error" class="fixed inset-0 flex items-center justify-center z-50">
-      <Alert class="max-w-md bg-background shadow-lg">
+    <!-- 에러 메시지 (불투명 토스트) -->
+    <div v-if="matchingStore.error" class="fixed bottom-6 right-6 z-50">
+      <Alert class="max-w-sm bg-card border border-border shadow-xl">
         <AlertCircle class="h-4 w-4" />
         <AlertTitle>알림</AlertTitle>
         <AlertDescription>{{ matchingStore.error }}</AlertDescription>
@@ -31,7 +31,7 @@
         :topic-title="currentMatchTopicTitle"
         :stance="currentUserStance"
         :mode="currentMatchMode"
-        :topic-id="currentMatchTopicId"
+        :topic-id="(currentMatchTopicId ?? 0)"
         :total-count="currentMatchTotalCount"
         :time-left="matchingStore.acceptTimeLeft"
         :is-connecting="false"
@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useMatchingStore } from '@/store/matching'
@@ -81,6 +81,7 @@ import { useMatchingModals } from '@/composables/useMatchingModals'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { useMatchResultState } from '@/composables/useMatchResultState'
 import { useAuthStore } from '@/store/auth'
+import { useRoomStore } from '@/store/roomStore'
 import { AlertCircle } from 'lucide-vue-next'
 
 // Components
@@ -109,6 +110,7 @@ const router = useRouter()
 const matchingStore = useMatchingStore()
 const topicSetStore = useTopicSetStore()
 const authStore = useAuthStore()
+const roomStore = useRoomStore()
 
 // Controllers
 useTopicSetController()
@@ -125,12 +127,13 @@ const isStartingMatch = ref(false)
 const selfAcceptance = ref<'pending' | 'accepted' | 'rejected'>('pending')
 
 // Computed Properties
-const currentMatchTopicId = computed(() => matchingStore.currentMatchTopicId || 0)
+const currentMatchTopicId = computed<number | null>(() => matchingStore.currentMatchTopicId)
 const currentMatchMode = computed(() => matchingStore.currentMatchMode || '1:1')
 const currentUserStance = computed(() => teamToStanceFlexible(matchingStore.currentUserTeam))
 const currentMatchTopicTitle = computed(() => {
-  const topic = topicSetStore.currentSet?.topics.find(t => t.id === currentMatchTopicId.value)
-  return topic?.title || `주제 ${currentMatchTopicId.value}`
+  const id = currentMatchTopicId.value
+  const topic = id ? topicSetStore.currentSet?.topics.find(t => t.id === id) : undefined
+  return topic?.title || (id ? `주제 ${id}` : '주제')
 })
 const currentMatchTotalCount = computed(() => getTotalCount(currentMatchMode.value))
 
@@ -191,7 +194,7 @@ const handleAcceptanceStatus = (data: WebSocketMessage) => {
   if (data.status === 'error') return
   
   if (data.status === 'success') {
-    const { accept, team, stance } = processAcceptanceStatus(data)
+    const { accept, stance } = processAcceptanceStatus(data)
     
     matchingStore.updateRoomInfo({ 
       connectedUsers: matchingStore.roomInfo.connectedUsers + 1 
@@ -207,14 +210,62 @@ const handleAcceptanceStatus = (data: WebSocketMessage) => {
 
 const handleMatchResult = (data: WebSocketMessage) => {
   if (data.status === 'error') return
-  
+
+  // 공통 처리 함수 (FAIL 시 재사용)
+  const handleFail = () => {
+    // FAIL 경로 처리
+    matchResultState.resetStanceAcceptance()
+    matchingStore.stopAcceptTimer()
+    stopAcceptTimer()
+
+    if (selfAcceptance.value === 'accepted') {
+      // 내가 수락한 경우: 즉시 waiting 화면으로 전환 (matched -> waiting 강제)
+      matchingStore.setStatus('waiting')
+      // 타이머 재가동을 위해 isMatching/elapsedTime 명시 설정
+      matchingStore.isMatching = true
+      matchingStore.elapsedTime = 0
+      startMatchingTimer(() => modals.showTimeoutModal())
+      // 초대장 상태 정리 (패널 언마운트 이후로 지연하여 topicId 0 로그 방지)
+      nextTick(() => {
+        matchingStore.clearInvitation()
+      })
+    } else {
+      // 내가 거절/미응답: 초기 화면 복귀(선택값 보존), 소켓 종료
+      matchingStore.cancelMatching()
+      stopMatchingTimer()
+      webSocket.disconnect()
+      if (selfAcceptance.value === 'pending') {
+        // 미응답을 로컬 거절로 처리
+        selfAcceptance.value = 'rejected'
+      }
+      // 초대장 상태 정리
+      matchingStore.clearInvitation()
+    }
+  }
+
   if (data.status === 'success') {
     const result = processMatchResult(data)
     
     if (result.success && result.roomId) {
+      // 방 정보가 함께 온다면 RoomStore에 즉시 반영 (보내기 전 준비)
+      try {
+        const participants = [
+          ...((result.firstTeam || []).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'L' as const }))),
+          ...((result.secondTeam || []).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'R' as const }))),
+        ]
+        roomStore.setRoom({ roomId: result.roomId, participants })
+      } catch (e) {
+        console.warn('RoomStore 초기화 중 경고(무시 가능):', e)
+      }
+
       handleMatchSuccess(result.roomId)
+    } else {
+      handleFail()
     }
+    return
   }
+  // success가 아닌 기타 상태는 실패로 간주
+  handleFail()
 }
 
 // Event Handlers
@@ -267,6 +318,15 @@ const handleModalAccept = () => {
   selfAcceptance.value = 'accepted'
   matchingStore.stopAcceptTimer()
   stopAcceptTimer()
+
+  // 수락 시 즉시 'waiting' 화면으로 전환하여 게임 스테이터스 표시
+  // (소켓은 유지, 서버 MATCH_RESULT 수신 시 최종 처리)
+  if (!matchingStore.isMatching) {
+    matchingStore.startMatching()
+    startMatchingTimer(() => modals.showTimeoutModal())
+  }
+
+  // 초대장 상태는 최종 결과 수신 후 정리 (여기서 초기화하면 주제/옵션 정보가 사라짐)
 }
 
 const handleModalReject = () => {
@@ -286,7 +346,7 @@ const handleModalReject = () => {
 const handleMatchSuccess = (roomId: string) => {
   matchingStore.setMatchResult({ 
     roomId,
-    topicId: currentMatchTopicId.value,
+    topicId: (currentMatchTopicId.value ?? 0),
     stance: currentUserStance.value,
     mode: currentMatchMode.value,
     participants: []
@@ -351,15 +411,20 @@ watch(
   }
 )
 
+// 에러 토스트 자동 해제 (3초)
+watch(
+  () => matchingStore.error,
+  (err) => {
+    if (err) {
+      setTimeout(() => matchingStore.clearError(), 3000)
+    }
+  }
+)
+
 // Lifecycle
 onMounted(async () => {
+  // 진입 시 매칭 상태만 초기화 (토픽 fetch/타이머는 useTopicSetController에서 관리)
   matchingStore.cancelMatching()
-  await topicSetStore.fetchTopicSets()
-  
-  const activeTopics = topicSetStore.currentSet?.topics || []
-  matchingStore.globalModes = new Set(['1:1', '2:2'])
-  matchingStore.globalStances = new Set(['random'])
-  matchingStore.initializeTopicSelections(activeTopics.map(topic => topic.id))
 })
 
 onUnmounted(() => {
@@ -373,23 +438,6 @@ onUnmounted(() => {
   modals.hideAllModals()
 })
 
-// Timer (for topic change)
+// Timer placeholder (legacy). 주제 변경 타이머는 useTopicSetController에서 일원화됨
 let timer: ReturnType<typeof setInterval> | null = null
-
-const startTopicChangeTimer = () => {
-  if (topicSetStore.currentSet?.remainingTimeSeconds) {
-    const update = () => {
-      const remainingSeconds = topicSetStore.remainingTimeSeconds
-      if (remainingSeconds <= 0) {
-        topicSetStore.swapSets()
-      }
-    }
-    update()
-    timer = setInterval(update, 1000)
-  }
-}
-
-onMounted(() => {
-  startTopicChangeTimer()
-})
 </script>

@@ -7,24 +7,26 @@
           <Button 
             variant="outline"
             @click="toggleMode1"
-            class="px-4 h-10 min-w-[60px] text-sm font-medium"
+            class="px-5 h-12 min-w-[96px] text-base font-medium"
             :class="{ 
               'bg-mode-1v1 hover:bg-indigo-200 active:bg-indigo-300 text-mode-1v1 border-mode-1v1 ring-mode-1v1': modelMode1,
               'bg-background hover:bg-accent': !modelMode1
             }"
           >
+            <img src="/src/assets/images/profile/1vs1.png" class="w-6 h-6 mr-2 polar-icon" alt="1대1" />
             1:1
           </Button>
           
           <Button 
             variant="outline"
             @click="toggleMode2"
-            class="px-4 h-10 min-w-[60px] text-sm font-medium"
+            class="px-5 h-12 min-w-[96px] text-base font-medium"
             :class="{ 
               'bg-mode-2v2 hover:bg-indigo-200 active:bg-indigo-300 text-mode-2v2 border-mode-2v2 ring-mode-2v2': modelMode2,
               'bg-background hover:bg-accent': !modelMode2
             }"
           >
+            <img src="/src/assets/images/profile/2vs2.png" class="w-6 h-6 mr-2 polar-icon" alt="2대2" />
             2:2
           </Button>
         </div>

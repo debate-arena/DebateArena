@@ -6,35 +6,86 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(0, 0, 0, 0.87);
-  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* 라이트 모드 - 아오키지/토시로 계열 얼음 팔레트 */
-  --background: 202 70% 98%;           /* 아주 옅은 아이스 화이트 */
-  --foreground: 220 30% 15%;           /* 차가운 슬레이트 텍스트 */
+  /* 라이트 모드 - 극지방 오로라 기반 얼음 팔레트 (변수명 유지, 값만 조정) */
+  --background: 208 60% 98%;           /* 아주 옅은 아이스 화이트(조금 더 차갑게) */
+  --foreground: 220 35% 12%;           /* 깊은 차가운 텍스트 */
   --card: 0 0% 100%;                   /* 순백 카드 */
-  --card-foreground: 220 30% 15%;      /* 카드 텍스트 */
+  --card-foreground: 220 35% 12%;      /* 카드 텍스트 */
   --popover: 0 0% 100%;                /* 팝오버 배경 */
-  --popover-foreground: 220 30% 15%;   /* 팝오버 텍스트 */
-  --primary: 190 90% 52%;              /* 아이스 시안 포인트(존재감 상승) */
+  --popover-foreground: 220 35% 12%;   /* 팝오버 텍스트 */
+  --primary: 190 88% 50%;              /* CTA: 오로라 시안 */
   --primary-foreground: 210 40% 98%;   /* 밝은 텍스트 */
-  --secondary: 196 70% 95%;            /* 옅은 글래시어 블루 */
-  --secondary-foreground: 220 30% 15%; /* 서브 텍스트 */
-  --muted: 200 25% 94%;                /* 블루-그레이 틴트 */
-  --muted-foreground: 215 16% 40%;     /* 뮤트 텍스트 */
-  --accent: 190 55% 92%;               /* 밝은 아이시 블루 */
-  --accent-foreground: 220 30% 15%;    /* 액센트 텍스트 */
-  --destructive: 0 84% 60%;            /* 레드 */
+  --secondary: 200 40% 94%;            /* 서브: 서리 낀 유리 느낌 */
+  --secondary-foreground: 220 35% 12%; /* 서브 텍스트 */
+  --muted: 210 30% 96%;                /* 블루-그레이 틴트 */
+  --muted-foreground: 215 18% 38%;     /* 뮤트 텍스트 */
+  /* 액센트는 CTA보다 한 단계 부드럽게(채도↓ 밝기↓): 바이올렛-블루 */
+  --accent: 268 45% 90%;               /* 소프트 바이올렛 블루 */
+  --accent-foreground: 220 35% 12%;    /* 액센트 텍스트 */
+  --destructive: 0 78% 52%;            /* 레드(약간 낮춤) */
   --destructive-foreground: 210 40% 98%;
-  --border: 205 30% 88%;               /* 얼어붙은 보더(선명도 ↑) */
-  --input: 205 30% 88%;                /* 입력 테두리 */
-  --ring: 190 90% 52%;                 /* 포커스 링(프라이머리와 동일) */
+  /* 보더 선명도: 구분과 폼 가독성 향상 */
+  --border: 205 28% 80%;               /* 카드/구분선 보더 */
+  --input: 205 28% 80%;                /* 입력 테두리 */
+  --ring: 190 88% 50%;                 /* 포커스 링 */
   --radius: 0.5rem;
+
+  /* 추가 피드백 토큰 (선택) */
+  --success: 142 70% 40%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 32 95% 20%;
+  --info: 210 80% 55%;
+  --info-foreground: 0 0% 100%;
+
+  /* Debate palettes (변수명 유지, 북극곰/펭귄 완전 대비, 물범 중간값) */
+  --debate-left-bg: 208 55% 93%;       /* 북극곰: 차가운 표면(조도 ↑) */
+  --debate-left-text: 210 60% 18%;     /* 북극곰: 진한 텍스트 */
+  --debate-left-deep: 210 66% 16%;     /* 북극곰: 보더/호버 */
+
+  /* 펭귄 팔레트: 따뜻한 앰버 → 극지 바이올렛 인디고로 전환 (차가운 대비) */
+  --debate-right-bg: 248 80% 95%;      /* 펭귄: 차가운 인디고 표면(부드럽게) */
+  --debate-right-text: 247 50% 26%;    /* 펭귄: 진한 인디고 텍스트 */
+  --debate-right-deep: 247 58% 22%;    /* 펭귄: 보더/호버 */
+
+  /* 물범(랜덤): 좌(블루)와 우(인디고) 사이의 중간 톤(티얼/씨폼) */
+  --debate-random-bg: 196 32% 94%;     /* 물범: 중립 티얼 표면(조도 ↑) */
+  --debate-random-text: 196 38% 22%;   /* 물범: 텍스트 */
+  --debate-random-deep: 196 42% 18%;   /* 물범: 보더/호버 */
+
+  /* Aurora hues (전역 배경 그라디언트용) */
+  --aurora-cyan: 190 90% 52%;
+  --aurora-blue: 220 85% 64%;
+  --aurora-violet: 268 68% 72%;
+  --aurora-amber: 36 90% 55%;
+
+  /* 모드 팔레트 (1:1 인디고, 2:2 시안) */
+  /* 모드 색감 조정: 1:1(인디고 라이트) / 2:2(오로라 시안 라이트) */
+  --mode-1v1-bg: 248 100% 96%;  /* very light indigo */
+  --mode-1v1-ring: 247 62% 45%; /* indigo ring (조금 진하게) */
+  --mode-2v2-bg: 190 88% 94%;  /* very light cyan */
+  --mode-2v2-ring: 190 85% 50%; /* cyan ring (primary보다 한 단계 부드럽게) */
+}
+
+/* 전역 배경/전경 색상을 토큰으로 적용 */
+html, body {
+  height: 100%;
+  color: hsl(var(--foreground));
+  /* 극지방 오로라 배경: 은은하지만 확실한 존재감 */
+  background:
+    radial-gradient(60% 120% at 10% 15%, hsl(var(--aurora-cyan) / 0.20), transparent 60%),
+    radial-gradient(80% 100% at 90% 8%, hsl(var(--aurora-blue) / 0.16), transparent 65%),
+    radial-gradient(50% 70% at 35% -5%, hsl(var(--aurora-violet) / 0.14), transparent 60%),
+    radial-gradient(70% 70% at 70% -10%, hsl(var(--aurora-amber) / 0.12), transparent 60%),
+    hsl(var(--background));
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 .dark {
@@ -86,97 +137,56 @@
 .ring-primary { --tw-ring-color: hsl(var(--ring)); }
 
 /* 수락 완료 버튼 커스텀 스타일 */
+/* 수락 완료 버튼: 토큰 기반 성공 색상 */
 .accept-complete-button {
-  border: 2px solid black !important;
-  background-color: #16A34A !important; /* green-600 */
+  border: 1.5px solid hsl(var(--success-foreground)) !important;
+  background-color: hsl(var(--success)) !important;
+  color: hsl(var(--success-foreground)) !important;
 }
-
 .accept-complete-button:hover {
-  background-color: #15803D !important; /* green-700 */
+  background-color: hsl(var(--success) / 0.92) !important;
 }
-
 .accept-complete-button:disabled {
-  background-color: #16A34A !important;
-  border: 2px solid black !important;
+  background-color: hsl(var(--success)) !important;
+  border: 1.5px solid hsl(var(--success-foreground)) !important;
 }
 
 /* 토론방 커스텀 색상 클래스 */
-.bg-debate-left {
-  background-color: #F0F9FF;  /* 북극곰 (쿨 화이트) - 아주 연한 얼음 하늘색 */
-  }
+/* Debate helpers: 변수 기반으로 통일 */
+.bg-debate-left    { background-color: hsl(var(--debate-left-bg)); }
+.text-debate-left  { color: hsl(var(--debate-left-text)); }
+.border-debate-left{ border-color: hsl(var(--debate-left-deep)); }
 
-.bg-debate-right {
-  background-color: #0B1224;  /* 펭귄 (네이비 블랙) - 남극 밤하늘 네이비 */
-  }
+.bg-debate-right   { background-color: hsl(var(--debate-right-bg)); }
+.text-debate-right { color: hsl(var(--debate-right-text)); }
+/* 보더는 선명도를 위해 deep 사용 */
+.border-debate-right{ border-color: hsl(var(--debate-right-deep)); }
 
-.bg-debate-random {
-  background-color: #C8D5E8;  /* 물범 (블루-그레이) - 푸른빛 도는 회색 */
-}
+.bg-debate-random  { background-color: hsl(var(--debate-random-bg)); }
+.text-debate-random{ color: hsl(var(--debate-random-text)); }
+.border-debate-random{ border-color: hsl(var(--debate-random-deep)); }
 
 /* 모드 선택 색상 클래스 */
-.bg-mode-1v1 {
-  background-color: #E0E7FF;  /* 1vs1 - Indigo-100 (차가운 톤) */
-}
+.bg-mode-1v1 { background-color: hsl(var(--mode-1v1-bg)); }
+.bg-mode-1v1:hover { filter: brightness(0.98); }
+.bg-mode-1v1:active { filter: brightness(0.96); }
 
-.bg-mode-1v1:hover {
-  background-color: #C7D2FE;  /* 1vs1 Hover - Indigo-200 */
-}
+.bg-mode-2v2 { background-color: hsl(var(--mode-2v2-bg)); }
+.bg-mode-2v2:hover { filter: brightness(0.98); }
+.bg-mode-2v2:active { filter: brightness(0.96); }
 
-.bg-mode-1v1:active {
-  background-color: #A5B4FC;  /* 1vs1 Pressed - Indigo-300 */
-}
+/* 위에서 변수 기반으로 재정의 */
 
-.bg-mode-2v2 {
-  background-color: #CFFAFE;  /* 2vs2 - 청록색 (Cyan-100) */
-}
+.text-mode-1v1 { color: hsl(var(--foreground)); }
+.text-mode-2v2 { color: hsl(var(--foreground)); }
 
-.text-debate-left {
-  color: #F0F9FF;
-}
+/* 위에서 변수 기반으로 재정의 */
 
-.text-debate-right {
-  color: #0B1224;
-}
+.border-mode-1v1 { border-color: hsl(var(--mode-1v1-ring)); }
+.border-mode-2v2 { border-color: hsl(var(--mode-2v2-ring)); }
 
-.text-debate-random {
-  color: #C8D5E8;
-}
-
-.text-mode-1v1 {
-  color: #0F172A;  /* 1vs1 텍스트 - 차가운 검은색 */
-}
-
-.text-mode-2v2 {
-  color: #0F172A;  /* 2vs2 텍스트 - 차가운 검은색 */
-}
-
-.border-debate-left {
-  border-color: #DBEAFE;  /* 북극곰 테두리 */
-}
-
-.border-debate-right {
-  border-color: #64748B;  /* 펭귄 테두리 */
-}
-
-.border-debate-random {
-  border-color: #94A3B8;  /* 물범 테두리 */
-}
-
-.border-mode-1v1 {
-  border-color: #93C5FD;  /* 1vs1 보더 - 하늘빛 파랑 */
-}
-
-.border-mode-2v2 {
-  border-color: #A5F3FC;  /* 2vs2 보더 - 청록색 */
-}
-
-.ring-mode-1v1 {
-  --tw-ring-color: #38BDF8;  /* 1vs1 링 - 하늘빛 파랑 */
-}
-
-.ring-mode-2v2 {
-  --tw-ring-color: #22D3EE;  /* 2vs2 링 - 청록색 */
-}
+.ring-mode-1v1 { --tw-ring-color: hsl(var(--mode-1v1-ring)); }
+.ring-mode-2v2 { --tw-ring-color: hsl(var(--mode-2v2-ring)); }
 
 /* 말풍선 꼬리용 border 색상 */
 .border-r-debate-left {

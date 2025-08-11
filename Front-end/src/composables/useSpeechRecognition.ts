@@ -1,189 +1,389 @@
-import { ref, watch, onUnmounted, unref } from 'vue';
-
-// Vue의 Ref 객체이거나 일반 객체일 수 있는 값을 안전하게 추출하는 헬퍼 함수.
-const getClient = (refOrObj: any) => refOrObj?.value ?? refOrObj;
+import { ref, watch, onUnmounted, unref } from 'vue'
 
 /**
- * 실시간 음성-텍스트 변환(STT) 및 WebSocket(STOMP) 통신을 관리하는 Vue 3 Composable(훅).
- *
- * 이 훅은 STT 세그먼테이션, Web Speech API 제어, STOMP 통신, 상태 관리 등
- * 복잡한 로직을 캡슐화하여 컴포넌트에서 쉽게 사용할 수 있도록 제공합니다.
- * 하나의 인스턴스를 생성 후, `start()` 메서드를 통해 모드를 바꿔가며 재사용할 수 있습니다.
- *
- * @param {import('vue').Ref<import('@stomp/stompjs').Client> | import('@stomp/stompjs').Client} stompClientRef - STOMP 클라이언트 인스턴스.
- * @param {string|number|import('vue').Ref<string|number>} roomId - STOMP 토픽 경로를 구성하는 데 사용될 방 번호.
- * @param {object} [config] - STT 동작을 미세 조정하기 위한 선택적 설정 객체.
+ * Revised STT composable aligned with current backend:
+ * - Publish DTOs: STTRequest / OpinionSTTRequest -> { text }
+ * - Broadcast (room-wide): /sub/debate/room/{roomId}/stt (fallback to no /sub)
+ * - AI summaries (room-wide):
+ *    /sub/debate/room/{roomId}/summaries/opinion (and buggy fallback: +{roomId})
+ *    /sub/debate/room/{roomId}/summaries/battle
+ *    /sub/debate/room/{roomId}/summaries/result
+ * - Spectator personal queues are handled elsewhere (not subscribed here)
  */
-export function useStt(stompClientRef: any, roomId: any, config = {}) {
-  /* ──────────────── 기본 설정 ─────────────── */
-  const cfg = {
+
+// Helper: unwrap ref or plain object
+const getClient = (refOrObj: any) => refOrObj?.value ?? refOrObj
+
+// DTO & Types (aligned with backend)
+export interface ApiResponse<T> { status?: string; data?: T; [k: string]: any }
+export interface BroadcastResponse { user: string; text: string }
+export interface OpinionSummaryResponse { result?: { text?: string; [k: string]: any } }
+export interface SiegeDefenseResponse { result?: { text?: string; [k: string]: any } }
+export interface DebateResultResponse { result?: { winner?: 'num1' | 'num2' | string; scores?: any; summary?: any; [k: string]: any } }
+
+export type SttPhase = 'OPINION' | 'BATTLE'
+
+export interface UseSttConfig {
+  lang?: string
+  maxChars?: number
+  maxWords?: number
+  maxLatencyMs?: number
+  silenceMs?: number
+  sentencePunct?: RegExp
+  autoSend?: boolean
+}
+
+export function useStt(
+  stompClientRef: any,
+  roomId: string | number | any,
+  config: UseSttConfig = {}
+) {
+  /* ──────────────── config ─────────────── */
+  const cfg: Required<UseSttConfig> = {
     lang: 'ko-KR',
-  maxChars: 300,
-  maxWords: 50,
-  maxLatencyMs: 3500,
-  silenceMs: 1200,
-  sentencePunct: /[.?!…]|[。！？]|[\.]{2,}$/,
+    maxChars: 300,
+    maxWords: 50,
+    maxLatencyMs: 3500,
+    silenceMs: 1200,
+    sentencePunct: /[.?!…]|[。！？]|[\.]{2,}$/,
     autoSend: true,
     ...config,
-  };
+  }
 
-  /* ──────────────── 반응형 상태 ─────────────── */
-  const isRecognizing = ref(false);
-  const previewText   = ref('');
-  const buffer        = ref('');
-  let recognition: any = null;
+  /* ──────────────── reactive state ─────────────── */
+  const isRecognizing = ref(false)
+  const previewText = ref('')
+  const buffer = ref('')
+  let recognition: any = null
 
-  /* ──────────────── 현재 전송 모드 ─────────────── */
-  let phase    = 'OPINION';
-  let isAttack = false;
-  let seq      = 0;
+  /* ──────────────── mode ─────────────── */
+  let phase: SttPhase = 'OPINION'
+  let seq = 0
 
-  /* ──────────────── 사용자 콜백 슬롯 ─────────────── */
-  // 훅 외부(컴포넌트)에서 특정 이벤트에 대한 로직을 주입할 수 있도록 콜백 함수 슬롯을 마련합니다.
-  let onSegReady = (segment: any) => {}; // 세그먼트 생성 시 호출될 콜백
-  let onSttMsg   = (message: any) => {}; // STOMP 메시지 수신 시 호출될 콜백
-  let onSystem   = (signal: any)  => {}; // (확장용) 시스템 신호 수신 시 호출될 콜백
+  /* ──────────────── callbacks (user slots) ─────────────── */
+  let onSegReady = (_segment: any) => {}
+  let onSttMsg = (_payload: ApiResponse<BroadcastResponse> | BroadcastResponse) => {}
+  let onOpinionSummary = (_payload: OpinionSummaryResponse) => {}
+  let onBattleSummary = (_payload: SiegeDefenseResponse) => {}
+  let onResultSummary = (_payload: DebateResultResponse) => {}
+  let onSystem = (_signal: any) => {}
 
-  /* ──────────────── STT 세그먼테이션 로직 ─────────────── */
-  let latencyT: any = null, silenceT: any = null;
-  const clearTimers = () => { clearTimeout(latencyT); clearTimeout(silenceT); };
+  /* ──────────────── segmentation ─────────────── */
+  let latencyT: any = null,
+    silenceT: any = null
+  const clearTimers = () => {
+    clearTimeout(latencyT)
+    clearTimeout(silenceT)
+  }
   const scheduleTimers = () => {
-    clearTimers();
-    if (cfg.maxLatencyMs) latencyT = setTimeout(() => flush('latency'), cfg.maxLatencyMs);
-    if (cfg.silenceMs)   silenceT = setTimeout(() => flush('silence'), cfg.silenceMs);
-  };
-  const wordCnt = (s: string) => s.trim() ? s.trim().split(/\s+/).length : 0;
+    clearTimers()
+    if (cfg.maxLatencyMs) latencyT = setTimeout(() => flush('latency'), cfg.maxLatencyMs)
+    if (cfg.silenceMs) silenceT = setTimeout(() => flush('silence'), cfg.silenceMs)
+  }
+  const wordCnt = (s: string) => (s.trim() ? s.trim().split(/\s+/).length : 0)
 
   const flush = (reason = 'manual') => {
-    const txt = buffer.value.trim();
-    if (!txt) { previewText.value = ''; clearTimers(); return; }
+    const txt = buffer.value.trim()
+    if (!txt) {
+      previewText.value = ''
+      clearTimers()
+      return
+    }
 
-    const segment = { seq: ++seq, text: txt, reason, ts: Date.now() };
-    try { onSegReady(segment); } catch(e) { console.error("onSegReady callback error:", e); }
+    const segment = { seq: ++seq, text: txt, reason, ts: Date.now() }
+    try {
+      try { console.info('[STT][SEG][flush]', reason, segment) } catch {}
+      onSegReady(segment)
+    } catch (e) {
+      console.error('[STT] onSegReady error:', e)
+    }
 
-    if (cfg.autoSend) publish(segment);
+    if (cfg.autoSend) publish(segment)
 
-    buffer.value = ''; previewText.value = ''; clearTimers();
-  };
+    buffer.value = ''
+    previewText.value = ''
+    clearTimers()
+  }
 
   const handleFinal = (finalTxt: string) => {
-    const needsSpace = buffer.value && !buffer.value.endsWith(' ');
-    buffer.value += (needsSpace ? ' ' : '') + finalTxt.trim();
-    scheduleTimers();
+    const needsSpace = buffer.value && !buffer.value.endsWith(' ')
+    buffer.value += (needsSpace ? ' ' : '') + finalTxt.trim()
+    try { console.info('[STT][SEG][final]', finalTxt) } catch {}
+    scheduleTimers()
 
-    const now = buffer.value;
-    if (cfg.sentencePunct.test(now.slice(-2))) return flush('punct');
-    if (now.length >= cfg.maxChars)           return flush('chars');
-    if (wordCnt(now) >= cfg.maxWords)         return flush('words');
-  };
+    const now = buffer.value
+    if (cfg.sentencePunct.test(now.slice(-2))) return flush('punct')
+    if (now.length >= cfg.maxChars) return flush('chars')
+    if (wordCnt(now) >= cfg.maxWords) return flush('words')
+  }
 
   /* ──────────────── Web Speech API ─────────────── */
-  const SR = (typeof window !== 'undefined') && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  const SR =
+    typeof window !== 'undefined' &&
+    ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+
   const createRec = () => {
-    const rec = new SR();
-    rec.lang = cfg.lang; rec.interimResults = true; rec.continuous = true;
+    const rec = new SR()
+    rec.lang = cfg.lang
+    rec.interimResults = true
+    rec.continuous = true
 
     rec.onresult = (e: any) => {
-      const last = Array.from(e.results).pop();
-      if (!last) return;
+      const last = Array.from(e.results).pop() as any
+      if (!last) return
 
-      if (!(last as any).isFinal) {
-        previewText.value = (last as any)[0]?.transcript ?? '';
-        scheduleTimers();
+      if (!last.isFinal) {
+        previewText.value = last[0]?.transcript ?? ''
+        try { console.debug('[STT][PREVIEW]', previewText.value) } catch {}
+        scheduleTimers()
       } else {
-        previewText.value = '';
-        handleFinal((last as any)[0]?.transcript ?? '');
+        previewText.value = ''
+        handleFinal(last[0]?.transcript ?? '')
       }
-    };
+    }
 
-    rec.onend = () => { if (isRecognizing.value) rec.start(); };
+    rec.onend = () => {
+      if (isRecognizing.value) rec.start()
+    }
+
     rec.onerror = (e: any) => {
-      const ignorable = ['no-speech', 'aborted', 'audio-capture'];
-      if (!ignorable.includes(e?.error)) console.error('[STT] Recognition Error:', e);
-    };
-    return rec;
-  };
+      const ignorable = ['no-speech', 'aborted', 'audio-capture']
+      if (!ignorable.includes(e?.error)) console.error('[STT] Recognition Error:', e)
+    }
+    return rec
+  }
 
-  /* ──────────────── STOMP publish/subscribe ─────────────── */
+  /* ──────────────── STOMP publish ─────────────── */
   const publish = (segment: any) => {
-    const client = getClient(stompClientRef);
-    const rid    = unref(roomId);
-    if (!client?.connected || !rid) return;
+    const client = getClient(stompClientRef)
+    const rid = unref(roomId)
+    if (!client?.connected || !rid) return
 
-    const dest = phase === 'OPINION'
-      ? `/pub/debate/${rid}/stt/opinion`
-      : `/pub/debate/${rid}/stt/battle`;
+    const dest =
+      phase === 'OPINION'
+        ? `/pub/debate/${rid}/stt/opinion`
+        : `/pub/debate/${rid}/stt/battle`
 
-    const body = phase === 'OPINION'
-      ? { text: segment.text, idx: segment.seq }
-      : { text: segment.text, idx: segment.seq, isAttack };
+    // IMPORTANT: DTO is STTRequest/OpinionSTTRequest => { text } only
+    const body = { text: segment.text }
 
-    client.publish({ destination: dest, body: JSON.stringify(body) });
-  };
+    try { console.info('[STT][SEND]', dest, body) } catch {}
+    client.publish({ destination: dest, body: JSON.stringify(body) })
+  }
 
-  let subs: any[] = [];
+  /* ──────────────── STOMP subscribe ─────────────── */
+  let subs: any[] = []
+  let isSubscribed = false
+
   const subPaths = () => {
-    const rid = unref(roomId);
-    return rid ? {
-      broadcast: `/user/queue/stt/broadcast`,
-      system:    `/sub/debate/${rid}/system`, // (확장용)
-    } : null;
-  };
+    const rid = unref(roomId)
+    if (!rid) return null
+    return {
+      // STT broadcast (room-wide)
+      stt: [
+        `/sub/debate/room/${rid}/stt`, // recommended, once backend is fixed
+        `/debate/room/${rid}/stt`, // fallback for current AS-IS without /sub
+      ],
+      // AI summaries (room-wide)
+      opinion: [
+        `/sub/debate/room/${rid}/summaries/opinion`,
+        `/sub/debate/room/${rid}/summaries/opinion${rid}`, // fallback for current bug
+      ],
+      battle: [`/sub/debate/room/${rid}/summaries/battle`],
+      result: [`/sub/debate/room/${rid}/summaries/result`],
+      // (optional) system channel example
+      system: [`/sub/debate/${rid}/system`],
+    }
+  }
 
   const subscribe = () => {
-    const paths = subPaths(); const client = getClient(stompClientRef);
-    if (!client?.connected || !paths) return;
-    unsubscribe();
+    const paths = subPaths()
+    const client = getClient(stompClientRef)
+    if (!client?.connected || !paths) return
+    unsubscribe()
 
-    subs.push(
-      client.subscribe(paths.broadcast, (message: any) => {
-        try { onSttMsg(JSON.parse(message.body)); } catch(e) { console.error("Error parsing STT message:", e); }
-      })
-    );
-    // (예시) 시스템 토픽 구독 로직
-    // subs.push(
-    //   client.subscribe(paths.system, (m) => { try { onSystem(JSON.parse(m.body)); } catch {} })
-    // );
-  };
-  const unsubscribe = () => { subs.forEach(s => s?.unsubscribe()); subs = []; };
-
-  watch(() => getClient(stompClientRef)?.connected, (ok) => ok ? subscribe() : unsubscribe(), { immediate: true });
-  watch(() => unref(roomId), () => {
-    if (getClient(stompClientRef)?.connected) {
-      subscribe();
+    // STT broadcast messages
+    for (const p of paths.stt) {
+      subs.push(
+        client.subscribe(p, (message: any) => {
+          try {
+            const dest = (message as any)?.headers?.destination
+            try { console.info('[STT][RECV][stt]', dest, message.body) } catch {}
+            onSttMsg(JSON.parse(message.body))
+          } catch (e) {
+            console.error('[STT] parse error:', e)
+          }
+        })
+      )
     }
-  });
-  onUnmounted(() => { unsubscribe(); if (isRecognizing.value) stop(); });
 
-  /* ──────────────── start / stop (공개 API) ─────────────── */
-  const start = ({ phase: ph = 'OPINION', isAttack: atk = false } = {}) => {
-    if (!SR || isRecognizing.value) return;
-    phase = ph; isAttack = atk;
+    // AI summaries
+    for (const p of paths.opinion) {
+      subs.push(
+        client.subscribe(p, (m: any) => {
+          try {
+            const dest = (m as any)?.headers?.destination
+            try { console.info('[STT][RECV][summary:opinion]', dest, m.body) } catch {}
+            onOpinionSummary(JSON.parse(m.body))
+          } catch {}
+        })
+      )
+    }
+    for (const p of paths.battle) {
+      subs.push(
+        client.subscribe(p, (m: any) => {
+          try {
+            const dest = (m as any)?.headers?.destination
+            try { console.info('[STT][RECV][summary:battle]', dest, m.body) } catch {}
+            onBattleSummary(JSON.parse(m.body))
+          } catch {}
+        })
+      )
+    }
+    for (const p of paths.result) {
+      subs.push(
+        client.subscribe(p, (m: any) => {
+          try {
+            const dest = (m as any)?.headers?.destination
+            try { console.info('[STT][RECV][summary:result]', dest, m.body) } catch {}
+            onResultSummary(JSON.parse(m.body))
+          } catch {}
+        })
+      )
+    }
 
-    recognition = createRec();
-    recognition.start();
-    isRecognizing.value = true;
-  };
+    // Optional system channel
+    for (const p of paths.system) {
+      subs.push(
+        client.subscribe(p, (m: any) => {
+          try {
+            const dest = (m as any)?.headers?.destination
+            try { console.info('[STT][RECV][system]', dest, m.body) } catch {}
+            onSystem(JSON.parse(m.body))
+          } catch {}
+        })
+      )
+    }
+    isSubscribed = true
+    try { console.info('[STT] Subscribed to topics:', paths) } catch {}
+  }
+
+  const unsubscribe = () => {
+    subs.forEach((s) => s?.unsubscribe?.())
+    subs = []
+    isSubscribed = false
+  }
+
+  // 연결 상태 폴링 기반 감지 (stomp Client의 connected는 비반응 속성)
+  const connectionFlag = ref<boolean>(false)
+  let connectionTimer: any = null
+
+  const startConnectionWatcher = () => {
+    if (connectionTimer) return
+    connectionTimer = setInterval(() => {
+      const ok = !!getClient(stompClientRef)?.connected
+      if (ok !== connectionFlag.value) {
+        connectionFlag.value = ok
+      }
+      if (ok && !isSubscribed) {
+        subscribe()
+      }
+    }, 500)
+  }
+
+  const stopConnectionWatcher = () => {
+    if (connectionTimer) {
+      clearInterval(connectionTimer)
+      connectionTimer = null
+    }
+  }
+
+  watch(connectionFlag, (ok) => {
+    if (ok) subscribe()
+    else unsubscribe()
+  }, { immediate: true })
+  watch(
+    () => unref(roomId),
+    () => {
+      if (getClient(stompClientRef)?.connected) subscribe()
+    }
+  )
+
+  onUnmounted(() => {
+    unsubscribe()
+    if (isRecognizing.value) stop()
+    stopConnectionWatcher()
+  })
+
+  // 시작 시 폴링 워처 구동
+  startConnectionWatcher()
+
+  /* ──────────────── public API ─────────────── */
+  const start = (args: { phase?: SttPhase; isAttack?: boolean } = {}) => {
+    if (!SR) {
+      console.warn('[STT] Web Speech API not supported in this browser/context')
+      return
+    }
+    if (isRecognizing.value) {
+      console.debug('[STT] Already recognizing')
+      return
+    }
+    const { phase: ph = 'OPINION' as SttPhase } = args
+    phase = ph
+
+    recognition = createRec()
+    recognition.start()
+    isRecognizing.value = true
+    console.info('[STT] Recognition started. Phase:', phase)
+  }
 
   const stop = () => {
-    if (!isRecognizing.value) return;
-    isRecognizing.value = false;
-    try { recognition?.stop(); } catch {}
-    recognition = null;
-    flush('stop');
-  };
+    if (!isRecognizing.value) return
+    isRecognizing.value = false
+    try {
+      recognition?.stop()
+    } catch {}
+    recognition = null
+    flush('stop')
+    console.info('[STT] Recognition stopped')
+  }
 
-  /* ──────────────── API 노출 ─────────────── */
+  const setPhase = (ph: SttPhase) => {
+    phase = ph
+  }
+
   return {
+    // state
     isRecognizing,
     previewText,
+
+    // controls
     start,
     stop,
+    flushNow: () => flush('manual'),
+    setPhase,
     startOpinion: () => start({ phase: 'OPINION' }),
     startBattleAttack: () => start({ phase: 'BATTLE', isAttack: true }),
     startBattleDefense: () => start({ phase: 'BATTLE', isAttack: false }),
-    onSegmentReady: (cb: any) => { onSegReady = cb || onSegReady; },
-    onSttMessage:  (cb: any) => { onSttMsg   = cb || onSttMsg;   },
-    onSystemSignal:(cb: any) => { onSystem   = cb || onSystem;   },
-  };
-} 
+
+    // callback registrations
+    onSegmentReady: (cb: any) => {
+      onSegReady = cb || onSegReady
+    },
+    onSttMessage: (cb: any) => {
+      onSttMsg = cb || onSttMsg
+    },
+    onOpinionSummary: (cb: any) => {
+      onOpinionSummary = cb || onOpinionSummary
+    },
+    onBattleSummary: (cb: any) => {
+      onBattleSummary = cb || onBattleSummary
+    },
+    onResultSummary: (cb: any) => {
+      onResultSummary = cb || onResultSummary
+    },
+    onSystemSignal: (cb: any) => {
+      onSystem = cb || onSystem
+    },
+  }
+}

@@ -13,9 +13,9 @@
             variant="outline"
             size="lg"
             @click="handleStanceSelect('option1')"
-            class="flex-1 h-12"
+            class="flex-1 h-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             :class="{ 
-              'bg-debate-left hover:bg-debate-left/90 text-slate-800 border-debate-left': getStanceVariant('option1') === 'default',
+              'bg-debate-left hover:bg-debate-left/90 text-debate-left border-debate-left': getStanceVariant('option1') === 'default',
               'bg-background hover:bg-accent': getStanceVariant('option1') === 'outline'
             }"
           >
@@ -27,9 +27,9 @@
             variant="outline"
             size="lg"
             @click="handleStanceSelect('random')"
-            class="flex-1 h-12"
+            class="flex-1 h-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             :class="{ 
-              'bg-debate-random hover:bg-debate-random/90 text-slate-700 border-debate-random': getStanceVariant('random') === 'default',
+              'bg-debate-random hover:bg-debate-random/90 text-debate-random border-debate-random': getStanceVariant('random') === 'default',
               'bg-background hover:bg-accent': getStanceVariant('random') === 'outline'
             }"
           >
@@ -41,9 +41,9 @@
             variant="outline"
             size="lg"
             @click="handleStanceSelect('option2')"
-            class="flex-1 h-12"
+            class="flex-1 h-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             :class="{ 
-              'bg-debate-right hover:bg-debate-right/90 text-white border-debate-right': getStanceVariant('option2') === 'default',
+              'bg-debate-right hover:bg-debate-right/90 text-debate-right border-debate-right': getStanceVariant('option2') === 'default',
               'bg-background hover:bg-accent': getStanceVariant('option2') === 'outline'
             }"
           >

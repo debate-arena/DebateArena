@@ -2,9 +2,9 @@
   <div class="space-y-4">
     <!-- 상단: 인원선택 + 타이머 + 매칭시작 통합 카드 (Sticky) -->
     <div class="sticky top-2 z-20 mb-4">
-      <div class="relative">
+      <div class="relative mx-auto max-w-3xl px-6">
         <!-- 메인 헤더 카드 -->
-        <div class="mx-auto max-w-3xl">
+        <div>
           <Card class="relative overflow-hidden border-0 bg-gradient-to-r from-background via-card to-background dark:from-background dark:via-card dark:to-background shadow-lg shadow-slate-200/20 dark:shadow-slate-950/50">
             <!-- 배경 데코레이션 -->
             <div class="absolute inset-0"></div>
@@ -16,10 +16,10 @@
             <div class="relative px-6 py-4">
               <div class="flex items-center justify-between gap-6">
                 <!-- 좌측: 인원 선택 -->
-                <div class="flex items-center gap-3">
+                <div class="flex flex-col items-center gap-1">
                   <div class="flex items-center gap-2">
                     <div class="w-2 h-2 rounded-full bg-slate-500 dark:bg-slate-400 animate-pulse"></div>
-                    <span class="text-xs font-medium text-muted-foreground">모드</span>
+                    <span class="text-xs font-medium text-muted-foreground text-center">모드</span>
                   </div>
                   <div class="transform">
                     <PlayerCountSelection />
@@ -27,36 +27,40 @@
                 </div>
                 
                 <!-- 중앙: 주제 변경 타이머 -->
-                <div class="flex items-center gap-3 px-4 py-2 rounded-full bg-card/90 dark:bg-card/90 backdrop-blur border border-border/50 shadow-sm">
-                  <div class="flex items-center gap-2">
-                    <Hourglass class="w-4 h-4 text-foreground" aria-hidden="true" />
-                    <span class="text-xs text-muted-foreground">새 주제까지</span>
-                  </div>
-                  <div class="text-sm font-mono font-semibold text-foreground">
-                    {{ formattedTime }}
+                <div class="flex flex-col items-center">
+                  <div class="h-5"></div>
+                  <div class="flex items-center gap-3 px-5 h-12 rounded-full bg-accent/40 backdrop-blur border border-border shadow-sm">
+                    <div class="flex items-center gap-2">
+                      <Hourglass class="w-5 h-5 text-foreground" aria-hidden="true" />
+                      <span class="text-sm text-muted-foreground">새 주제까지</span>
+                    </div>
+                    <div class="text-base font-mono font-semibold text-foreground">
+                      {{ formattedTime }}
+                    </div>
                   </div>
                 </div>
                 
                 <!-- 우측: 매칭 시작 버튼 -->
-                <div class="relative">
-                  <Button 
+                <div class="relative flex flex-col items-center">
+                  <div class="h-5"></div>
+                   <Button 
                     @click="$emit('start-matching')"
                     :disabled="!matchingStore.canStartMatching || matchingStore.isMatching || props.isStartingMatch"
-                    class="relative min-w-[130px] h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                     class="relative min-w-[130px] h-12 text-base px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     <!-- 버튼 내부 미묘한 하이라이트 -->
                     <div class="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent rounded-md"></div>
                     
-                    <span v-if="!matchingStore.isMatching" class="relative flex items-center gap-2 text-sm">
-                      <Play class="w-4 h-4" aria-hidden="true" />
+                    <span v-if="!matchingStore.isMatching" class="relative flex items-center gap-2">
+                      <Play class="w-5 h-5" aria-hidden="true" />
                       게임 시작
                     </span>
-                    <span v-else-if="matchingStore.status === 'matched' || matchingStore.status === 'connecting'" class="relative flex items-center gap-2 text-sm">
-                      <CheckCircle2 class="w-4 h-4" aria-hidden="true" />
+                    <span v-else-if="matchingStore.status === 'matched' || matchingStore.status === 'connecting'" class="relative flex items-center gap-2">
+                      <CheckCircle2 class="w-5 h-5" aria-hidden="true" />
                       매칭 성사
                     </span>
-                    <span v-else class="relative flex items-center gap-2 text-sm">
-                      <div class="w-4 h-4 border-2 border-white dark:border-black border-t-transparent rounded-full animate-spin"></div>
+                    <span v-else class="relative flex items-center gap-2">
+                      <div class="w-5 h-5 border-2 border-white dark:border-black border-t-transparent rounded-full animate-spin"></div>
                       {{ props.isStartingMatch ? '시작 중...' : '매칭 중...' }}
                     </span>
                   </Button>
@@ -87,8 +91,8 @@
       </div>
     </div>
 
-    <!-- 주제 카드들 -->
-    <div class="space-y-4">
+    <!-- 주제 카드들 (상단 글로벌 영역과 동일 폭/여백 정렬) -->
+    <div class="space-y-4 mx-auto max-w-3xl px-6">
       <!-- 토픽 로딩 중 -->
       <div v-if="topicSetStore.isLoading" class="text-center py-8">
         <div class="animate-pulse text-slate-600">주제를 불러오는 중...</div>
