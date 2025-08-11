@@ -31,7 +31,7 @@
         :topic-title="currentMatchTopicTitle"
         :stance="currentUserStance"
         :mode="currentMatchMode"
-        :topic-id="currentMatchTopicId"
+        :topic-id="(currentMatchTopicId ?? 0)"
         :total-count="currentMatchTotalCount"
         :time-left="matchingStore.acceptTimeLeft"
         :is-connecting="false"
@@ -127,12 +127,13 @@ const isStartingMatch = ref(false)
 const selfAcceptance = ref<'pending' | 'accepted' | 'rejected'>('pending')
 
 // Computed Properties
-const currentMatchTopicId = computed(() => matchingStore.currentMatchTopicId || 0)
+const currentMatchTopicId = computed<number | null>(() => matchingStore.currentMatchTopicId)
 const currentMatchMode = computed(() => matchingStore.currentMatchMode || '1:1')
 const currentUserStance = computed(() => teamToStanceFlexible(matchingStore.currentUserTeam))
 const currentMatchTopicTitle = computed(() => {
-  const topic = topicSetStore.currentSet?.topics.find(t => t.id === currentMatchTopicId.value)
-  return topic?.title || `주제 ${currentMatchTopicId.value}`
+  const id = currentMatchTopicId.value
+  const topic = id ? topicSetStore.currentSet?.topics.find(t => t.id === id) : undefined
+  return topic?.title || (id ? `주제 ${id}` : '주제')
 })
 const currentMatchTotalCount = computed(() => getTotalCount(currentMatchMode.value))
 
@@ -345,7 +346,7 @@ const handleModalReject = () => {
 const handleMatchSuccess = (roomId: string) => {
   matchingStore.setMatchResult({ 
     roomId,
-    topicId: currentMatchTopicId.value,
+    topicId: (currentMatchTopicId.value ?? 0),
     stance: currentUserStance.value,
     mode: currentMatchMode.value,
     participants: []
