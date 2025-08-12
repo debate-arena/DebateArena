@@ -116,6 +116,7 @@ html, body {
     hsl(var(--background));
   background-attachment: fixed;
   background-repeat: no-repeat;
+  scrollbar-gutter: stable both-edges;
 }
 
 .dark {
@@ -507,6 +508,13 @@ html, body {
   padding: 0.1rem 0.5rem;
 }
 
+/* Home 페이지 타이머 pill 흰색 변형 */
+.timer-pill--white {
+  background: #FFFFFF;
+  color: var(--ink-deep);
+  border: 1px solid hsl(var(--border));
+}
+
 /* Hint/Tooltip 전용 고가독성 스타일 (불투명, 명확한 대비) */
 .tooltip-solid {
   background: hsl(var(--hint));
@@ -688,7 +696,7 @@ html, body {
 .app-matching-bg {
   background-image:
     linear-gradient(rgba(255,255,255,0.78), rgba(255,255,255,0.78)),
-    url('/src/assets/images/profile/matching.png');
+    url('/src/assets/images/icons/backGround.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
