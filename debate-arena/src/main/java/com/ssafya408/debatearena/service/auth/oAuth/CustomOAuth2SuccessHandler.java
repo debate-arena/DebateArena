@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -16,6 +17,12 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler {
   private final JwtProvider jwtProvider;
+
+  @Value("${app.frontend.base-url:http://localhost:3000}")
+  private String frontendBaseUrl;
+
+  @Value("${app.frontend.success-path:/login/success}")
+  private String loginSuccessPath;
   @Override
   public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
       Authentication authentication) throws IOException, ServletException {
@@ -32,6 +39,6 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
     cookie.setPath("/"); // 모든 경로에 자동 퐇마
     cookie.setMaxAge(60*60*24); // 1일
     response.addCookie(cookie);
-    response.sendRedirect("http://localhost:3000/login/success");
+    response.sendRedirect(frontendBaseUrl + loginSuccessPath);
   }
 }
