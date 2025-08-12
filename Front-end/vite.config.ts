@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
-import fs from 'fs'
+// import fs from 'fs'
 import { fileURLToPath } from 'url'
 
 // https://vitejs.dev/config/

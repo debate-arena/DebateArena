@@ -14,6 +14,7 @@ const authAxios = axios.create({
 // 요청 인터셉터
 authAxios.interceptors.request.use(
   (config) => {
+    
     console.log('🔐 Auth API Request:', config.method?.toUpperCase(), config.url)
     return config
   },
@@ -133,6 +134,7 @@ export const authAPI = {
   // OAuth2 로그인 URL 생성
   getOAuthUrl: (provider: 'google', next?: string): string => {
     const baseUrl = `${config.MAIN_API_URL}/oauth2/authorization/google`
+    localStorage.setItem("baseUrl",baseUrl );
     if (next) {
       return `${baseUrl}?next=${encodeURIComponent(next)}`
     }

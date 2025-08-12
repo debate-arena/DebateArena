@@ -9,6 +9,7 @@ import NicknameModal from '@/components/auth/NicknameModal.vue'
 import { useAuthStore } from '@/store/auth'
 import { useThemeStore } from '@/store/theme'
 import { authAPI } from '@/api/auth'
+import { config } from '@/config/env'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -46,6 +47,7 @@ onMounted(async () => {
     hasNickname: authStore.hasNickname,
     userNickname: authStore.userNickname
   })
+  console.log("base url>>>>>>>>>>", config.MAIN_API_URL);
   
   // 닉네임 필수 체크
   checkNicknameRequired()

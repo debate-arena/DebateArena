@@ -1,0 +1,8 @@
+# Dev (Nginx reverse proxy)
+MAIN_API_URL: /api/arena
+AUTH_API_URL: /api/arena
+MATCH_API_URL: /api/matching
+MATCH_WS_URL: ''      # empty → same-origin /signaling
+STT_API_URL: /api/debate
+STT_WS_URL: ''        # empty → same-origin /signaling
+
