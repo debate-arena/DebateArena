@@ -5,6 +5,7 @@ import com.arena.signaling.dto.request.CreateRouterRequest;
 import com.arena.signaling.dto.response.CreatedConsumerDto;
 import com.arena.signaling.dto.response.CreatedProducerDto;
 import com.arena.signaling.model.Participant;
+import com.arena.signaling.repository.RedisRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -24,19 +25,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @RequiredArgsConstructor
 public class RoomManageService {
 
-    private static final String KEY_PREFIX = "room";
-    private HashOperations<String, String, Object> hashOps;
+
     private final Map<Long,Long> roomType = new ConcurrentHashMap<>();
     private final Map<Long, List<Participant>> rooms = new ConcurrentHashMap<>();
     private final Map<String, Long> userEmailToRoom = new ConcurrentHashMap<>();
-    private final ObjectMapper objectMapper;
     private final RedisTemplate<String, Object> redisTemplate;
     private final SimpMessagingTemplate simpMessagingTemplate;
-
-    @PostConstruct
-    public void init() {
-        this.hashOps = redisTemplate.opsForHash();
-    }
+    private final RedisRepository redisRepository;
 
     public boolean isUserInRoom(String userEmail) {
 
@@ -53,8 +48,7 @@ public class RoomManageService {
     public void addRoom(CreateRouterRequest req) {
 
         if (!rooms.containsKey(req.getRoomId())) {
-            String redisKey = KEY_PREFIX + ":" + req.getRoomId();
-            Map<String, Object> entries = hashOps.entries(redisKey);
+            Map<String, Object> entries = redisRepository.getRoom(req.getRoomId());
             if(entries.isEmpty()) {
                 return;
             }
@@ -99,13 +93,7 @@ public class RoomManageService {
 
     public List<Participant> getParticipants(Long roomId) {
         List<Participant> participants = rooms.get(roomId);
-
-        if(participants == null){
-            return null;
-        }
-
-        List<Participant> filtered = new CopyOnWriteArrayList<>(participants);
-        return filtered.isEmpty() ? null : filtered;
+        return (participants == null) ? Collections.emptyList() : participants;
     }
 
     public void removeParticipant(String userEmail) throws JsonProcessingException {
@@ -241,6 +229,29 @@ public class RoomManageService {
                 .count();
     }
 
+
+
+    public void micOn(MediaControlDto mediaControlDto) {
+        log.info("[micOn] {} ", mediaControlDto);
+        List<Participant> participants =rooms.get(mediaControlDto.getRoomId());
+
+        participants.stream()
+                .filter(p -> p.getProducerUserEmail().equals(mediaControlDto.getSpeaker()))
+                .findFirst()
+                .ifPresent(participant ->
+                        redisTemplate.convertAndSend("mediasoup:producer:mic:on", participant.getProducerId()));
+    }
+
+    public void micOff(MediaControlDto mediaControlDto) {
+        log.info("[micOff] {} ", mediaControlDto);
+        List<Participant> participants =rooms.get(mediaControlDto.getRoomId());
+
+        participants.stream()
+                .filter(p -> p.getProducerUserEmail().equals(mediaControlDto.getSpeaker()))
+                .findFirst()
+                .ifPresent(participant ->
+                        redisTemplate.convertAndSend("mediasoup:producer:mic:off", participant.getProducerId()));
+    }
 //    public void updateParticipantProducerInfo(CreatedProducerDto createdProducerDto) {
 //
 //        log.info("[updateParticipantProducerInfo] {} ", createdProducerDto);
@@ -262,54 +273,27 @@ public class RoomManageService {
 //
 //    }
 //
-     //
-
-    public void updateField(Long roomId, String field, Object value) {
-        try {
-            String redisKey = KEY_PREFIX + ":" + roomId;
-            hashOps.put(redisKey, field, value);
-            log.debug("필드 업데이트 완료 - roomId: {}, field: {}, value: {}", roomId, field, value);
-        } catch (Exception e) {
-            log.error("필드 업데이트 실패 - roomId: {}, field: {}, error: {}", roomId, field, e.getMessage(), e);
-        }
-    }
-
-    public void updateParticipantConsumerInfo(CreatedConsumerDto createdConsumerDto) {
-
-
-        List<Participant> participants = rooms.get(createdConsumerDto.getRoomId());
-        log.info("[updateParticipantConsumerInfo] {} ", participants);
-        Participant participant = participants.stream()
-                .filter(p -> p.getProducerUserEmail().equals(createdConsumerDto.getUserEmail()))
-                .findFirst()
-                .orElse(null);
-        if(participant == null){
-            log.info("[updateParticipantConsumerInfo] participant not found");
-            return;
-        }
-
-        if(participant.getConsumerConnectedStatus()==null){
-            participant.setConsumerConnectedStatus(new HashMap<>());
-        }
-
-        participant.getConsumerConnectedStatus().put(createdConsumerDto.getProducerUserEmail(), true);
-        log.info("[updateParticipantConsumerInfo] {} ", participant.getConsumerConnectedStatus());
-
-    }
-
-    public void micOn(MediaControlDto mediaControlDto) {
-        log.info("[micOn] {} ", mediaControlDto);
-        List<Participant> participants =rooms.get(mediaControlDto.getRoomId());
-
-        participants.stream()
-                .filter(p -> p.getProducerUserEmail().equals(mediaControlDto.getSpeaker()))
-                .findFirst()
-                .ifPresent(participant ->
-                        redisTemplate.convertAndSend("mediasoup:producer:mic:on", participant.getProducerId()));
-    }
-
-    public void setWebrtcConnection(Long roomId) {
-        updateField(roomId, "webRTCStatus", "CONNECTED");
-
-    }
+//
+//
+//
+//    public void updateParticipantConsumerInfo(CreatedConsumerDto createdConsumerDto) {
+//        List<Participant> participants = rooms.get(createdConsumerDto.getRoomId());
+//        log.info("[updateParticipantConsumerInfo] {} ", participants);
+//        Participant participant = participants.stream()
+//                .filter(p -> p.getProducerUserEmail().equals(createdConsumerDto.getUserEmail()))
+//                .findFirst()
+//                .orElse(null);
+//        if(participant == null){
+//            log.info("[updateParticipantConsumerInfo] participant not found");
+//            return;
+//        }
+//
+//        if(participant.getConsumerConnectedStatus()==null){
+//            participant.setConsumerConnectedStatus(new HashMap<>());
+//        }
+//
+//        participant.getConsumerConnectedStatus().put(createdConsumerDto.getProducerUserEmail(), true);
+//        log.info("[updateParticipantConsumerInfo] {} ", participant.getConsumerConnectedStatus());
+//
+//    }
 }

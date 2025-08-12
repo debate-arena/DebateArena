@@ -112,6 +112,16 @@ public class RedisMessageListener implements MessageListener {
                     e.printStackTrace();
                 }
                 break;
+            case "signaling:mic:off":
+                try {
+                    MediaControlDto mediaControlDto = mapper
+                            .readValue(bodyBytes, MediaControlDto.class);
+                    roomManageService.micOff(mediaControlDto);
+                    log.debug("[transport disconnected]");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
 
 //            case "marker-sync":
 //                try {

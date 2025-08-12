@@ -3,6 +3,7 @@ package com.arena.signaling.service;
 import com.arena.signaling.dto.*;
 import com.arena.signaling.dto.response.*;
 import com.arena.signaling.model.Participant;
+import com.arena.signaling.repository.RedisRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -24,6 +25,7 @@ public class MediasoupSubscribeService {
     private final SimpMessagingTemplate messagingTemplate;
     private final RoomManageService roomManageService;
     private final SimpUserRegistry simpUserRegistry;
+    private final RedisRepository redisRepository;
 
     public void createdRouter(CreatedRouterAndGetParticipantDto createdRouterAndGetParticipantDto) {
         createdRouterAndGetParticipantDto.setParticipants(roomManageService.getParticipants(createdRouterAndGetParticipantDto.getRoomId()));
@@ -116,7 +118,6 @@ public class MediasoupSubscribeService {
     public void establishedTransport(ClientConnectionEstablishedDto clientConnectionEstablishedDto) {
         long result = roomManageService.updateParticipantConnectionInfo(clientConnectionEstablishedDto);
 
-
         switch ((int) result) {
             case -1:
                 log.debug("[Transport 연결됨] ERROR 유저가 방에 존재하지 않음.");
@@ -127,23 +128,11 @@ public class MediasoupSubscribeService {
             default:
                 long roomType =roomManageService.getRoomType(clientConnectionEstablishedDto.getRoomId());
                 if(result == roomType){
-                    roomManageService.setWebrtcConnection(clientConnectionEstablishedDto.getRoomId());
+                    redisRepository.updateField(clientConnectionEstablishedDto.getRoomId());
                     messagingTemplate.convertAndSend(
                             "/queue/"+ clientConnectionEstablishedDto.getRoomId()+"/connected"
                             ,"gameStart");
                 }
-
-        }
-
-        if ((int) result == -1) {
-            log.debug("[Transport 연결됨] ERROR 유저가 방에 존재하지 않음.");
-        } else {
-            log.debug("[Transport 연결됨] 유저 연결됨 {}", result);
-            // 레디스에서 룸 사이즈 가져온다.
-            if(result == 2) { // TODO : REDIS 에서 RoomSize 가져오기
-                // TODO : redis 에 webrtcState 정보를 수정한다
-                messagingTemplate.convertAndSend("/queue/"+ clientConnectionEstablishedDto.getRoomId(),"gameStart");
-            }
         }
     }
 
