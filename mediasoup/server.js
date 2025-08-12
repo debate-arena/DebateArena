@@ -316,7 +316,8 @@ async function connectTransport(payload) {
     
     const transport = transports.get(transportId);
     if (!transport) {
-        throw new Error(`Transport not found: ${transportId}`);
+        console.log(`Transport not found: ${transportId}`);
+        return;
     }
     try{
         await transport.connect({ dtlsParameters });
@@ -400,7 +401,8 @@ async function createConsumer(payload) {
     // }
     
     if (!producer) {
-        throw new Error(`Producer not found: ${producerId}`);
+        console.log(`Producer not found: ${producerId}`);
+        return;
     }
     
     // if (!router.canConsume({ producerId, rtpCapabilities })) {
