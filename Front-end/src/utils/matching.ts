@@ -56,8 +56,6 @@ export function teamToStanceFlexible(team: unknown): Stance {
     const t = team.toLowerCase()
     if (t === '0') return 'option1'
     if (t === '1' || t === '2') return 'option2'
-    if (t === 'num1') return 'option1'
-    if (t === 'num2') return 'option2'
     if (t === 'pro' || t === 'option1' || t === 'agree' || t === '찬성') return 'option1'
     if (t === 'con' || t === 'option2' || t === 'disagree' || t === '반대') return 'option2'
   }
@@ -124,11 +122,11 @@ export function getModeButtonClass(mode: PlayerMode): string {
 export function getStanceBadgeClass(stance: Stance): string {
   switch (stance) {
     case 'option1':
-      return 'bg-debate-left text-debate-left border-debate-left'
+      return 'bg-debate-left text-slate-800 border-debate-left'
     case 'option2':
-      return 'bg-debate-right text-debate-right border-debate-right'
+      return 'bg-debate-right text-white border-debate-right'
     case 'random':
-      return 'bg-debate-random text-debate-random border-debate-random'
+      return 'bg-debate-random text-slate-700 border-debate-random'
     default:
       return 'bg-slate-600 text-slate-300 border-slate-500'
   }
@@ -140,9 +138,9 @@ export function getStanceBadgeClass(stance: Stance): string {
 export function getModeBadgeClass(mode: PlayerMode): string {
   switch (mode) {
     case '1:1':
-      return 'bg-mode-1v1 text-mode-1v1 border-mode-1v1'
+      return 'bg-mode-1v1 text-slate-800 border-mode-1v1'
     case '2:2':
-      return 'bg-mode-2v2 text-mode-2v2 border-mode-2v2'
+      return 'bg-mode-2v2 text-slate-800 border-mode-2v2'
     default:
       return 'bg-slate-600 text-slate-300 border-slate-500'
   }
@@ -188,31 +186,21 @@ export function processMatchInvitation(data: any, topicSetStore: any) {
   const invitationData = data.data || {}
   
   const matchId = invitationData.matchId
-  // 서버 키 다양성 대비: topicId | matchTitle | topicIndex
-  const rawTopicId = invitationData.topicId ?? invitationData.matchTitle ?? invitationData.topicIndex
-  const invitationTeam = invitationData.team ?? invitationData.userTeam ?? invitationData.teamNumber ?? 0
-  // 서버 키 다양성 대비: type | matchType
-  const invitationType = invitationData.type ?? invitationData.matchType ?? 0
+  const invitationTopicId = invitationData.topicId
+  const invitationTeam = invitationData.team || 0
+  const invitationType = invitationData.type || 0
   
   // 서버 데이터를 UI 텍스트로 변환
   const invitationMode: '1:1' | '2:2' = invitationType === 0 ? '1:1' : '2:2'
   const invitationStance = teamToStanceFlexible(invitationTeam)
   
   // 토픽 ID 타입 변환 (string -> number 또는 number -> number)
-  const topicIdRaw = typeof rawTopicId === 'string' ? parseInt(rawTopicId) : rawTopicId
-  const topics: any[] = topicSetStore.currentSet?.topics || []
-  // 1) id로 찾기
-  let topic = topics.find((t: any) => t.id === topicIdRaw)
-  // 2) 실패 시 index로 찾기 (서버가 인덱스를 보낼 수 있음)
-  if (!topic) {
-    topic = topics.find((t: any) => t.index === topicIdRaw)
-  }
-  const resolvedTopicId = topic?.id ?? topicIdRaw
-  const invitationTopicTitle = topic?.title || '매칭된 주제'
+  const topicId = typeof invitationTopicId === 'string' ? parseInt(invitationTopicId) : invitationTopicId
+  const invitationTopicTitle = topicSetStore.currentSet?.topics.find((t: any) => t.id === topicId)?.title || '매칭된 주제'
   
   return {
     matchId,
-    topicId: resolvedTopicId,
+    topicId,
     team: invitationTeam,
     stance: invitationStance,
     mode: invitationMode,
@@ -224,20 +212,21 @@ export function processMatchInvitation(data: any, topicSetStore: any) {
  * 매칭 결과 데이터 처리 및 변환
  */
 export function processMatchResult(data: any) {
-  const resultData = data?.data ?? data
-
-  if (resultData && (resultData.status === 'success' || resultData.roomId || resultData.data?.roomId)) {
-    const roomId = resultData.roomId ?? resultData.data?.roomId
-    const firstTeam = resultData.firstTeam ?? resultData.data?.firstTeam ?? []
-    const secondTeam = resultData.secondTeam ?? resultData.data?.secondTeam ?? []
+  const resultData = data.data
+  
+  if (resultData && (resultData.status === 'success' || resultData.roomId)) {
+    const roomId = resultData.roomId || resultData.data?.roomId
+    // 팀 배열 정규화: 서버가 left/right 또는 first/second 둘 중 하나를 보낼 수 있음
+    const leftTeamRaw = resultData.leftTeam || resultData.firstTeam || []
+    const rightTeamRaw = resultData.rightTeam || resultData.secondTeam || []
     return {
       success: true,
       roomId: roomId?.toString(),
       topicId: resultData.topicId,
       stance: resultData.stance,
       mode: resultData.mode,
-      firstTeam,
-      secondTeam,
+      leftTeam: leftTeamRaw,
+      rightTeam: rightTeamRaw,
     }
   }
   

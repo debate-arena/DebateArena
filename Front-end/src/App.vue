@@ -9,6 +9,7 @@ import NicknameModal from '@/components/auth/NicknameModal.vue'
 import { useAuthStore } from '@/store/auth'
 import { useThemeStore } from '@/store/theme'
 import { authAPI } from '@/api/auth'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -113,14 +114,14 @@ const googleIcon = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background min-w-[1200px]" :class="{ 'dark': themeStore.isDark }">
+  <div class="min-h-screen bg-background app-matching-bg" :class="{ 'dark': themeStore.isDark }">
     <!-- 헤더 -->
-    <header class="border-b bg-card">
+    <header class="sticky top-0 z-50 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))]">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center gap-4">
             <img 
-              src="/src/assets/images/icons/colosseum_icon.png" 
+              src="/src/assets/images/icons/logo.png" 
               alt="Logo" 
               class="h-8 w-8 cursor-pointer hover:opacity-80 transition-all duration-300"
               :class="{ 'brightness-0 invert': themeStore.isDark }"
@@ -134,14 +135,6 @@ const googleIcon = computed(() => {
             </span>
           </div>
           <nav class="flex gap-2">
-            <!-- 테마 변경 버튼 -->
-            <Button variant="ghost" size="sm" @click="themeStore.toggleDarkMode" class="theme-toggle-btn">
-              <span v-if="themeStore.isDark" class="dark-emoji">🌙</span>
-              <span v-else class="light-emoji">☀️</span>
-              <span v-if="themeStore.isDark">다크모드</span>
-              <span v-else>라이트모드</span>
-            </Button>
-            
             <Button variant="ghost" size="sm" @click="$router.push('/')">홈</Button>
             <Button variant="ghost" size="sm" @click="$router.push('/matching')">
               매칭
@@ -159,17 +152,17 @@ const googleIcon = computed(() => {
                     <span class="text-sm font-medium">{{ authStore.userNickname || '사용자' }}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-56 bg-popover text-popover-foreground border border-border">
+                <DropdownMenuContent align="end" class="w-56 bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))]">
                   <div class="flex items-center justify-start gap-2 p-2">
                     <div class="flex flex-col space-y-1">
-                      <p class="text-sm font-medium leading-none" :class="themeStore.isDark ? 'text-white' : 'text-gray-900'">{{ authStore.userNickname || '사용자' }}</p>
-                      <p class="text-xs leading-none" :class="themeStore.isDark ? 'text-gray-300' : 'text-gray-500'">{{ authStore.user?.email }}</p>
+                      <p class="text-sm font-medium leading-none text-[hsl(var(--card-foreground))]">{{ authStore.userNickname || '사용자' }}</p>
+                      <p class="text-xs leading-none text-[hsl(var(--card-foreground))]/80">{{ authStore.user?.email }}</p>
                     </div>
                   </div>
-                  <DropdownMenuItem @click="openNicknameChangeModal" :class="themeStore.isDark ? 'text-white hover:bg-accent hover:text-accent-foreground' : 'text-gray-900 hover:bg-accent hover:text-accent-foreground'">
+                  <DropdownMenuItem @click="openNicknameChangeModal" class="text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--secondary))]">
                     닉네임 변경
                   </DropdownMenuItem>
-                  <DropdownMenuItem @click="handleLogout" :class="themeStore.isDark ? 'text-white hover:bg-accent hover:text-accent-foreground' : 'text-gray-900 hover:bg-accent hover:text-accent-foreground'">
+                  <DropdownMenuItem @click="handleLogout" class="text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--secondary))]">
                     로그아웃
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -180,12 +173,12 @@ const googleIcon = computed(() => {
             <template v-else>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <Button variant="ghost" size="sm" class="px-3">
                     로그인
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-48 bg-popover text-popover-foreground border border-border">
-                  <DropdownMenuItem @click="handleGoogleLogin" class="flex items-center gap-2" :class="themeStore.isDark ? 'text-white hover:bg-accent hover:text-accent-foreground' : 'text-gray-900 hover:bg-accent hover:text-accent-foreground'">
+                <DropdownMenuContent align="end" class="w-48 bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))]">
+                  <DropdownMenuItem @click="handleGoogleLogin" class="flex items-center gap-2 text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--secondary))]">
                     <img :src="googleIcon" class="w-4 h-4" alt="Google" />
                     Google로 로그인
                   </DropdownMenuItem>
@@ -199,7 +192,11 @@ const googleIcon = computed(() => {
 
     <!-- 메인 콘텐츠 -->
     <main class="flex-1">
-      <RouterView />
+      <TooltipProvider>
+        <div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <RouterView />
+        </div>
+      </TooltipProvider>
     </main>
 
     <!-- 모달들 -->

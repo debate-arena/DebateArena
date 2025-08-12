@@ -8,62 +8,68 @@ import { TopicSetStatus } from '@/constants/topicSet'
  * - 자동 세트 교체
  * - 에러 복구 및 탭 가시성 처리
  */
+// 싱글톤 타이머 상태 (모듈 전역)
+let singletonTimer: ReturnType<typeof setInterval> | null = null
+let isTicking = false
+let subscriberCount = 0
+let visibilityListenerAttached = false
+
 export function useTopicSetController() {
   const store = useTopicSetStore()
-  
-  let timer: ReturnType<typeof setInterval> | null = null
-  let ticking = false
 
   // 현재 활성 주제들
   const activeTopics = computed(() => store.currentSet?.topics || [])
 
   // 1초마다 실행되는 타이머
   const startTimer = () => {
-    if (timer) return // 이미 실행 중이면 중복 방지
-    
-    timer = setInterval(() => {
-      if (ticking) return // 재진입 방지
-      ticking = true
-      
+    if (singletonTimer) return // 이미 실행 중이면 중복 방지
+
+    singletonTimer = setInterval(() => {
+      if (isTicking) return // 재진입 방지
+      isTicking = true
+
       try {
-        if (store.status === TopicSetStatus.ERROR) {
+        // Pinia 스토어는 싱글톤이므로 동일 인스턴스 사용
+        const s = store
+
+        if (s.status === TopicSetStatus.ERROR) {
           // 에러 상태면 타이머 중단
           stopTimer()
-          ticking = false
+          isTicking = false
           return
         }
-        
-        if (!store.currentSet) {
-          ticking = false
+
+        if (!s.currentSet) {
+          isTicking = false
           return
         }
-        
-        // 시간 감소
-        store.decrementTime()
-        
+
+        // 시간 감소 (1초)
+        s.decrementTime()
+
         // 시간이 0이 되면 주제 교체
-        if (store.remainingTimeSeconds <= 0) {
-          store.swapSets()
+        if (s.remainingTimeSeconds <= 0) {
+          s.swapSets()
         }
-        
+
       } finally {
-        ticking = false
+        isTicking = false
       }
     }, 1000)
   }
 
   // 타이머 정지
   const stopTimer = () => {
-    if (timer) {
-      clearInterval(timer)
-      timer = null
+    if (singletonTimer) {
+      clearInterval(singletonTimer)
+      singletonTimer = null
     }
   }
 
   // 탭 복귀 시 타이머 재시작
   const handleVisibility = () => {
     if (document.visibilityState === 'visible') {
-      if (!timer) {
+      if (!singletonTimer) {
         startTimer()
       }
     }
@@ -80,14 +86,27 @@ export function useTopicSetController() {
   )
 
   onMounted(async () => {
-    await store.fetchTopicSets()
+    subscriberCount += 1
+    // 최초 마운트 시에만 서버에서 세트 로드 (이미 있으면 재요청 생략)
+    if (!store.currentSet || store.status === TopicSetStatus.INIT || store.isError) {
+      await store.fetchTopicSets()
+    }
     startTimer()
-    window.addEventListener('visibilitychange', handleVisibility)
+    if (!visibilityListenerAttached) {
+      window.addEventListener('visibilitychange', handleVisibility)
+      visibilityListenerAttached = true
+    }
   })
 
   onUnmounted(() => {
-    stopTimer()
-    window.removeEventListener('visibilitychange', handleVisibility)
+    subscriberCount = Math.max(0, subscriberCount - 1)
+    if (subscriberCount === 0) {
+      stopTimer()
+      if (visibilityListenerAttached) {
+        window.removeEventListener('visibilitychange', handleVisibility)
+        visibilityListenerAttached = false
+      }
+    }
   })
 
   return {

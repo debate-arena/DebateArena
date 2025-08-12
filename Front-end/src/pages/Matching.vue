@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-background">
+  <div class="min-h-screen bg-background app-matching-bg">
     <!-- 에러 메시지 (불투명 토스트) -->
     <div v-if="matchingStore.error" class="fixed bottom-6 right-6 z-50">
       <Alert class="max-w-sm bg-card border border-border shadow-xl">
@@ -112,7 +112,7 @@ const topicSetStore = useTopicSetStore()
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
 
-// Controllers
+// Controllers (전역 싱글톤 타이머라 한 번만 구독되도록 유지)
 useTopicSetController()
 
 // Composables
@@ -250,8 +250,8 @@ const handleMatchResult = (data: WebSocketMessage) => {
       // 방 정보가 함께 온다면 RoomStore에 즉시 반영 (보내기 전 준비)
       try {
         const participants = [
-          ...((result.firstTeam || []).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'L' as const }))),
-          ...((result.secondTeam || []).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'R' as const }))),
+          ...((result as any).leftTeam || (data.data.firstTeam ?? [])).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'L' as const })),
+          ...((result as any).rightTeam || (data.data.secondTeam ?? [])).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'R' as const })),
         ]
         roomStore.setRoom({ roomId: result.roomId, participants })
       } catch (e) {

@@ -2,7 +2,7 @@
   <!-- 매칭 성사 패널 - 전체 화면 원형 타이머 디자인 -->
   <div class="mt-8 w-full flex items-center justify-center bg-background/95 backdrop-blur-sm rounded-lg py-8">
     <!-- 거대한 원형 타이머 배경 -->
-    <div class="relative w-[70vmin] h-[70vmin] max-w-[500px] max-h-[500px] flex items-center justify-center">
+      <div class="relative w-[80vmin] h-[80vmin] max-w-[600px] max-h-[600px] flex items-center justify-center">
       <!-- SVG 원형 타이머 -->
       <svg 
         class="absolute inset-0 w-full h-full transform -rotate-90" 
@@ -16,7 +16,7 @@
           fill="none"
           stroke="currentColor"
           stroke-width="8"
-          class="text-foreground/10"
+          class="text-[hsl(var(--border))]"
         />
         <!-- 진행 원 -->
         <circle
@@ -27,7 +27,7 @@
           stroke="currentColor"
           stroke-width="8"
           stroke-linecap="round"
-          class="text-foreground"
+          class="text-[hsl(var(--primary))]"
           :stroke-dasharray="circumference"
           :stroke-dashoffset="progressOffset"
           style="transition: stroke-dashoffset 1s linear;"
@@ -50,7 +50,7 @@
       <div class="relative z-10 w-[70%] h-[70%] flex flex-col items-center justify-center text-center space-y-4">
         <!-- 타이머 숫자 -->
         <div class="text-6xl font-bold text-foreground font-mono">
-          {{ props.timeLeft ?? 15 }}
+          {{ effectiveTimeLeft }}
         </div>
         
         <!-- 제목 -->
@@ -72,8 +72,12 @@
             <div class="flex items-center gap-2">
               <span class="text-sm text-muted-foreground">선택:</span>
               <div 
-                class="px-3 py-1 rounded-full text-sm font-medium"
-                :class="getStanceBadgeClass(props.stance as Stance)"
+                class="px-3 py-1 rounded-full text-sm font-medium border-0"
+                :class="{
+                  'stance-selected--left': (props.stance as Stance) === 'option1',
+                  'stance-selected--right': (props.stance as Stance) === 'option2',
+                  'stance-selected--random': (props.stance as Stance) === 'random'
+                }"
               >
                 {{ (() => {
                   const stance = props.stance as Stance
@@ -94,8 +98,11 @@
             <div class="flex items-center gap-2">
               <span class="text-sm text-muted-foreground">모드:</span>
               <div 
-                class="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1"
-                :class="getModeBadgeClass(props.mode as PlayerMode)"
+                class="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 border-0"
+                :class="{
+                  'mode-selected--1v1': (props.mode as PlayerMode) === '1:1',
+                  'mode-selected--2v2': (props.mode as PlayerMode) === '2:2'
+                }"
               >
                 <img v-if="(props.mode as PlayerMode) === '1:1'" src="/src/assets/images/profile/1vs1.png" class="w-3 h-3 polar-icon" alt="1대1" />
                 <img v-else src="/src/assets/images/profile/2vs2.png" class="w-3 h-3 polar-icon" alt="2대2" />
@@ -213,15 +220,26 @@
             v-if="!hasAccepted && !hasRejected"
             @click="handleAccept"
             size="lg"
-            class="px-8 py-3 bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-500 dark:hover:bg-cyan-600"
+            class="px-8 py-3 bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]"
           >
-            ✅ 수락
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-600">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4 text-white" stroke-width="2">
+                <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="ml-2">수락</span>
           </Button>
           <div 
             v-else-if="hasAccepted"
-            class="px-8 py-3 bg-cyan-100 text-cyan-800 border border-cyan-300 rounded-lg text-lg font-medium flex items-center gap-2"
+            class="flex items-center justify-center gap-2 text-green-600"
+            aria-label="수락 완료"
           >
-            ✅ 수락 완료
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-600">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-5 h-5 text-white" stroke-width="2">
+                <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="text-lg font-medium">수락 완료</span>
           </div>
           
           <Button 
@@ -229,15 +247,18 @@
             @click="handleReject"
             variant="outline"
             size="lg"
-            class="px-8 py-3 text-slate-600 border-slate-300 hover:bg-slate-100 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-800"
+            class="px-8 py-3 bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))]"
           >
             ❌ 거절
           </Button>
           <div 
             v-else-if="hasRejected"
-            class="px-8 py-3 bg-red-100 text-red-800 border border-red-300 rounded-lg text-lg font-medium flex items-center gap-2"
+            class="flex items-center justify-center gap-2 text-red-600"
           >
-            ❌ 거절 완료
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+              <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm2.47 6.28a.75.75 0 0 1 0 1.06L13.06 11l1.41 1.41a.75.75 0 1 1-1.06 1.06L12 12.06l-1.41 1.41a.75.75 0 1 1-1.06-1.06L10.94 11 9.53 9.59a.75.75 0 1 1 1.06-1.06L12 9.94l1.41-1.41a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd" />
+            </svg>
+            <span class="text-lg font-medium">거절 완료</span>
           </div>
         </div>
       </div>
@@ -408,9 +429,15 @@ const getUserIconAlt = (stance: string) => {
 // 원형 타이머 계산
 const circumference = computed(() => 2 * Math.PI * 90) // r=90인 원의 둘레
 
+// 타이머 최소/최대 보정 (0~15)
+const effectiveTimeLeft = computed(() => {
+  const t = props.timeLeft ?? 15
+  return Math.max(0, Math.min(15, t))
+})
+
 const progressOffset = computed(() => {
-  const progress = (15 - (props.timeLeft ?? 15)) / 15 // 진행률 (0~1) - 지나간 시간
-  return circumference.value * (1 - progress) // 남은 부분만큼 offset
+  const progress = (15 - effectiveTimeLeft.value) / 15 // 진행률 (0~1)
+  return circumference.value * (1 - progress)
 })
 
 // 팀 크기 계산 (유틸 함수 재활용)

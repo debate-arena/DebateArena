@@ -1,11 +1,11 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-4 app-matching-bg">
     <!-- 상단: 인원선택 + 타이머 + 매칭시작 통합 카드 (Sticky) -->
-    <div class="sticky top-2 z-20 mb-4">
+    <div class="sticky top-16 z-20 mb-4">
       <div class="relative mx-auto max-w-3xl px-6">
         <!-- 메인 헤더 카드 -->
         <div>
-          <Card class="relative overflow-hidden border-0 bg-gradient-to-r from-background via-card to-background dark:from-background dark:via-card dark:to-background shadow-lg shadow-slate-200/20 dark:shadow-slate-950/50">
+          <Card class="relative overflow-hidden border-0 bg-[hsl(var(--card))] shadow-lg shadow-slate-200/20">
             <!-- 배경 데코레이션 -->
             <div class="absolute inset-0"></div>
             
@@ -29,7 +29,7 @@
                 <!-- 중앙: 주제 변경 타이머 -->
                 <div class="flex flex-col items-center">
                   <div class="h-5"></div>
-                  <div class="flex items-center gap-3 px-5 h-12 rounded-full bg-accent/40 backdrop-blur border border-border shadow-sm">
+                  <div class="flex items-center gap-3 px-5 h-12 rounded-full bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] border border-[hsl(var(--border))] shadow-sm">
                     <div class="flex items-center gap-2">
                       <Hourglass class="w-5 h-5 text-foreground" aria-hidden="true" />
                       <span class="text-sm text-muted-foreground">새 주제까지</span>
@@ -46,7 +46,7 @@
                    <Button 
                     @click="$emit('start-matching')"
                     :disabled="!matchingStore.canStartMatching || matchingStore.isMatching || props.isStartingMatch"
-                     class="relative min-w-[130px] h-12 text-base px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                     class="relative min-w-[130px] h-12 text-base px-5 bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))] font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
                   >
                     <!-- 버튼 내부 미묘한 하이라이트 -->
                     <div class="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent rounded-md"></div>
