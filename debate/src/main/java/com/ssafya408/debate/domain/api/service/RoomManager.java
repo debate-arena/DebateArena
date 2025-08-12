@@ -42,6 +42,7 @@ public class RoomManager {
   private DebateTurn turn = DebateTurn.ATTACK; //
   private Map<String,String> attackTarget;
   private Map<String, Team> voteTeam;
+  private boolean isStart;
 
   private Map<String, STTMessage> opinions; //각 사용자의 stt 텍스트가 저장됨
   // 공방전 데이터 어떻게?

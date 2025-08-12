@@ -248,10 +248,11 @@ public class DebateService {
     
     log.info("토론방 입장 현황 - 예상 참가자: {}, 현재 입장: {}", expectedPlayerCount, currentJoinedCount);
 
-    if (expectedPlayerCount == currentJoinedCount) {
+    if (expectedPlayerCount == currentJoinedCount && !roomManager.isStart()) {
       log.info("=== 모든 참가자 입장 완료 - 토론 시작 ===");
       // TODO : Redis에서 WebRTCStatue 확인
       log.info("토론 게임 시작 스케줄링 - 방ID: {}", roomId);
+      roomManager.setStart(true);
       scheduleService.gameStart(roomManager);
     } else {
       log.info("토론 시작 대기 중 - 추가로 {}명의 참가자가 필요합니다", expectedPlayerCount - currentJoinedCount);

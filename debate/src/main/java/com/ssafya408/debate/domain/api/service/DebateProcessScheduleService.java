@@ -25,20 +25,20 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class DebateProcessScheduleService {
 
-    private static final int PREPARING_STAGE_TIME = 5;
-    private static final int OPINION_STAGE_TIME = 5;
+    private static final int PREPARING_STAGE_TIME = 30;
+    private static final int OPINION_STAGE_TIME = 30;
     private static final int OPINION_TURN_OVER_TIME = 3;
-    private static final int BATTLE_VOTE_TIME = 3;
-    private static final int BATTLE_STAGE_TIME = 5;
+    private static final int BATTLE_VOTE_TIME = 30;
+    private static final int BATTLE_STAGE_TIME = 30;
     private static final int BATTLE_TURN_OVER_TIME = 3;
-    private static final int VOTING_STAGE_TIME = 15;
+    private static final int VOTING_STAGE_TIME = 30;
     private static final int VOTE_RESULT_STAGE_TIME = 5;
     private static final int AI_RESULT_STAGE_TIME = 5;
 
     private static final String SIGNALING_MIC_ON_CHANNEL = "signaling:mic:on";
     private static final String SIGNALING_MIC_OFF_CHANNEL = "signaling:mic:off";
 
-    private static final String ROOM_TOPIC_PREFIX = "/debate/room/";
+    private static final String ROOM_TOPIC_PREFIX = "/sub/debate/room/";
     private static final String START_OPINION_SUFFIX = "/start/opinion";
     private static final String SPEAK_START_SUFFIX = "/speak/start";
     private static final String SPEAK_END_SUFFIX = "/speak/end";
@@ -388,6 +388,9 @@ public class DebateProcessScheduleService {
     }
 
     private void broadcastToRoom(Long roomId, String suffix, Object message) {
-        simpMessagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomId + suffix, message);
+
+        String s = ROOM_TOPIC_PREFIX+roomId+suffix;
+        log.info("[broadcast] : {}",s);
+        simpMessagingTemplate.convertAndSend(s, message);
     }
 }
