@@ -13,7 +13,7 @@
               'bg-background hover:bg-accent': !modelMode1
             }"
           >
-            <img src="/src/assets/images/profile/1vs1.png" class="w-9 h-9 mr-2 polar-icon" alt="1대1" />
+            <img src="@/assets/images/profile/1vs1.png" class="w-9 h-9 mr-2 polar-icon" alt="1대1" />
             1:1
           </Button>
           
@@ -26,7 +26,7 @@
               'bg-background hover:bg-accent': !modelMode2
             }"
           >
-            <img src="/src/assets/images/profile/2vs2.png" class="w-9 h-9 mr-2 polar-icon" alt="2대2" />
+            <img src="@/assets/images/profile/2vs2.png" class="w-9 h-9 mr-2 polar-icon" alt="2대2" />
             2:2
           </Button>
         </div>

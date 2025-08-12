@@ -104,8 +104,8 @@
                   'mode-selected--2v2': (props.mode as PlayerMode) === '2:2'
                 }"
               >
-                <img v-if="(props.mode as PlayerMode) === '1:1'" src="/src/assets/images/profile/1vs1.png" class="w-3 h-3 polar-icon" alt="1대1" />
-                <img v-else src="/src/assets/images/profile/2vs2.png" class="w-3 h-3 polar-icon" alt="2대2" />
+                <img v-if="(props.mode as PlayerMode) === '1:1'" src="@/assets/images/profile/1vs1.png" class="w-3 h-3 polar-icon" alt="1대1" />
+                <img v-else src="@/assets/images/profile/2vs2.png" class="w-3 h-3 polar-icon" alt="2대2" />
                 {{ props.mode ?? '1:1' }}
               </div>
             </div>
@@ -404,15 +404,15 @@ watch(
 )
 
 // 아이콘 경로들
-const waitingIcon = '/src/assets/images/profile/waiting.png'
-const rejectIcon = '/src/assets/images/profile/reject.png'
-const runIcon = '/src/assets/images/profile/run.png'
+import waitingIcon from '@/assets/images/profile/waiting.png'
+import rejectIcon from '@/assets/images/profile/reject.png'
+import runIcon from '@/assets/images/profile/run.png'
 
 const getUserIcon = (stance: string) => {
   if (stance === 'option1') {
-    return '/src/assets/images/profile/debate_left.png'
+    return new URL('@/assets/images/profile/debate_left.png', import.meta.url).href
   } else if (stance === 'option2') {
-    return '/src/assets/images/profile/debate_right.png'
+    return new URL('@/assets/images/profile/debate_right.png', import.meta.url).href
   }
   return waitingIcon
 }

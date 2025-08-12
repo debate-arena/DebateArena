@@ -51,9 +51,9 @@
         </div>
         <!-- 모드 아이콘: 화살표 바로 아래 정렬 -->
         <div class="w-full max-w-5xl flex items-center justify-between mt-2 md:mt-3 px-2">
-          <img src="/src/assets/images/profile/1vs1.png" alt="1대1"
+          <img src="@/assets/images/profile/1vs1.png" alt="1대1"
                class="w-14 md:w-20 opacity-85 select-none" />
-          <img src="/src/assets/images/profile/2vs2.png" alt="2대2"
+          <img src="@/assets/images/profile/2vs2.png" alt="2대2"
                class="w-14 md:w-20 opacity-85 select-none" />
         </div>
         <!-- 아래 시간/다음 주제 표시는 제거 (요청) -->
@@ -115,6 +115,9 @@ import { useTopicSetController } from '@/composables/useTopicSetController'
 import IconCell from '@/components/IconCell.vue'
 import { ChevronLeft, ChevronRight, HelpCircle } from 'lucide-vue-next'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import debateLeft from '@/assets/images/profile/debate_left.png'
+import debateRandom from '@/assets/images/profile/debate_random.png'
+import debateRight from '@/assets/images/profile/debate_right.png'
 
 // Store & 컨트롤러
 const topicSetStore = useTopicSetStore()
@@ -127,9 +130,9 @@ const snapHighlightSide = ref<'left' | 'right' | null>(null)
 
 // 리소스
 const animals = [
-  { name: '북극곰', avatar: '/src/assets/images/profile/debate_left.png' },
-  { name: '물범',  avatar: '/src/assets/images/profile/debate_random.png' },
-  { name: '펭귄',  avatar: '/src/assets/images/profile/debate_right.png'  },
+  { name: '북극곰', avatar: debateLeft },
+  { name: '물범',  avatar: debateRandom },
+  { name: '펭귄',  avatar: debateRight  },
 ]
 
 // 계산된 속성
