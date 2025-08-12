@@ -108,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Button } from '@/components/ui/button'
 import { useTopicSetStore } from '@/store/topicSet'
 import { useTopicSetController } from '@/composables/useTopicSetController'
@@ -172,12 +172,10 @@ function handleRandom() {
 function nextTopic() {
   if (totalTopics.value === 0) return
   currentTopicIndex.value = (currentTopicIndex.value + 1) % totalTopics.value
-  selectedAnimalIndex.value = null
 }
 function prevTopic() {
   if (totalTopics.value === 0) return
   currentTopicIndex.value = (currentTopicIndex.value - 1 + totalTopics.value) % totalTopics.value
-  selectedAnimalIndex.value = null
 }
 
 // 30초마다 다음 주제로 넘어가는 보조 타이머(스토어의 시간교체와 별개로 UX 보조)
@@ -207,9 +205,25 @@ function stopTopicCountdown() {
 
 // 생명주기
 onMounted(async () => {
-  await topicSetStore.fetchTopicSets()
+  // 주제 세트 로드는 useTopicSetController(싱글톤)에서 담당
   startTopicCountdown()
+  // 최초 진입 시 왼쪽/오른쪽 중 하나를 랜덤 프리셀렉션
+  if (selectedAnimalIndex.value === null) {
+    selectedAnimalIndex.value = Math.random() < 0.5 ? 0 : 2
+  }
 })
+
+onUnmounted(() => {
+  stopTopicCountdown()
+})
+
+// 주제가 바뀔 때마다(버튼/자동/세트 교체 포함) 무작위로 선택되도록 보장
+watch(
+  () => currentTopic.value?.id,
+  () => {
+    selectedAnimalIndex.value = Math.random() < 0.5 ? 0 : 2
+  }
+)
 </script>
 
 <style scoped>

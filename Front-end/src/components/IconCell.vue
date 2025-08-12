@@ -65,11 +65,11 @@ const scaleClass = computed(() => (props.selected ? 'scale-125' : 'scale-100'))
       />
     </div>
 
-    <!-- 배지: 프레임 바닥선 공유(top:100%) -->
-    <transition name="badge-pop" appear>
+    <!-- 배지: 머리 위에 표시 (프레임 상단 기준) -->
+    <transition name="badge-drop" appear>
       <div
         v-if="selected"
-        class="absolute left-1/2 top-full -translate-x-1/2 translate-y-4 h-10 md:h-11 px-6 rounded-2xl shadow-xl choice-plate pointer-events-none z-40 inline-flex items-center justify-center whitespace-nowrap text-center leading-none"
+        class="absolute left-1/2 bottom-full badge-pos h-10 md:h-11 px-6 rounded-2xl shadow-xl choice-plate pointer-events-none z-40 inline-flex items-center justify-center whitespace-nowrap text-center leading-none"
       >
         {{ badgeText }}
       </div>
@@ -80,6 +80,33 @@ const scaleClass = computed(() => (props.selected ? 'scale-125' : 'scale-100'))
 <style scoped>
 @media (prefers-reduced-motion: reduce) {
   .transition-transform { transition: none !important; }
+}
+
+/* 배지 기본 위치: 프레임 상단에서 살짝 떨어진 위치 */
+.badge-pos {
+  transform: translate(-50%, -12px);
+}
+
+/* 드롭 인 애니메이션 (위에서 살짝 떨어지는 느낌) */
+.badge-drop-enter-active,
+.badge-drop-leave-active {
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease;
+}
+.badge-drop-enter-from {
+  opacity: 0;
+  transform: translate(-50%, -28px);
+}
+.badge-drop-enter-to {
+  opacity: 1;
+  transform: translate(-50%, -12px);
+}
+.badge-drop-leave-from {
+  opacity: 1;
+  transform: translate(-50%, -12px);
+}
+.badge-drop-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -28px);
 }
 </style>
 
