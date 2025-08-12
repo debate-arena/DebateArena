@@ -43,6 +43,7 @@
 - **vee-validate** 4.15.1 - 폼 검증
 - **zod** 3.25.76 - 스키마 검증
 
+<<<<<<< HEAD
 ### 실시간 통신
 - **@stomp/stompjs** 7.1.1 - STOMP WebSocket 클라이언트
 - **mediasoup-client** 3.14.0 - WebRTC 미디어 통신
@@ -291,3 +292,7 @@ frontend (3000) - 사용자 인터페이스
 
 ### ~~Whisper 모델(base, small or fast-whisper 사용 방안 ...) 비교 및 STT 모델 선정, 테스팅~~ 
 - STT는 클라이언트에서 작동
+=======
+## AI
+- AI 관련 작업용
+>>>>>>> bf1a52c40f255c9114387518c2a1b86f34128e0f
