@@ -250,8 +250,8 @@ const handleMatchResult = (data: WebSocketMessage) => {
       // 방 정보가 함께 온다면 RoomStore에 즉시 반영 (보내기 전 준비)
       try {
         const participants = [
-          ...((result.firstTeam || []).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'L' as const }))),
-          ...((result.secondTeam || []).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'R' as const }))),
+          ...((result as any).leftTeam || (data.data.firstTeam ?? [])).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'L' as const })),
+          ...((result as any).rightTeam || (data.data.secondTeam ?? [])).map((m: any) => ({ userId: m.email, displayName: m.nickname, side: 'R' as const })),
         ]
         roomStore.setRoom({ roomId: result.roomId, participants })
       } catch (e) {

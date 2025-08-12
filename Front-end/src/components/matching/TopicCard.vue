@@ -1,9 +1,9 @@
 <template>
-  <div class="p-4 border border-border rounded-lg bg-card min-h-[180px] flex flex-col justify-center" :class="{ 'opacity-60': !hasIndividualSelection }">
+  <div class="p-4 rounded-lg bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] min-h-[180px] flex flex-col justify-center shadow-sm" :class="{ 'opacity-60': !hasIndividualSelection }">
     <div class="space-y-4">
       <!-- 주제 제목 -->
       <div class="text-center">
-        <h3 class="text-2xl font-semibold text-foreground" :class="{ 'text-muted-foreground': !hasIndividualSelection }">{{ topic.title }}</h3>
+        <h3 class="text-2xl font-semibold text-foreground">{{ topic.title }}</h3>
       </div>
       
       <!-- 진영 선택 -->
@@ -13,13 +13,13 @@
             variant="outline"
             size="lg"
             @click="handleStanceSelect('option1')"
-            class="flex-1 h-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            class="flex-1 h-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             :class="{ 
-              'bg-debate-left hover:bg-debate-left/90 text-debate-left border-debate-left': getStanceVariant('option1') === 'default',
-              'bg-background hover:bg-accent': getStanceVariant('option1') === 'outline'
+              'stance-selected--left': getStanceVariant('option1') === 'default',
+              'stance-soft--left': getStanceVariant('option1') === 'outline'
             }"
           >
-            <img src="/src/assets/images/profile/debate_left.png" class="w-6 h-6 mr-2 polar-icon" alt="북극곰" />
+            <img src="/src/assets/images/profile/debate_left.png" class="w-9 h-9 mr-2 polar-icon" alt="북극곰" />
             {{ topic.option1 }}
           </Button>
           
@@ -27,13 +27,13 @@
             variant="outline"
             size="lg"
             @click="handleStanceSelect('random')"
-            class="flex-1 h-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            class="flex-1 h-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             :class="{ 
-              'bg-debate-random hover:bg-debate-random/90 text-debate-random border-debate-random': getStanceVariant('random') === 'default',
-              'bg-background hover:bg-accent': getStanceVariant('random') === 'outline'
+              'stance-selected--random': getStanceVariant('random') === 'default',
+              'stance-soft--random': getStanceVariant('random') === 'outline'
             }"
           >
-            <img src="/src/assets/images/profile/debate_random.png" class="w-6 h-6 mr-2 polar-icon" alt="물범" />
+            <img src="/src/assets/images/profile/debate_random.png" class="w-9 h-9 mr-2 polar-icon" alt="물범" />
             상관없음
           </Button>
           
@@ -41,13 +41,13 @@
             variant="outline"
             size="lg"
             @click="handleStanceSelect('option2')"
-            class="flex-1 h-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            class="flex-1 h-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             :class="{ 
-              'bg-debate-right hover:bg-debate-right/90 text-debate-right border-debate-right': getStanceVariant('option2') === 'default',
-              'bg-background hover:bg-accent': getStanceVariant('option2') === 'outline'
+              'stance-selected--right': getStanceVariant('option2') === 'default',
+              'stance-soft--right': getStanceVariant('option2') === 'outline'
             }"
           >
-            <img src="/src/assets/images/profile/debate_right.png" class="w-6 h-6 mr-2 polar-icon" alt="펭귄" />
+            <img src="/src/assets/images/profile/debate_right.png" class="w-9 h-9 mr-2 polar-icon" alt="펭귄" />
             {{ topic.option2 }}
           </Button>
         </div>

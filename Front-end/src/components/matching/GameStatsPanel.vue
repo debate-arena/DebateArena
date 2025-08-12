@@ -62,7 +62,7 @@
             <Card 
               v-for="topic in selectedTopics" 
               :key="topic.id"
-              class="flex-shrink-0 w-48 p-3"
+              class="flex-shrink-0 w-48 p-3 bg-[hsl(var(--card))] border-0 shadow-sm"
             >
               <div class="space-y-2">
                                        <!-- 주제 제목 (항상 두 줄) -->
@@ -73,8 +73,12 @@
                 <!-- 선택한 진영 -->
                 <div class="flex justify-center items-center gap-2">
                   <Badge 
-                    :class="getStanceBadgeClass(topic.stance)"
-                    class="text-xs flex items-center gap-1"
+                    class="text-xs flex items-center gap-1 border-0"
+                    :class="{
+                      'stance-selected--left': topic.stance === 'option1',
+                      'stance-selected--right': topic.stance === 'option2',
+                      'stance-selected--random': topic.stance === 'random'
+                    }"
                   >
                     <!-- 진영 아이콘 (선택되었을 때만 표시) -->
                     <img 
@@ -104,8 +108,11 @@
                   <Badge 
                     v-for="mode in topic.modes" 
                     :key="mode"
-                    :class="getModeBadgeClass(mode)"
-                    class="text-xs"
+                    class="text-xs border-0"
+                    :class="{
+                      'mode-selected--1v1': mode === '1:1',
+                      'mode-selected--2v2': mode === '2:2'
+                    }"
                   >
                     {{ mode }}
                   </Badge>
