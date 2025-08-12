@@ -4,15 +4,15 @@ echo "========================================"
 echo "Starting Matching Service Local Build"
 echo "======================================="
 
-echo "1. Running Gradle build..."
-./gradlew clean build -x test
+echo "1. Running Gradle build (bootJar)..."
+./gradlew clean bootJar -x test
 
 if [ $? -ne 0 ]; then
     echo "Build failed!"
     exit 1
 fi
 
-echo "2. Build completed! JAR file generated"
+echo "2. Build completed! Boot JAR file generated"
 echo "3. Checking JAR file..."
 if ls build/libs/*.jar 1> /dev/null 2>&1; then
     echo "[SUCCESS] Found JAR files:"
