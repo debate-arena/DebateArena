@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth'
 import { useThemeStore } from '@/store/theme'
 import { authAPI } from '@/api/auth'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { config } from '@/config/env'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -47,6 +48,7 @@ onMounted(async () => {
     hasNickname: authStore.hasNickname,
     userNickname: authStore.userNickname
   })
+  console.log("base url>>>>>>>>>>", config.MAIN_API_URL);
   
   // 닉네임 필수 체크
   checkNicknameRequired()

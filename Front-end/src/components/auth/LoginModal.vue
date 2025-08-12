@@ -85,7 +85,8 @@ const handleGoogleLogin = async () => {
     
     // OAuth URL 생성
     const oauthUrl = authAPI.getOAuthUrl('google', nextParam)
-    
+    console.log("oAuthURL",oAuthURL);
+    return;
     // 전체 페이지 리다이렉트
     window.location.href = oauthUrl
     
