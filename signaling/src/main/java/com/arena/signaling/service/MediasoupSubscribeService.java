@@ -37,7 +37,7 @@ public class MediasoupSubscribeService {
     }
 
     public void createdTransport(CreatedTransportDto createdTransportDto) {
-
+        roomManageService.addParticipant(createdTransportDto);
         if(createdTransportDto.isProducer()){
             createdTransportDto.setType("producerTransportCreated");
         }else{
@@ -60,7 +60,7 @@ public class MediasoupSubscribeService {
     }
 
     public void createdProducer(CreatedProducerDto createdProducerDto) {
-        roomManageService.addParticipant(createdProducerDto);
+        roomManageService.updateProducerId(createdProducerDto);
         messagingTemplate.convertAndSendToUser(
                 createdProducerDto.getUserEmail(),
                 "/queue/producer",
@@ -116,7 +116,12 @@ public class MediasoupSubscribeService {
     }
 
     public void establishedTransport(ClientConnectionEstablishedDto clientConnectionEstablishedDto) {
-        long result = roomManageService.updateParticipantConnectionInfo(clientConnectionEstablishedDto);
+        Long val = roomManageService.updateParticipantConnectionInfo(clientConnectionEstablishedDto);
+        if(val==null){
+            log.debug("[established transport is null]");
+            return;
+        }
+        long result = val;
 
         switch ((int) result) {
             case -1:
@@ -130,8 +135,10 @@ public class MediasoupSubscribeService {
                 if(result == roomType){
                     redisRepository.updateField(clientConnectionEstablishedDto.getRoomId());
                     messagingTemplate.convertAndSend(
-                            "/queue/"+ clientConnectionEstablishedDto.getRoomId()+"/connected"
-                            ,"gameStart");
+                            "/sub/room/" + clientConnectionEstablishedDto.getRoomId() + "/connected",
+                            "gameStart"
+                    );
+                    log.debug("[참가자의 연결이 완료됨]");
                 }
         }
     }

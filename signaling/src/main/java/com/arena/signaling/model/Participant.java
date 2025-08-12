@@ -14,10 +14,8 @@ public class Participant {
     private String producerUserEmail;
     private String producerId;
 
-    @JsonProperty
-    private Boolean isProducerConnected;
 
     private Boolean producerConnectedStatus;
-    private Map<String,Boolean> consumerConnectedStatus;
+    private Boolean consumerConnectedStatus;
 
 }

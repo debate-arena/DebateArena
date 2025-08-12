@@ -40,7 +40,7 @@ public class JwtProvider {
 
 
   //jwt 유효성 검사
-  public boolean validateToken(String token) {
+  public Boolean validateToken(String token) {
     try {
       Jwts.parser()
           .verifyWith(key)

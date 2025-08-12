@@ -26,6 +26,29 @@ public class AuthController {
             return ResponseEntity.internalServerError().body(Map.of("error", "Token creation failed"));
         }
     }
+    @PostMapping("/valid")
+    public ResponseEntity<Map<String, Boolean>> IsTokenValid(@RequestParam String request) {
+        try {
+            Boolean token = jwtUtil.validateToken(request);
+            return ResponseEntity.ok(Map.of("isValid", token));
+        } catch (Exception e) {
+            log.error("Token creation failed", e);
+            return ResponseEntity.ok(Map.of("isValid", false));
+        }
+    }
+
+//    @PostMapping("/matching")
+//    public ResponseEntity<Map<String, Boolean>> req(@RequestParam String request) {
+//        try {
+//            String url = "https://jsonplaceholder.typicode.com/posts/1";
+//
+//            // GET 요청
+//            return ResponseEntity.ok(Map.of("isValid", token));
+//        } catch (Exception e) {
+//            log.error("Token creation failed", e);
+//            return ResponseEntity.ok(Map.of("isValid", false));
+//        }
+//    }
 
     public static class TokenRequest {
         private String userEmail;

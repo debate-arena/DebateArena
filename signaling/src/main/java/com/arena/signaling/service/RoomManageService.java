@@ -4,6 +4,7 @@ import com.arena.signaling.dto.*;
 import com.arena.signaling.dto.request.CreateRouterRequest;
 import com.arena.signaling.dto.response.CreatedConsumerDto;
 import com.arena.signaling.dto.response.CreatedProducerDto;
+import com.arena.signaling.dto.response.CreatedTransportDto;
 import com.arena.signaling.model.Participant;
 import com.arena.signaling.repository.RedisRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -25,7 +26,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @RequiredArgsConstructor
 public class RoomManageService {
 
-
     private final Map<Long,Long> roomType = new ConcurrentHashMap<>();
     private final Map<Long, List<Participant>> rooms = new ConcurrentHashMap<>();
     private final Map<String, Long> userEmailToRoom = new ConcurrentHashMap<>();
@@ -34,7 +34,6 @@ public class RoomManageService {
     private final RedisRepository redisRepository;
 
     public boolean isUserInRoom(String userEmail) {
-
         return userEmailToRoom.containsKey(userEmail);
     }
 
@@ -46,54 +45,53 @@ public class RoomManageService {
     }
 
     public void addRoom(CreateRouterRequest req) {
-
         if (!rooms.containsKey(req.getRoomId())) {
             Map<String, Object> entries = redisRepository.getRoom(req.getRoomId());
             if(entries.isEmpty()) {
                 return;
             }
-
-            if(entries.get("type").toString().equals("1")){
+            if(entries.get("type").toString().equals("0")){
                 roomType.put(req.getRoomId(),2L);
                 rooms.put(req.getRoomId(), new CopyOnWriteArrayList<>());
             }else{
                 roomType.put(req.getRoomId(),4L);
                 rooms.put(req.getRoomId(), new CopyOnWriteArrayList<>());
             }
-
         }
         userEmailToRoom.put(req.getUserEmail(), req.getRoomId());
     }
 
-    // 유저 생성 및
-    public void addParticipant(CreatedProducerDto createdProducerDto) {
-        List<Participant> participants = rooms.computeIfAbsent(createdProducerDto.getRoomId()
+    public void addParticipant(CreatedTransportDto createdTransportDto) {
+        List<Participant> participants = rooms.computeIfAbsent(createdTransportDto.getRoomId()
                 , k -> new CopyOnWriteArrayList<>());
 
         Participant participant = participants.stream()
-                .filter(p -> p.getProducerUserEmail().equals(createdProducerDto.getUserEmail()))
+                .filter(p -> p.getProducerUserEmail().equals(createdTransportDto.getUserEmail()))
                 .findFirst()
                 .orElse(null);
 
         if (participant == null) {
             participant = Participant.builder()
-                    .producerUserEmail(createdProducerDto.getUserEmail())
-                    .producerId(createdProducerDto.getProducerId())
+                    .producerUserEmail(createdTransportDto.getUserEmail())
                     .build();
             participants.add(participant);
-            log.debug("[새 참가자 입장] email : {} room : {}", createdProducerDto.getUserEmail(), createdProducerDto.getRoomId());
+            log.debug("[Transport가 생성됨] [participant에 추가] isProducer {} email : {} room : {}"
+                    ,createdTransportDto.isProducer(), createdTransportDto.getUserEmail(), createdTransportDto.getRoomId());
         } else {
-            log.debug("[중복 요청 감지] email : {} room : {}", createdProducerDto.getUserEmail(), createdProducerDto.getRoomId());
+            log.debug("[Transport가 생성됨] [이미 participant에 존재] isProducer {} email : {} room : {}"
+                    ,createdTransportDto.isProducer(), createdTransportDto.getUserEmail(), createdTransportDto.getRoomId());
         }
 
-        userEmailToRoom.put(createdProducerDto.getUserEmail(), createdProducerDto.getRoomId());
-        log.debug("[참가자 추가 (add producer) {} to room {}]", createdProducerDto.getUserEmail(), createdProducerDto.getRoomId());
+        userEmailToRoom.put(createdTransportDto.getUserEmail(), createdTransportDto.getRoomId());
+        log.debug("[참가자 추가 user: {} room: {}]", createdTransportDto.getUserEmail(), createdTransportDto.getRoomId());
     }
-
 
     public List<Participant> getParticipants(Long roomId) {
         List<Participant> participants = rooms.get(roomId);
-        return (participants == null) ? Collections.emptyList() : participants;
+        return (participants == null) ? Collections.emptyList()
+                : participants.stream()
+                .filter(p -> !p.getProducerUserEmail().isEmpty())
+                .toList();
     }
 
     public void removeParticipant(String userEmail) throws JsonProcessingException {
@@ -114,7 +112,6 @@ public class RoomManageService {
         map2.put("userEmail", userEmail);
         redisTemplate.convertAndSend("mediasoup:transport:disconnect", map2);
 
-
         List<Participant> participants = rooms.get(roomId);
         if(participants == null){
             log.debug("[유저 삭제] 해당 방에 참가자가 존재하지 않습니다.");
@@ -133,14 +130,6 @@ public class RoomManageService {
         }
         participants.removeIf(p -> p.getProducerUserEmail().equals(userEmail));
 
-        // 방에있는 다른 참가자들의 해당 유저와의 연결 상태 업데이트
-        participants.forEach(participant -> {
-            Map<String, Boolean> map = participant.getConsumerConnectedStatus();
-            if (map != null && map.containsKey(userEmail) && map.get(userEmail) == Boolean.TRUE) {
-                map.remove(userEmail);
-            }
-        });
-        // 방이 비어있으면 제거
         if (participants.isEmpty()) {
             log.info("[유저 삭제] 방이 비어있으므로 해당 방을 삭제합니다 {} ", roomId);
             rooms.remove(roomId);
@@ -148,85 +137,50 @@ public class RoomManageService {
         }
 
         log.info("[유저 삭제] {} 유저가 삭제됨 방 : {} ", userEmail, roomId);
-        // 같은 방의 다른 참가자들에게 퇴장 알림
-        // TODO : 같은방 참가자들에게 퇴장 알림 또는 pending 처리
-//        getParticipants(roomId).forEach(participantSessionId -> {
-//            messagingTemplate.convertAndSendToUser(
-//                    participantSessionId,
-//                    "/queue/participant-left",
-//                    Map.of("userEmail", userEmail, "roomId", roomId)
-//            );
-//        });
 
+        // TODO : Producer 라면, 같은방 참가자들에게 퇴장 알림 또는 pending 처리
 
-
-        participants.forEach(participant -> {
-            System.out.println("=== Participant ===");
-            System.out.println("Producer Email: " + participant.getProducerUserEmail());
-
-            Map<String, Boolean> statusMap = participant.getConsumerConnectedStatus();
-            if (statusMap != null && !statusMap.isEmpty()) {
-                statusMap.forEach((consumerEmail, status) ->
-                        System.out.println("  Consumer: " + consumerEmail + " | Connected: " + status)
-                );
-            } else {
-                System.out.println("  No consumer status available.");
-            }
-        });
     }
 
-    public long updateParticipantConnectionInfo(ClientConnectionEstablishedDto clientConnectionEstablishedDto) {
+    public Long updateParticipantConnectionInfo(ClientConnectionEstablishedDto clientConnectionEstablishedDto) {
 
-        if (clientConnectionEstablishedDto == null) return -1;
+        log.debug("[updateParticipantConnectionInfo] {}",clientConnectionEstablishedDto);
 
         Long roomId = clientConnectionEstablishedDto.getRoomId();
-        if (roomId == null || !rooms.containsKey(roomId)) return -1;
-
+        if (roomId == null || !rooms.containsKey(roomId)) return -1L;
         List<Participant> participants = rooms.get(roomId);
-        if (participants == null) return -1;
 
         String consumerEmail = clientConnectionEstablishedDto.getConsumerUserEmail();
-        if (consumerEmail == null) return -1;
 
         Participant participant = participants.stream()
                 .filter(p -> consumerEmail.equals(p.getProducerUserEmail()))
                 .findFirst()
                 .orElse(null);
 
-        if (participant == null) return -1;
+        if (participant == null) return -1L;
 
         if (clientConnectionEstablishedDto.getIsProducer()) {
-            participant.setIsProducerConnected(true);
-
+            participant.setProducerConnectedStatus(true);
             simpMessagingTemplate.convertAndSendToUser(
                     clientConnectionEstablishedDto.getConsumerUserEmail(),
                     "/queue/producer-connected",
                     "producer-connected"
             );
-            return -2;
         }else {
-            Map<String,Boolean> consumerStatus = participant.getConsumerConnectedStatus() ;
-            if (consumerStatus==null) {
-                consumerStatus = new HashMap<>();
-            }
-            consumerStatus.put(clientConnectionEstablishedDto.getProducerUserEmail(), true);
-            participant.setConsumerConnectedStatus(consumerStatus);
-
-            simpMessagingTemplate.convertAndSendToUser(
-                    clientConnectionEstablishedDto.getConsumerUserEmail(),
-                    "/queue/producer-connected",
-                    clientConnectionEstablishedDto.getProducerUserEmail()
-            );
+            participant.setConsumerConnectedStatus(true);
+//            simpMessagingTemplate.convertAndSendToUser(
+//                    clientConnectionEstablishedDto.getConsumerUserEmail(),
+//                    "/queue/producer-connected",
+//                    clientConnectionEstablishedDto.getProducerUserEmail()
+//            );
         }
 
-
-        return participants.stream()
-                .filter(p -> Boolean.TRUE.equals(p.getIsProducerConnected()))
-                .map(Participant::getConsumerConnectedStatus)
-                .filter(Objects::nonNull)
-                .flatMap(map -> map.values().stream())
-                .filter(Boolean::booleanValue)
+        Long count = participants.stream()
+                .filter(p -> Boolean.TRUE.equals(p.getProducerConnectedStatus()))
+                .filter(Participant::getConsumerConnectedStatus)
                 .count();
+
+        return count;
     }
 
 
@@ -251,6 +205,17 @@ public class RoomManageService {
                 .findFirst()
                 .ifPresent(participant ->
                         redisTemplate.convertAndSend("mediasoup:producer:mic:off", participant.getProducerId()));
+    }
+
+    public void updateProducerId(CreatedProducerDto createdProducerDto) {
+        List<Participant> participants = rooms.get(createdProducerDto.getRoomId());
+
+        Participant participant = participants.stream()
+                .filter(p -> createdProducerDto.getUserEmail().equals(p.getProducerUserEmail()))
+                .findFirst()
+                .orElse(null);
+        if(participant == null) return;
+        participant.setProducerId(createdProducerDto.getProducerId());
     }
 //    public void updateParticipantProducerInfo(CreatedProducerDto createdProducerDto) {
 //

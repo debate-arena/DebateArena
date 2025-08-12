@@ -50,7 +50,8 @@ public class SecurityConfig {
         "http://localhost:8080",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8081",
-        "http://127.0.0.1:8080"
+        "http://127.0.0.1:8080",
+        "https://70.12.246.231:3000"
     ));
     
     // 허용할 HTTP 메서드 설정
