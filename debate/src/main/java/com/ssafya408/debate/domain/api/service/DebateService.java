@@ -440,13 +440,17 @@ public class DebateService {
   }
 
   public void voteWinnerTeam(Long roomId, VoteRequestDto req) {
-    log.info("[투표] 사용자: {}, 방ID: {}, 팀: {}", req.getUserEmail(), roomId, req.getTeam());
-    
-    RoomManager roomManager = roomInfos.get(roomId);
-    
-    if (roomManager == null) {
-      log.warn("[투표 실패] 방을 찾을 수 없음 - 방ID: {}", roomId);
-      return;
+
+    RoomManager roomManager= roomInfos.get(roomId);
+    if(roomManager!=null && roomInfos.get(roomId).getStatus()==RoomStatus.VOTING){
+      Map<String, Team> voteTeam = roomManager.getVoteTeam();
+      if(voteTeam==null){
+        voteTeam = new HashMap<>();
+      }
+      voteTeam.put(req.getUserEmail(),req.getTeam());
+      roomManager.setVoteTeam(voteTeam);
+    }else{
+      log.info("투표를 할 수 없는 시간입니다.");
     }
     
     if (!roomManager.canVote()) {

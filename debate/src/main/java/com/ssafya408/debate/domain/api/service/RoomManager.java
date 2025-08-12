@@ -38,7 +38,7 @@ public class RoomManager {
   private List<String> secondTeam;
   private int currentOpinionIndex = 0;
   private int currentBattleIndex = 0;
-  private RoomStatus status =RoomStatus.OPINION;
+  private RoomStatus status =RoomStatus.PREPARING;
   private DebateTurn turn = DebateTurn.ATTACK; //
   private Map<String,String> attackTarget;
   private Map<String, Team> voteTeam;
@@ -171,7 +171,8 @@ public class RoomManager {
       status == RoomStatus.BATTLE_VOTE ||
       status == RoomStatus.BATTLE ||
       status == RoomStatus.VOTING ||
-      status == RoomStatus.RESULT ||
+          status == RoomStatus.VOTE_RESULT ||
+          status == RoomStatus.AI_RESULT ||
       status == RoomStatus.FINISH
     );
   }
@@ -318,22 +319,13 @@ public class RoomManager {
   }
 
   public int getTeamIdx() {
-    int currentIndex = getCurrentIndex();
-    // 번갈아가면서 팀이 바뀌도록 수정: 0,1,0,1,0,1...
-    int teamIdx = currentIndex % 2;
-    log.info("getTeamIdx >>> currentIndex: {}, teamIdx: {}, team size: {}",
-        currentIndex, teamIdx, teamSize);
-    return teamIdx;
+    return getCurrentIndex() % 2;
   }
 
 
   public int getOrderInTeam() {
     int currentIndex = getCurrentIndex();
-    // 각 팀 내에서의 순서: 0번째 사람, 1번째 사람, 2번째 사람...
-    // currentIndex가 0,1이면 각 팀의 0번째, currentIndex가 2,3이면 각 팀의 1번째...
     int orderInTeam = currentIndex / 2;
-    log.info("getOrderInTeam >>> currentIndex: {}, orderInTeam: {}, team size: {}",
-        currentIndex, orderInTeam, teamSize);
     return orderInTeam;
   }
   public int getCurrentIndex() {
@@ -353,107 +345,44 @@ public class RoomManager {
     return false;
   }
 
-  // Getter 메서드들 추가
-  public int getCurrentOpinionIndex() {
-    return currentOpinionIndex;
-  }
-  
-  public int getCurrentBattleIndex() {
-    return currentBattleIndex;
-  }
-  
-  public int getTeamSize() {
-    return teamSize;
-  }
-  
-  public RoomStatus getStatus() {
-    return status;
-  }
 
   // 토론 턴 진행 메서드
   public Map<String, Object> advanceTurn() {
-    log.info("=== 토론 턴 진행 시작 - roomId: {} ===", roomId);
-    log.info("🔍 진행 전 상태 - status: {}, currentOpinionIndex: {}, currentBattleIndex: {}", 
-        status, currentOpinionIndex, currentBattleIndex);
-    log.info("📊 토론방 정보 - 총 참가자: {}명, 팀 크기: {}명", playerCount, teamSize);
-    log.info("👥 첫 번째 팀: {}", firstTeam);
-    log.info("👥 두 번째 팀: {}", secondTeam);
-    
-    // 현재 진행 상황 로그
-    int currentTeamIdx = getTeamIdx();
-    int currentOrderInTeam = getOrderInTeam();
-    String currentSpeaker = getCurrentSpeaker();
-    
-    log.info("🎯 현재 발화자 정보 - teamIdx: {}, orderInTeam: {}, speaker: {}", 
-        currentTeamIdx, currentOrderInTeam, currentSpeaker);
-    
     Map<String, Object> result = new HashMap<>();
-    
-    if (status == RoomStatus.OPINION) {
+    if(status == RoomStatus.PREPARING) {
+      status=RoomStatus.OPINION;
+    }
+    else if (status == RoomStatus.OPINION) {
       // 의견 단계에서 턴 진행
       if (currentOpinionIndex < playerCount) {
-        log.info("⏭️ 의견 단계 턴 진행 - currentOpinionIndex: {} → {}", currentOpinionIndex, currentOpinionIndex + 1);
         currentOpinionIndex++;
 
-        
-        // 턴 진행 후 새로운 발화자 정보 로그
-        int newTeamIdx = getTeamIdx();
-        int newOrderInTeam = getOrderInTeam();
-        String nextSpeaker = (currentOpinionIndex< playerCount)?  getCurrentSpeaker(): "turn over";
-        
-        log.info("📈 턴 진행 후 상태 - currentOpinionIndex: {}/{}", currentOpinionIndex, playerCount);
-        log.info("🎯 다음 발화자 정보 - teamIdx: {}, orderInTeam: {}, speaker: {}",
-            newTeamIdx, newOrderInTeam, nextSpeaker);
-        
         // 의견 단계 완료 체크
         if (currentOpinionIndex >= playerCount) {
           status = RoomStatus.BATTLE_VOTE;
-          log.info("✅ 의견 단계 완료 - 배틀 투표 단계로 전환");
-          log.info("🔄 상태 전환: OPINION → BATTLE_VOTE, currentBattleIndex 초기화: {}", currentBattleIndex);
           result.put("phaseChanged", true);
           result.put("newPhase", "battle_vote");
         }
-        
         result.put("currentStatus", status);
         result.put("currentIndex", status == RoomStatus.OPINION ? currentOpinionIndex : currentBattleIndex);
         result.put("isFinished", isFinished());
-
-        
       } else {
-        log.warn("❌ 의견 단계가 이미 완료됨 - currentOpinionIndex: {}, playerCount: {}", 
-            currentOpinionIndex, playerCount);
-        throw new RuntimeException("의견 단계가 이미 완료되었습니다");
+        log.info("의견 단계가 이미 완료되었습니다");
+//        throw new RuntimeException("의견 단계가 이미 완료되었습니다");
       }
       
     }
     else if(status == RoomStatus.BATTLE_VOTE) {
-      log.info("⚔️ 배틀 투표 단계 - DebateProcessScheduleService에서 처리됨");
-      // BATTLE_VOTE 단계는 DebateProcessScheduleService에서 처리
-      // 여기서는 상태 변경하지 않음
-      result.put("currentStatus", status);
-      result.put("currentIndex", currentBattleIndex);
-      result.put("isFinished", isFinished());
+      status=RoomStatus.BATTLE;
     }
     else if (status == RoomStatus.BATTLE) {
       // 배틀 단계에서 턴 진행
       if (currentBattleIndex < playerCount) {
-        log.info("⚔️ 배틀 단계 턴 진행 - currentBattleIndex: {} → {}", currentBattleIndex, currentBattleIndex + 1);
         currentBattleIndex++;
-        
-        // 턴 진행 후 새로운 발화자 정보 로그
-        int newTeamIdx = getTeamIdx();
-        int newOrderInTeam = getOrderInTeam();
-        String nextSpeaker = (currentBattleIndex < playerCount)?  getCurrentSpeaker(): "turn over";
 
-        log.info("📈 턴 진행 후 상태 - currentBattleIndex: {}/{}", currentBattleIndex, playerCount);
-        log.info("🎯 다음 발화자 정보 - teamIdx: {}, orderInTeam: {}, speaker: {}",
-            newTeamIdx, newOrderInTeam,nextSpeaker);
-        
         // 배틀 단계 완료 체크
         if (currentBattleIndex >= playerCount) {
           status = RoomStatus.VOTING;
-          log.info("🏁 배틀 단계 완료 - 투표 단계로 전환");
-          log.info("🔄 상태 전환: BATTLE → VOTING");
           result.put("debateFinished", true);
           result.put("newPhase", "voting");
         }
@@ -461,64 +390,28 @@ public class RoomManager {
         result.put("currentStatus", status);
         result.put("currentIndex", currentBattleIndex);
         result.put("isFinished", isFinished());
-
       }
       else {
-        log.warn("❌ 배틀 단계가 이미 완료됨 - currentBattleIndex: {}, playerCount: {}", 
-            currentBattleIndex, playerCount);
-        throw new RuntimeException("배틀 단계가 이미 완료되었습니다");
+        log.info("배틀 단계가 이미 완료되었습니다");
+//        throw new RuntimeException("배틀 단계가 이미 완료되었습니다");
       }
       
     }
     else if(status == RoomStatus.VOTING) {
-      log.info("🗳️ 투표 단계 - DebateProcessScheduleService에서 처리됨");
-      // VOTING 단계는 DebateProcessScheduleService에서 처리
-      // 여기서는 상태 변경하지 않음
-      result.put("currentStatus", status);
-      result.put("currentIndex", 0);
-      result.put("isFinished", isFinished());
+      status=RoomStatus.VOTE_RESULT;
     }
-    else if(status == RoomStatus.RESULT) {
-      log.info("🏆 결과 단계 - DebateProcessScheduleService에서 처리됨");
-      // RESULT 단계는 DebateProcessScheduleService에서 처리
-      // 여기서는 상태 변경하지 않음
-      result.put("currentStatus", status);
-      result.put("currentIndex", 0);
-      result.put("isFinished", isFinished());
-    }
-    else if(status == RoomStatus.FINISH) {
-      log.info("🏁 토론 완료");
-      result.put("currentStatus", status);
-      result.put("currentIndex", 0);
-      result.put("isFinished", true);
+    else if(status == RoomStatus.VOTE_RESULT) {
+      status=RoomStatus.AI_RESULT;
     }
     else {
       log.error("알 수 없는 토론 상태: {}", status);
-      throw new RuntimeException("알 수 없는 토론 상태: " + status);
+//      throw new RuntimeException("알 수 없는 토론 상태: " + status);
     }
     
     // 공통 결과 정보 추가
     result.put("roomId", roomId);
     result.put("message", "턴이 성공적으로 진행되었습니다");
     result.put("timestamp", java.time.LocalDateTime.now().toString());
-    
-    // 최종 상태 요약 로그
-    log.info("📊 턴 진행 완료 요약:");
-    log.info("   - 최종 상태: {}", status);
-    log.info("   - currentOpinionIndex: {}/{}", currentOpinionIndex, playerCount);
-    log.info("   - currentBattleIndex: {}/{}", currentBattleIndex, playerCount);
-    log.info("   - 토론 완료 여부: {}", isFinished());
-    
-    // 현재 상태에 따른 다음 발화자 정보 (토론이 완료되지 않은 경우)
-    if (!isFinished()) {
-      int finalTeamIdx = getTeamIdx();
-      int finalOrderInTeam = getOrderInTeam();
-      String finalSpeaker = getCurrentSpeaker();
-      log.info("   - 다음 발화자: teamIdx={}, orderInTeam={}, speaker={}", 
-          finalTeamIdx, finalOrderInTeam, finalSpeaker);
-    }
-    
-    log.info("=== 토론 턴 진행 완료 - roomId: {} ===", roomId);
     
     return result;
   }
