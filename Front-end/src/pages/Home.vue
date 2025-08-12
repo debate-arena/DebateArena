@@ -7,7 +7,7 @@
         <!-- 상단 시간 표시: 주제 위, 호버 설명(물음표 아이콘) -->
         <div class="w-full max-w-5xl flex items-center justify-center gap-2 mb-1 md:mb-2">
           <div
-            class="timer-pill text-[18px] leading-6 md:text-[28px] md:leading-[34px] font-mono tabular-nums text-foreground shadow-sm"
+            class="rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] px-3 py-1 shadow-sm font-mono tabular-nums text-[18px] leading-6 md:text-[28px] md:leading-[34px]"
             aria-label="남은 시간"
           >
             {{ formattedRemainingTime }}
@@ -101,7 +101,7 @@
           size="lg"
           class="h-10 md:h-11 px-6 text-base bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]"
           @click="$router.push('/matching')"
-        >매칭 시작</Button>
+        >매칭 페이지로</Button>
       </div>
     </div>
   </div>
@@ -135,7 +135,6 @@ const animals = [
 // 계산된 속성
 const currentTopic = computed(() => topicSetStore.currentSet?.topics?.[currentTopicIndex.value] || null)
 const totalTopics = computed(() => topicSetStore.currentSet?.topics?.length || 0)
-const hasSelection = computed(() => selectedAnimalIndex.value !== null)
 const isLeftSelected = computed(() => selectedAnimalIndex.value === 0)
 const isRightSelected = computed(() => selectedAnimalIndex.value === 2)
 // 선택된 동물명(현재 UI 표기는 하단 바에서 대체되어 미사용)

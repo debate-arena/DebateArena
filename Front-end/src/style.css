@@ -683,6 +683,18 @@ html, body {
 .hint-item { color: hsl(var(--hint-foreground)); }
 .hint-item:hover { background: hsl(var(--hint) / 0.12); color: hsl(var(--hint-foreground)); }
 
+/* 전체 화면 waiting 배경 */
+/* 매칭 페이지 전용 연한 배경 */
+.app-matching-bg {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.78), rgba(255,255,255,0.78)),
+    url('/src/assets/images/profile/matching.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
 /* ============================= */
 /* Matching page stance buttons  */
 /* ============================= */

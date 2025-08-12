@@ -1,7 +1,7 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-4 app-matching-bg">
     <!-- 상단: 인원선택 + 타이머 + 매칭시작 통합 카드 (Sticky) -->
-    <div class="sticky top-2 z-20 mb-4">
+    <div class="sticky top-16 z-20 mb-4">
       <div class="relative mx-auto max-w-3xl px-6">
         <!-- 메인 헤더 카드 -->
         <div>

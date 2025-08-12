@@ -114,14 +114,14 @@ const googleIcon = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background" :class="{ 'dark': themeStore.isDark }">
+  <div class="min-h-screen bg-background app-matching-bg" :class="{ 'dark': themeStore.isDark }">
     <!-- 헤더 -->
-    <header class="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))]">
+    <header class="sticky top-0 z-50 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))]">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center gap-4">
             <img 
-              src="/src/assets/images/icons/colosseum_icon.png" 
+              src="/src/assets/images/icons/logo.png" 
               alt="Logo" 
               class="h-8 w-8 cursor-pointer hover:opacity-80 transition-all duration-300"
               :class="{ 'brightness-0 invert': themeStore.isDark }"
@@ -152,7 +152,7 @@ const googleIcon = computed(() => {
                     <span class="text-sm font-medium">{{ authStore.userNickname || '사용자' }}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-56 bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] border border-[hsl(var(--border))]">
+                <DropdownMenuContent align="end" class="w-56 bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))]">
                   <div class="flex items-center justify-start gap-2 p-2">
                     <div class="flex flex-col space-y-1">
                       <p class="text-sm font-medium leading-none text-[hsl(var(--card-foreground))]">{{ authStore.userNickname || '사용자' }}</p>
@@ -173,11 +173,11 @@ const googleIcon = computed(() => {
             <template v-else>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <Button variant="ghost" size="sm" class="px-3">
                     로그인
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-48 bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] border border-[hsl(var(--border))]">
+                <DropdownMenuContent align="end" class="w-48 bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))]">
                   <DropdownMenuItem @click="handleGoogleLogin" class="flex items-center gap-2 text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--secondary))]">
                     <img :src="googleIcon" class="w-4 h-4" alt="Google" />
                     Google로 로그인

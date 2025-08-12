@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-background">
+  <div class="min-h-screen bg-background app-matching-bg">
     <!-- 에러 메시지 (불투명 토스트) -->
     <div v-if="matchingStore.error" class="fixed bottom-6 right-6 z-50">
       <Alert class="max-w-sm bg-card border border-border shadow-xl">
@@ -112,7 +112,7 @@ const topicSetStore = useTopicSetStore()
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
 
-// Controllers
+// Controllers (전역 싱글톤 타이머라 한 번만 구독되도록 유지)
 useTopicSetController()
 
 // Composables
