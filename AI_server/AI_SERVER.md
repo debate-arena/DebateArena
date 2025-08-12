@@ -6,6 +6,15 @@ python process.py
 cd ..
 uvicorn main:app --reload
 
+## 기능별 AI 모델
+요청 별 사용하는 모델
+
+논리 요약 모델 : gpt 4.1 mini
+공방전 요약 모델 : gpt 4.1 mini
+최종 요약 모델 : gpt 4.1
+요약 임베딩 모델 : gpt 3 text embedding large
+대표자 투표 이유 생성 모델 : gpt 4.1 mini (temp 0.7로 자유로운 응답)
+
 # 폴더 내용
 ## app
 - 메인 폴더. 서버를 돌리기 위한 파일들 정리되어 있음.
@@ -34,3 +43,6 @@ uvicorn main:app --reload
 - ai_jurors : AI 청중단의 row 데이터
 - ai_jurors_described.csv : ai_jurors의 청중 성향을 바탕으로 텍스트화를 진행하고 실제로 판정을 내리기 위한 description을 생성한 파일
 - process.py : 데이터 전처리를 진행하고 임베딩하여 chroma_db에 저장하는 파일
+
+## 그외
+- 포트번호 8000
