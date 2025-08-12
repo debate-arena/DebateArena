@@ -320,7 +320,7 @@ async def judging(summary_texts: dict, entire_data: dict = None):
             num2_emb = num2_embedding,
             base_learn=0.03,
             max_learn=0.10,
-            repel=0.01,
+            repel=0.02,
             clamp_norm=True,
         )
     except Exception as e:
