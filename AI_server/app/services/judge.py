@@ -158,8 +158,8 @@ def eval_memorization_once(
     voted_details: list,
 ):
     """
-    memorize_audience() 호출 '전'의 상태에서 계산.
-    반환값을 저장해두고, memorize 후 동일 함수를 다시 호출해 delta 비교.
+    memorize_audience 호출 전 상태에서 계산.
+    반환값을 저장해두고 memorize 후 동일 함수를 다시 호출해 delta 비교.
     """
     A = audience_embeddings.astype(np.float32)
     s1 = cosine_similarity(A, num1_emb.reshape(1, -1)).ravel()
@@ -302,7 +302,7 @@ async def judging(summary_texts: dict, entire_data: dict = None):
     print(f"[WEIGHTED final ratio] score1: {final_ratio1:.3f}, score2: {final_ratio2:.3f}")
     print(f"최종 투표 수 : {num1_voting_head} vs {num2_voting_head}")
 
-    # 11. 학습 전 스냅샷
+    # 11. 학습 전 벡터 저장
     before = eval_memorization_once(
         audience_embeddings=audience_embeddings,
         num1_emb=num1_embedding,
@@ -326,7 +326,7 @@ async def judging(summary_texts: dict, entire_data: dict = None):
     except Exception as e:
         print(f'청중 학습 실패 : {e}')
 
-    # 13. 최신 임베딩 다시 로드 후 after 측정
+    # 13. 최신 임베딩 다시 로드 후 before와 비교해서 얼마나 개선이 되었는지 확인.
     audience_ids2, audience_embeddings2, _ = await load_audience_embeddings()
     audience_embeddings2 = np.array(audience_embeddings2)
     after = eval_memorization_once(

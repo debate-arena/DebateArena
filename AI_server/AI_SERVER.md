@@ -41,3 +41,6 @@ uvicorn main:app --reload
 - ai_jurors : AI 청중단의 row 데이터
 - ai_jurors_described.csv : ai_jurors의 청중 성향을 바탕으로 텍스트화를 진행하고 실제로 판정을 내리기 위한 description을 생성한 파일
 - process.py : 데이터 전처리를 진행하고 임베딩하여 chroma_db에 저장하는 파일
+
+## 그외
+- 포트번호 8000
