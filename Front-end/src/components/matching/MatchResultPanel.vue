@@ -104,8 +104,8 @@
                   'mode-selected--2v2': (props.mode as PlayerMode) === '2:2'
                 }"
               >
-                <img v-if="(props.mode as PlayerMode) === '1:1'" src="/src/assets/images/profile/1vs1.png" class="w-3 h-3 polar-icon" alt="1대1" />
-                <img v-else src="/src/assets/images/profile/2vs2.png" class="w-3 h-3 polar-icon" alt="2대2" />
+                <img v-if="(props.mode as PlayerMode) === '1:1'" src="@/assets/images/profile/1vs1.png" class="w-3 h-3 polar-icon" alt="1대1" />
+                <img v-else src="@/assets/images/profile/2vs2.png" class="w-3 h-3 polar-icon" alt="2대2" />
                 {{ props.mode ?? '1:1' }}
               </div>
             </div>
@@ -220,46 +220,37 @@
             v-if="!hasAccepted && !hasRejected"
             @click="handleAccept"
             size="lg"
-            class="px-8 py-3 bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]"
+            variant="default"
+            class="!bg-[hsl(var(--primary))] !text-[hsl(var(--primary-foreground))] hover:!bg-[hsl(var(--primary)/0.9)]"
           >
-            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-600">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4 text-white" stroke-width="2">
-                <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4" stroke-width="2">
+              <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
             <span class="ml-2">수락</span>
           </Button>
           <div 
             v-else-if="hasAccepted"
-            class="flex items-center justify-center gap-2 text-green-600"
+            class="text-[hsl(var(--primary))] text-lg font-medium"
             aria-label="수락 완료"
-          >
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-600">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-5 h-5 text-white" stroke-width="2">
-                <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </span>
-            <span class="text-lg font-medium">수락 완료</span>
-          </div>
+          >수락 완료</div>
           
           <Button 
             v-if="!hasAccepted && !hasRejected"
             @click="handleReject"
-            variant="outline"
+            variant="destructive"
             size="lg"
-            class="px-8 py-3 bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))]"
+            class="!bg-[hsl(var(--destructive))] !text-[hsl(var(--destructive-foreground))] hover:!bg-[hsl(var(--destructive)/0.9)]"
           >
-            ❌ 거절
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4" stroke-width="2">
+              <path d="M6 6l12 12M18 6l-12 12" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span class="ml-2">거절</span>
           </Button>
           <div 
             v-else-if="hasRejected"
-            class="flex items-center justify-center gap-2 text-red-600"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-              <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm2.47 6.28a.75.75 0 0 1 0 1.06L13.06 11l1.41 1.41a.75.75 0 1 1-1.06 1.06L12 12.06l-1.41 1.41a.75.75 0 1 1-1.06-1.06L10.94 11 9.53 9.59a.75.75 0 1 1 1.06-1.06L12 9.94l1.41-1.41a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd" />
-            </svg>
-            <span class="text-lg font-medium">거절 완료</span>
-          </div>
+            class="text-[hsl(var(--destructive))] text-lg font-medium"
+            aria-label="거절 완료"
+          >거절 완료</div>
         </div>
       </div>
     </div>
@@ -404,15 +395,15 @@ watch(
 )
 
 // 아이콘 경로들
-const waitingIcon = '/src/assets/images/profile/waiting.png'
-const rejectIcon = '/src/assets/images/profile/reject.png'
-const runIcon = '/src/assets/images/profile/run.png'
+import waitingIcon from '@/assets/images/profile/waiting.png'
+import rejectIcon from '@/assets/images/profile/reject.png'
+import runIcon from '@/assets/images/profile/run.png'
 
 const getUserIcon = (stance: string) => {
   if (stance === 'option1') {
-    return '/src/assets/images/profile/debate_left.png'
+    return new URL('@/assets/images/profile/debate_left.png', import.meta.url).href
   } else if (stance === 'option2') {
-    return '/src/assets/images/profile/debate_right.png'
+    return new URL('@/assets/images/profile/debate_right.png', import.meta.url).href
   }
   return waitingIcon
 }

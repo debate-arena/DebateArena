@@ -10,6 +10,11 @@ import { useAuthStore } from '@/store/auth'
 import { useThemeStore } from '@/store/theme'
 import { authAPI } from '@/api/auth'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { config } from '@/config/env'
+// assets
+import logo from '@/assets/images/icons/logo.png'
+import googleDark from '@/assets/images/icons/goggle-dark.png'
+import googleLight from '@/assets/images/icons/goggle-light.png'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -47,6 +52,7 @@ onMounted(async () => {
     hasNickname: authStore.hasNickname,
     userNickname: authStore.userNickname
   })
+  console.log("base url>>>>>>>>>>", config.MAIN_API_URL);
   
   // 닉네임 필수 체크
   checkNicknameRequired()
@@ -106,11 +112,7 @@ const openNicknameChangeModal = () => {
 }
 
 // Google 아이콘 동적 선택
-const googleIcon = computed(() => {
-  return themeStore.isDark 
-    ? '/src/assets/images/icons/goggle-dark.png'
-    : '/src/assets/images/icons/goggle-light.png'
-})
+const googleIcon = computed(() => (themeStore.isDark ? googleDark : googleLight))
 </script>
 
 <template>
@@ -121,7 +123,7 @@ const googleIcon = computed(() => {
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center gap-4">
             <img 
-              src="/src/assets/images/icons/logo.png" 
+              :src="logo" 
               alt="Logo" 
               class="h-8 w-8 cursor-pointer hover:opacity-80 transition-all duration-300"
               :class="{ 'brightness-0 invert': themeStore.isDark }"

@@ -19,7 +19,7 @@
               'stance-soft--left': getStanceVariant('option1') === 'outline'
             }"
           >
-            <img src="/src/assets/images/profile/debate_left.png" class="w-9 h-9 mr-2 polar-icon" alt="북극곰" />
+            <img src="@/assets/images/profile/debate_left.png" class="w-9 h-9 mr-2 polar-icon" alt="북극곰" />
             {{ topic.option1 }}
           </Button>
           
@@ -33,7 +33,7 @@
               'stance-soft--random': getStanceVariant('random') === 'outline'
             }"
           >
-            <img src="/src/assets/images/profile/debate_random.png" class="w-9 h-9 mr-2 polar-icon" alt="물범" />
+            <img src="@/assets/images/profile/debate_random.png" class="w-9 h-9 mr-2 polar-icon" alt="물범" />
             상관없음
           </Button>
           
@@ -47,7 +47,7 @@
               'stance-soft--right': getStanceVariant('option2') === 'outline'
             }"
           >
-            <img src="/src/assets/images/profile/debate_right.png" class="w-9 h-9 mr-2 polar-icon" alt="펭귄" />
+            <img src="@/assets/images/profile/debate_right.png" class="w-9 h-9 mr-2 polar-icon" alt="펭귄" />
             {{ topic.option2 }}
           </Button>
         </div>
