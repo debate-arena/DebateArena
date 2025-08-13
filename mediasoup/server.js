@@ -202,7 +202,7 @@ async function createTransport(payload) {
         // ],
         listenInfos: [
             {
-                // protocol: 'udp',                // 보통 WebRTC는 UDP
+                protocol: 'udp',                // 보통 WebRTC는 UDP
                 ip: process.env.MEDIASOUP_LISTEN_IP,                  // 로컬에서 바인딩할 인터페이스
                 announcedAddress:  process.env.MEDIASOUP_ANNOUNCED_IP,   // 클라이언트에 노출할 공인 IP (도메인 아님)
                 portRange: {
@@ -220,7 +220,7 @@ async function createTransport(payload) {
     addUserToTransport(payload.userEmail, transport.id);
     transports.set(transport.id, transport);
     roomTransportSizeMap.set(roomId, roomTransportSizeMap.get(roomId) + 1);
-
+    
     console.log(`[Transport created] - ID: ${transport.id}, Type: ${isProducer ? 'Producer' : 'Consumer'}
          RoomTransport:${roomTransportSizeMap.get(roomId)}`);
     
@@ -353,7 +353,7 @@ async function createProducer(payload) {
 
     }
     // TODO : 추후 삭제
-    paused = false;
+    paused = true;
     const producer = await transport.produce({ 
         kind, 
         rtpParameters,
@@ -463,6 +463,7 @@ async function createConsumer(payload) {
 }
 
 async function micOn(payload) {
+    console.log(`[micOn] payload: ${payload}`);
     payload = JSON.parse(payload);
     const { producerId } = payload;
 
@@ -476,15 +477,10 @@ async function micOn(payload) {
     console.log(`[micOn] Producer ${producerId} is on`);
     producer.resume();
 
-    producerHasConsumer.get(producerId).forEach(consumerId => {
-        const consumer = consumers.get(consumerId);
-        if (consumer) {
-            consumer.resume();
-        }
-    });
 }
 
 async function micOff(payload) {
+    console.log(`[micOff] payload: ${payload}`);
     payload = JSON.parse(payload);
     const { producerId } = payload;
 
@@ -497,13 +493,6 @@ async function micOff(payload) {
 
     console.log(`[micOff] Producer ${producerId} is on`);
     producer.pause();
-
-    producerHasConsumer.get(producerId).forEach(consumerId => {
-        const consumer = consumers.get(consumerId);
-        if (consumer) {
-            consumer.pause();
-        }
-    });
 }
 
 // Consumer resume 핸들러
@@ -796,7 +785,7 @@ async function startServer() {
         console.log('=======================\n');
         
         // 5분마다 시스템 상태 로깅
-        setInterval(logSystemStatus, 5000);
+        setInterval(logSystemStatus, 30000);
         
         // 초기 상태 로깅
         // logSystemStatus();
