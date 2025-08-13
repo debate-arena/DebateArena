@@ -45,7 +45,7 @@ public class RedisMessageListenerConfig {
                 redisMessageListener, new ChannelTopic("signaling:mic:on")
         );
         container.addMessageListener(
-                redisMessageListener, new ChannelTopic("signaling:mic:on")
+                redisMessageListener, new ChannelTopic("signaling:mic:off")
         );
         return container;
     }

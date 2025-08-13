@@ -77,7 +77,7 @@ public class RedisMessageListener implements MessageListener {
                     CreatedConsumerDto createdConsumerDto = mapper
                             .readValue(bodyBytes, CreatedConsumerDto.class);
                     mediasoupSubscribeService.createdConsumer(createdConsumerDto);
-                    log.debug("[consumer created]");
+                    log.debug("[consumer created] {}",createdConsumerDto.getUserEmail());
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -107,7 +107,6 @@ public class RedisMessageListener implements MessageListener {
                     MediaControlDto mediaControlDto = mapper
                             .readValue(bodyBytes, MediaControlDto.class);
                     roomManageService.micOn(mediaControlDto);
-                    log.debug("[transport disconnected]");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -117,7 +116,6 @@ public class RedisMessageListener implements MessageListener {
                     MediaControlDto mediaControlDto = mapper
                             .readValue(bodyBytes, MediaControlDto.class);
                     roomManageService.micOff(mediaControlDto);
-                    log.debug("[transport disconnected]");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

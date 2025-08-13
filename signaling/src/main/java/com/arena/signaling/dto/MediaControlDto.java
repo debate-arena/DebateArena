@@ -6,4 +6,5 @@ import lombok.Data;
 public class MediaControlDto {
     private String speaker;
     private Long roomId;
+    private String producerId;
 }

@@ -149,6 +149,7 @@ public class RoomManageService {
         Long roomId = clientConnectionEstablishedDto.getRoomId();
         if (roomId == null || !rooms.containsKey(roomId)) return -1L;
         List<Participant> participants = rooms.get(roomId);
+        if (participants==null) return -1L;
 
         String consumerEmail = clientConnectionEstablishedDto.getConsumerUserEmail();
 
@@ -175,9 +176,11 @@ public class RoomManageService {
 //            );
         }
 
-        Long count = participants.stream()
-                .filter(p -> Boolean.TRUE.equals(p.getProducerConnectedStatus()))
-                .filter(Participant::getConsumerConnectedStatus)
+        Long count = Optional.ofNullable(participants) // participants가 null일 경우 빈 리스트로 대체
+                .orElse(Collections.emptyList())
+                .stream()
+                .filter(p -> Boolean.TRUE.equals(p.getProducerConnectedStatus())) // null-safe
+                .filter(p -> Boolean.TRUE.equals(p.getConsumerConnectedStatus())) // null-safe
                 .count();
 
         return count;
@@ -192,8 +195,11 @@ public class RoomManageService {
         participants.stream()
                 .filter(p -> p.getProducerUserEmail().equals(mediaControlDto.getSpeaker()))
                 .findFirst()
-                .ifPresent(participant ->
-                        redisTemplate.convertAndSend("mediasoup:producer:mic:on", participant.getProducerId()));
+                .ifPresent(participant ->{
+                            mediaControlDto.setProducerId(participant.getProducerId());
+                            redisTemplate.convertAndSend("mediasoup:producer:mic:on", mediaControlDto);
+                        }
+                        );
     }
 
     public void micOff(MediaControlDto mediaControlDto) {
@@ -203,8 +209,11 @@ public class RoomManageService {
         participants.stream()
                 .filter(p -> p.getProducerUserEmail().equals(mediaControlDto.getSpeaker()))
                 .findFirst()
-                .ifPresent(participant ->
-                        redisTemplate.convertAndSend("mediasoup:producer:mic:off", participant.getProducerId()));
+                .ifPresent(participant ->{
+                    mediaControlDto.setProducerId(participant.getProducerId());
+                    redisTemplate.convertAndSend("mediasoup:producer:mic:off", mediaControlDto);
+                        }
+                );
     }
 
     public void updateProducerId(CreatedProducerDto createdProducerDto) {

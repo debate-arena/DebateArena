@@ -42,7 +42,8 @@ public class WebSocketEventListener {
         if (accessor.getUser() != null) {
             userEmail = accessor.getUser().getName();
         }else{
-            throw new IllegalArgumentException("[disconnect]인증 정보가 없습니다. 웹 소켓 연결을 해제합니다.");
+            log.debug("[disconnect]인증 정보가 없습니다. 웹 소켓 연결을 해제합니다.");
+            return;
         }
 
         log.info("[disconnected]: {} ({})", sessionId,userEmail);
