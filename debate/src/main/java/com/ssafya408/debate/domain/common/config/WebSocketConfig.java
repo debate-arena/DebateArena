@@ -1,4 +1,4 @@
-package com.ssafya408.debate.domain.common;
+package com.ssafya408.debate.domain.common.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;

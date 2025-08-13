@@ -6,18 +6,22 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.servers.Server;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class SwaggerConfig {
 
+    @Value("${swagger.server-url:http://localhost:8081}")
+    private String swaggerServerUrl;
+
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()
             .info(apiInfo())
             .servers(List.of(
-                new Server().url("http://localhost:8081").description("Local Server")
+                new Server().url(swaggerServerUrl).description("Server")
             ));
     }
 

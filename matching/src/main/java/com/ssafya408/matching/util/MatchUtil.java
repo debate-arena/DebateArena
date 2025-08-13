@@ -1,13 +1,14 @@
 package com.ssafya408.matching.util;
 
 import com.ssafya408.matching.api.dto.AcceptanceStatusDto;
-import com.ssafya408.matching.api.dto.ApiResponse;
 import com.ssafya408.matching.api.dto.ChoiceDto;
 import com.ssafya408.matching.api.dto.DebateRoomResponse;
+import com.ssafya408.matching.api.dto.DebateMemberDto;
 import com.ssafya408.matching.api.dto.MatchAcceptRequest;
 import com.ssafya408.matching.api.dto.MatchApplyRequest;
 import com.ssafya408.matching.api.dto.MatchInvitationResponse;
 import com.ssafya408.matching.api.dto.WaitingUser;
+import com.ssafya408.matching.common.dto.ApiResponse;
 import com.ssafya408.matching.common.dto.DebateParticipantRequest;
 import com.ssafya408.matching.common.topic.service.MatchInfo;
 import java.util.ArrayList;
@@ -27,6 +28,8 @@ import org.springframework.http.MediaType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import com.ssafya408.matching.db.User;
+import com.ssafya408.matching.db.UserRepository;
 
 @Component
 @RequiredArgsConstructor
@@ -36,6 +39,7 @@ public class MatchUtil {
     private String debateServerUrl;
     private static final Logger log = LoggerFactory.getLogger(MatchUtil.class);
     private final SimpMessagingTemplate template;
+    private final UserRepository userRepository;
     
     // 스케줄러를 클래스 레벨에서 관리
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
@@ -307,9 +311,39 @@ public class MatchUtil {
     }
 
     private void broadcastDebateInfo(MatchInfo matchInfo,Long roomId, Boolean established) {
+        List<DebateMemberDto> firstTeamMembers = new ArrayList<>();
+        List<DebateMemberDto> secondTeamMembers = new ArrayList<>();
+
+        if (matchInfo != null && matchInfo.getTeams() != null && matchInfo.getTeams().size() >= 2) {
+            // Team 0
+            for (WaitingUser userInfo : matchInfo.getTeams().get(0)) {
+                String email = userInfo.getUser();
+                String nickname = userRepository.findByEmail(email)
+                    .map(User::getNickname)
+                    .orElse(null);
+                firstTeamMembers.add(DebateMemberDto.builder()
+                    .email(email)
+                    .nickname(nickname)
+                    .build());
+            }
+            // Team 1
+            for (WaitingUser userInfo : matchInfo.getTeams().get(1)) {
+                String email = userInfo.getUser();
+                String nickname = userRepository.findByEmail(email)
+                    .map(User::getNickname)
+                    .orElse(null);
+                secondTeamMembers.add(DebateMemberDto.builder()
+                    .email(email)
+                    .nickname(nickname)
+                    .build());
+            }
+        }
+
         DebateRoomResponse debateInfo = DebateRoomResponse
             .builder()
             .roomId(roomId)
+            .firstTeam(firstTeamMembers)
+            .secondTeam(secondTeamMembers)
             .build();
 
         ApiResponse<DebateRoomResponse> response =
@@ -359,7 +393,7 @@ public class MatchUtil {
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(req)
             .retrieve()
-            .bodyToMono(com.ssafya408.matching.api.dto.ApiResponse.class)
+            .bodyToMono(ApiResponse.class)
             .subscribe(
                 apiResponse -> {
                     if ("success".equals(apiResponse.getStatus()) && apiResponse.getData() != null) {
