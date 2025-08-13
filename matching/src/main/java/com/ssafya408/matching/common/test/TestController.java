@@ -1,6 +1,6 @@
 package com.ssafya408.matching.common.test;
 
-import com.ssafya408.matching.api.dto.ApiResponse;
+import com.ssafya408.matching.common.dto.ApiResponse;
 import com.ssafya408.matching.common.secuirty.jwt.JwtProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
