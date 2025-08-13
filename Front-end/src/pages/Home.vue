@@ -16,7 +16,7 @@
             <TooltipTrigger as-child>
               <HelpCircle class="w-4 h-4 md:w-5 md:h-5 text-foreground/80 cursor-help" aria-label="설명 보기" />
             </TooltipTrigger>
-            <TooltipContent side="right" align="center" class="bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] border border-[hsl(var(--border))] tooltip-white">
+            <TooltipContent side="right" align="center" class="bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] tooltip-white">
               <p>이 시간대에는 5개의 주제가 제공되며, 1시간마다 새 주제로 교체됩니다.</p>
             </TooltipContent>
           </Tooltip>
@@ -96,7 +96,7 @@
 
     <!-- 하단 중앙 스티키 CTA -->
     <div class="fixed bottom-2 left-1/2 -translate-x-1/2 z-50" :style="sheetSafeAreaStyle">
-      <div class="frosted-glass rounded-2xl shadow-xl border px-3 py-2">
+      <div class="frosted-glass rounded-2xl shadow-xl px-3 py-2">
         <Button
           size="lg"
           class="h-10 md:h-11 px-6 text-base bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]"

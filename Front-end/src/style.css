@@ -116,7 +116,18 @@ html, body {
     hsl(var(--background));
   background-attachment: fixed;
   background-repeat: no-repeat;
-  scrollbar-gutter: stable both-edges;
+  
+}
+
+/* 전체 화면을 덮는 고정 배경 (전역 래퍼에 직접 적용) */
+.app-full-bg {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.78), rgba(255,255,255,0.78)),
+    url('/src/assets/images/icons/backGround.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .dark {
@@ -503,7 +514,6 @@ html, body {
 /* 10) Timer pill */
 .timer-pill {
   background: hsl(var(--muted));
-  border: 1px solid hsl(var(--border));
   border-radius: 9999px;
   padding: 0.1rem 0.5rem;
 }
@@ -512,7 +522,6 @@ html, body {
 .timer-pill--white {
   background: #FFFFFF;
   color: var(--ink-deep);
-  border: 1px solid hsl(var(--border));
 }
 
 /* Hint/Tooltip 전용 고가독성 스타일 (불투명, 명확한 대비) */

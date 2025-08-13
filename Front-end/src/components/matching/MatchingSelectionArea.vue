@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-4 app-matching-bg">
+  <div class="space-y-4">
     <!-- 상단: 인원선택 + 타이머 + 매칭시작 통합 카드 (Sticky) -->
     <div class="sticky top-16 z-20 mb-4">
       <div class="relative mx-auto max-w-3xl px-6">
@@ -9,8 +9,7 @@
             <!-- 배경 데코레이션 -->
             <div class="absolute inset-0"></div>
             
-            <!-- 상단 테두리 그라데이션 -->
-            <div class="absolute top-0 left-0 right-0 h-px bg-border"></div>
+            
             
             <!-- 메인 콘텐츠 -->
             <div class="relative px-6 py-4">
@@ -29,7 +28,7 @@
                 <!-- 중앙: 주제 변경 타이머 -->
                 <div class="flex flex-col items-center">
                   <div class="h-5"></div>
-                  <div class="flex items-center gap-3 px-5 h-12 rounded-full bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] border border-[hsl(var(--border))] shadow-sm">
+                  <div class="flex items-center gap-3 px-5 h-12 rounded-full bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] shadow-sm">
                     <div class="flex items-center gap-2">
                       <Hourglass class="w-5 h-5 text-foreground" aria-hidden="true" />
                       <span class="text-sm text-muted-foreground">새 주제까지</span>
@@ -79,7 +78,7 @@
               </div>
               
               <!-- 조건 안내 -->
-              <div v-if="!matchingStore.canStartMatching" class="mt-3 pt-3 border-t border-border/50">
+              <div v-if="!matchingStore.canStartMatching" class="mt-3 pt-3">
                 <div class="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                   <span class="text-base">⚠️</span>
                   <span>주제와 모드를 각각 최소 1개씩 선택해주세요</span>
@@ -105,18 +104,19 @@
           다시 시도
         </button>
       </div>
-      
-      <!-- 실제 토픽 카드들 -->
-      <TopicCard
-        v-for="topic in activeTopics"
-        :key="topic.id"
-        :topic="topic"
-      />
-      
-      <!-- 토픽이 없는 경우 -->
-      <div v-if="!topicSetStore.isLoading && !topicSetStore.isError && activeTopics.length === 0" class="text-center py-8 text-slate-600">
-        토픽을 불러오는 중입니다...
-      </div>
+
+      <!-- 실제 토픽 카드들 (페이지 스크롤 사용) -->
+      <template v-else>
+        <TopicCard
+          v-for="topic in activeTopics"
+          :key="topic.id"
+          :topic="topic"
+        />
+        <!-- 토픽이 없는 경우 -->
+        <div v-if="activeTopics.length === 0" class="text-center py-8 text-slate-600">
+          토픽을 불러오는 중입니다...
+        </div>
+      </template>
     </div>
   </div>
 </template>
