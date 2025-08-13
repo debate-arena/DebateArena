@@ -557,4 +557,42 @@ public class DebateService {
     }
   }
 
+  public void chatBroadcast(String user, ChatRequestDto chatRequestDto) {
+    RoomManager roomManager = roomInfos.get(chatRequestDto.getRoomId());
+    if(roomManager == null) {
+      return;
+    }
+    int team=2;
+
+    List<String> firstTeam = roomManager.getFirstTeam();
+    List<String> secondTeam = roomManager.getSecondTeam();
+
+    if(firstTeam==null || secondTeam==null) {
+      return;
+    }
+
+    for (String s : firstTeam) {
+        if (s.equals(user)) {
+            team = 0;
+            break;
+        }
+    }
+
+    for (String s : secondTeam) {
+        if (s.equals(user)) {
+            team = 1;
+            break;
+        }
+    }
+
+    ChatResponseDto responseDto = ChatResponseDto.builder()
+            .message(chatRequestDto.getMessage())
+            .nickname(chatRequestDto.getNickname())
+            .team(team)
+            .build();
+
+    String url = "/sub/debate/room/"+chatRequestDto.getRoomId()+"/chat";
+
+    template.convertAndSend(url, responseDto);
+  }
 }

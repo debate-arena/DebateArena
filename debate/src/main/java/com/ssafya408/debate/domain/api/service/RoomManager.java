@@ -372,9 +372,9 @@ public class RoomManager {
 
     for (Integer team : voteTeam.values()) {
       if (team == null) continue;
-      if (team == 1)
+      if (team == 0)
         firstTeamCount++;
-      else if (team == 2)
+      else if (team == 1)
         secondTeamCount++;
     }
 

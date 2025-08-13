@@ -1,9 +1,10 @@
 package com.ssafya408.debate.domain.api;
 
+import com.ssafya408.debate.domain.api.dto.debate.ChatRequestDto;
+import com.ssafya408.debate.domain.api.dto.debate.ChatResponseDto;
 import com.ssafya408.debate.domain.api.dto.debate.SelectTargetRequestDto;
 import com.ssafya408.debate.domain.api.dto.stt.OpinionSTTRequest;
 import com.ssafya408.debate.domain.api.dto.stt.STTRequest;
-import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse;
 import com.ssafya408.debate.domain.api.dto.audience.AudienceJoinResponse;
 import com.ssafya408.debate.domain.api.service.DebateService;
 import java.security.Principal;
@@ -152,5 +153,10 @@ public class DebateApiController {
     
     log.info("=== 시청자 토론방 퇴장 요청 처리 완료 ===");
   }
+  @MessageMapping("/debate/chat")
+  public void messageRecive(Principal principal,ChatRequestDto chatRequestDto) {
 
+    String user = principal.getName();
+    debateService.chatBroadcast(user,chatRequestDto);
+  }
 }
