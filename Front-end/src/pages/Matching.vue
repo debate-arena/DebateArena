@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-background app-matching-bg">
+  <div>
     <!-- 에러 메시지 (불투명 토스트) -->
     <div v-if="matchingStore.error" class="fixed bottom-6 right-6 z-50">
       <Alert class="max-w-sm bg-card border border-border shadow-xl">
@@ -10,7 +10,7 @@
     </div>
 
     <!-- 메인 콘텐츠 -->
-    <div class="max-w-6xl mx-auto px-6 py-8">
+    <div class="py-8">
       <!-- 매칭 선택 영역 - idle 상태일 때만 표시 -->
       <MatchingSelectionArea 
         v-show="matchingStore.status === 'idle'"
