@@ -116,16 +116,16 @@ const googleIcon = computed(() => (themeStore.isDark ? googleDark : googleLight)
 </script>
 
 <template>
-  <div class="min-h-screen w-full bg-background app-full-bg" :class="{ 'dark': themeStore.isDark }">
+  <div class="min-h-screen bg-background app-matching-bg" :class="{ 'dark': themeStore.isDark }">
     <!-- 헤더 -->
     <header class="sticky top-0 z-50 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))]">
-      <div class="mx-auto px-4 sm:px-6 lg:px-8 max-w-[1280px]">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center gap-4">
             <img 
               :src="logo" 
               alt="Logo" 
-              class="h-8 w-8 cursor-pointer hover:opacity-80 transition-all duration-300"
+              class="h-8 cursor-pointer hover:opacity-80 transition-all duration-300"
               :class="{ 'brightness-0 invert': themeStore.isDark }"
               @click="$router.push('/')"
             />
@@ -195,7 +195,7 @@ const googleIcon = computed(() => (themeStore.isDark ? googleDark : googleLight)
     <!-- 메인 콘텐츠 -->
     <main class="flex-1">
       <TooltipProvider>
-        <div class="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1280px] min-h-[calc(100vh-64px)]">
+        <div class="mx-auto w-full">
           <RouterView />
         </div>
       </TooltipProvider>
