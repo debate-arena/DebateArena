@@ -9,7 +9,7 @@ import java.util.Map;
 @Data
 @Builder
 public class VoteEndResponseDto {
-    Map<String, Team> voteInfo;
-    VoteResult voteResult;
+    Map<String, Integer> voteInfo;
+    int voteResult;
     LocalDateTime voteEndAt;
 }

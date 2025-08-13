@@ -5,5 +5,5 @@ import lombok.Data;
 @Data
 public class VoteRequestDto {
     String userEmail;
-    Team team;
+    Integer team;
 }

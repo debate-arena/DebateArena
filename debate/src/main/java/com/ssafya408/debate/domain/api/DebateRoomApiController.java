@@ -458,10 +458,10 @@ public class DebateRoomApiController {
           summary = "투표",
           description = "투표를 진행합니다."
   )
-  public ResponseEntity<ApiResponse<String>> postVoting(Principal user,@PathVariable Long roomId,@RequestBody VoteRequestDto req) {
+  public ResponseEntity<ApiResponse<String>> postVoting(@PathVariable Long roomId,@RequestBody VoteRequestDto req) {
     try {
       log.info("[투표] 요청" );
-      debateService.voteWinnerTeam(roomId,user.getName(),req);
+      debateService.voteWinnerTeam(roomId,req);
       log.info("[투표] 성공" );
       return ResponseEntity.ok(ApiResponse.success("투표 성공"));
     } catch (Exception e) {

@@ -385,11 +385,11 @@ public class DebateService {
     template.convertAndSend("/sub/debate/room/"+req.getRoomId()+"/attack",res);
   }
 
-  public void voteWinnerTeam(Long roomId,String user, VoteRequestDto req) {
+  public void voteWinnerTeam(Long roomId, VoteRequestDto req) {
     RoomManager roomManager= roomInfos.get(roomId);
     log.info("vote] req {}",req);
     if(roomManager!=null && roomInfos.get(roomId).getStatus()==RoomStatus.VOTING){
-      Map<String, Team> voteTeam = roomManager.getVoteTeam();
+      Map<String, Integer> voteTeam = roomManager.getVoteTeam();
       if(voteTeam==null){
         voteTeam = new HashMap<>();
       }

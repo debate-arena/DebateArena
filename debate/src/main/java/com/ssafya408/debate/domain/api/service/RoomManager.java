@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.relational.core.sql.In;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 @Getter
@@ -41,7 +42,7 @@ public class RoomManager {
   private RoomStatus status =RoomStatus.PREPARING;
   private DebateTurn turn = DebateTurn.ATTACK; //
   private Map<String,String> attackTarget;
-  private Map<String, Team> voteTeam;
+  private Map<String, Integer> voteTeam;
   private boolean isStart;
 
   private Map<String, STTMessage> opinions; //각 사용자의 stt 텍스트가 저장됨
@@ -361,27 +362,27 @@ public class RoomManager {
     return result;
   }
 
-  public VoteResult calculateWinner() {
+  public int calculateWinner() {
     int firstTeamCount = 0;
     int secondTeamCount = 0;
 
     if(voteTeam==null){
-      return VoteResult.DRAW;
+      return 2;
     }
 
-    for (Team team : voteTeam.values()) {
+    for (Integer team : voteTeam.values()) {
       if (team == null) continue;
-      if (team == Team.FIRST_TEAM)
+      if (team == 1)
         firstTeamCount++;
-      else if (team == Team.SECOND_TEAM)
+      else if (team == 2)
         secondTeamCount++;
     }
 
     if (firstTeamCount > secondTeamCount)
-      return VoteResult.FIRST_TEAM;
+      return 0;
     else if (secondTeamCount > firstTeamCount)
-      return VoteResult.SECOND_TEAM;
+      return 1;
     else
-      return VoteResult.DRAW;
+      return 2;
   }
 }

@@ -45,8 +45,8 @@ public class DebateProcessScheduleService {
     private static final String BATTLE_VOTE_START_SUFFIX = "/start/battle";
     private static final String BATTLE_ATTACK_SPEAK_START_SUFFIX = "/speak/attackStart";
     private static final String BATTLE_ATTACK_SPEAK_END_SUFFIX = "/speak/attackEnd";
-    private static final String BATTLE_DEFENSE_SPEAK_START_SUFFIX = "/speak/DefenseStart";
-    private static final String BATTLE_DEFENSE_SPEAK_END_SUFFIX = "/speak/DefenseEnd";
+    private static final String BATTLE_DEFENSE_SPEAK_START_SUFFIX = "/speak/defenseStart";
+    private static final String BATTLE_DEFENSE_SPEAK_END_SUFFIX = "/speak/defenseEnd";
     private static final String VOTE_START_SUFFIX = "/vote/start";
     private static final String VOTE_END_SUFFIX = "/vote/end";
 
@@ -278,7 +278,7 @@ public class DebateProcessScheduleService {
          */
         if(roomManager.getTurn()==DebateTurn.ATTACK){
             roomManager.setTurn(DebateTurn.DEFENSE);
-            dto.setNextSpeaker(roomManager.getCurrentSpeaker());
+            dto.setNextSpeaker(roomManager.getDefender(roomManager.getCurrentSpeaker()));
             broadcastToRoom(roomManager.getRoomId(), BATTLE_ATTACK_SPEAK_END_SUFFIX, dto);
             taskScheduler.schedule(() -> {
                 startBattleTurn(roomManager);
