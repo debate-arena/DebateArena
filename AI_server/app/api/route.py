@@ -1,11 +1,15 @@
 from fastapi import APIRouter, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from app.models.schemas import RequestInput, ResponseOutput, STTRequest, EmbeddingOutput, AttackdefenseInput, AttackDefenseOutput,LastOutput, LastInput
 from app.services.summarize import summarize_first_half, summarize_result_text, summarize_second_half
 from app.services.judge import judging
 from app.services.rag_explain import explain_juror_reason
 
 router = APIRouter()
+
+@router.get("/health", response_class=PlainTextResponse)
+async def health():
+    return "ok"
 
 # 1차로 의견 주장하며 받아온 텍스트를 요약본으로 바꾸는 곳
 @router.post("/summaries/opinion", response_model=ResponseOutput)
