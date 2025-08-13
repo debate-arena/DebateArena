@@ -1,5 +1,6 @@
 package com.ssafya408.debate.domain.api.dto.stt;
 
+import com.ssafya408.debate.domain.api.dto.debate.DebateTurn;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Builder;

@@ -48,7 +48,7 @@ public class WebSocketEventListener {
         log.info("[disconnected]: {} ({})", sessionId,userEmail);
         
         try {
-            roomManageService.removeParticipant(sessionId,userEmail);
+            roomManageService.removeParticipant(userEmail);
         } catch (Exception e) {
             log.error("Error during session cleanup for session {}: {}", sessionId, e.getMessage(), e);
         }

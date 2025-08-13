@@ -11,8 +11,10 @@ This is a Spring Boot debate application that enables real-time debate functiona
 ### Build and Test
 - **Build project**: `./gradlew build`
 - **Run tests**: `./gradlew test`
+- **Run single test**: `./gradlew test --tests "ClassName.methodName"`
 - **Build without tests**: `./gradlew build -x test`
 - **Run application**: `./gradlew bootRun`
+- **Quick build scripts**: `./build.sh` (Linux/Mac) or `build.bat` (Windows)
 
 ### Docker Commands
 - **Build Docker image**: `docker build -t debate-app .`
@@ -43,6 +45,8 @@ This is a Spring Boot debate application that enables real-time debate functiona
 - **DebateRoomApiController**: REST API for room management (`/rooms/*`)
 - **DebateService**: Core business logic for room creation, STT processing, and message broadcasting
 - **RoomManager**: Per-room state management and message coordination
+- **DebateProcessScheduleService**: Manages debate phase transitions and scheduling
+- **AiService**: Handles AI-powered debate analysis and summary generation
 - **WebSocketConfig**: WebSocket and STOMP configuration
 
 ### Database Structure
@@ -63,6 +67,8 @@ This is a Spring Boot debate application that enables real-time debate functiona
 2. STT messages sent to `/pub/debate/stt/opinion` or `/pub/debate/stt/battle`
 3. Messages processed by `DebateService` and broadcasted to room participants
 4. Room state managed by `RoomManager` instances
+5. Debate phases: Opinion → Battle (Attack/Defense) → Voting → Results
+6. AI services process accumulated STT data for summaries and analysis
 
 ## Technology Stack
 
@@ -72,7 +78,8 @@ This is a Spring Boot debate application that enables real-time debate functiona
 - **Message Broker**: Spring's SimpleBroker for WebSocket
 - **Authentication**: JWT with Spring Security
 - **Documentation**: Swagger/OpenAPI 3
-- **Additional**: Kafka integration (planned), Redis for caching
+- **Caching**: Redis for session data and debate information
+- **Additional**: Kafka integration (planned)
 
 ## Development Notes
 

@@ -1,10 +1,10 @@
 package com.ssafya408.matching.api;
 
-import com.ssafya408.matching.api.dto.ApiResponse;
 import com.ssafya408.matching.api.dto.MatchAcceptRequest;
 import com.ssafya408.matching.api.dto.MatchApplyRequest;
 import com.ssafya408.matching.api.dto.MatchStatusDto;
 import com.ssafya408.matching.api.dto.WaitingUser;
+import com.ssafya408.matching.common.dto.ApiResponse;
 import com.ssafya408.matching.common.topic.dto.TopicDto;
 import com.ssafya408.matching.common.topic.service.MatchInfo;
 import com.ssafya408.matching.common.topic.service.TopicService;
