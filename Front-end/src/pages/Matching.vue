@@ -221,9 +221,8 @@ const handleMatchResult = (data: WebSocketMessage) => {
     if (selfAcceptance.value === 'accepted') {
       // 내가 수락한 경우: 즉시 waiting 화면으로 전환 (matched -> waiting 강제)
       matchingStore.setStatus('waiting')
-      // 타이머 재가동을 위해 isMatching/elapsedTime 명시 설정
+      // 타이머 재가동을 위해 isMatching만 보장 (elapsedTime은 누적 유지)
       matchingStore.isMatching = true
-      matchingStore.elapsedTime = 0
       startMatchingTimer(() => modals.showTimeoutModal())
       // 초대장 상태 정리 (패널 언마운트 이후로 지연하여 topicId 0 로그 방지)
       nextTick(() => {

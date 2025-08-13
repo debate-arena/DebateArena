@@ -7,7 +7,7 @@
         <!-- 상단 시간 표시: 주제 위, 호버 설명(물음표 아이콘) -->
         <div class="w-full max-w-5xl flex items-center justify-center gap-2 mb-1 md:mb-2">
           <div
-            class="rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] px-3 py-1 shadow-sm font-mono tabular-nums text-[18px] leading-6 md:text-[28px] md:leading-[34px]"
+            class="timer-pill timer-pill--white text-[18px] leading-6 md:text-[28px] md:leading-[34px] font-mono tabular-nums text-foreground shadow-sm"
             aria-label="남은 시간"
           >
             {{ formattedRemainingTime }}
@@ -108,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Button } from '@/components/ui/button'
 import { useTopicSetStore } from '@/store/topicSet'
 import { useTopicSetController } from '@/composables/useTopicSetController'
@@ -138,6 +138,7 @@ const animals = [
 // 계산된 속성
 const currentTopic = computed(() => topicSetStore.currentSet?.topics?.[currentTopicIndex.value] || null)
 const totalTopics = computed(() => topicSetStore.currentSet?.topics?.length || 0)
+const hasSelection = computed(() => selectedAnimalIndex.value !== null)
 const isLeftSelected = computed(() => selectedAnimalIndex.value === 0)
 const isRightSelected = computed(() => selectedAnimalIndex.value === 2)
 // 선택된 동물명(현재 UI 표기는 하단 바에서 대체되어 미사용)
@@ -175,10 +176,14 @@ function handleRandom() {
 function nextTopic() {
   if (totalTopics.value === 0) return
   currentTopicIndex.value = (currentTopicIndex.value + 1) % totalTopics.value
+  // 주제 변경 시 하나 랜덤 선택
+  handleRandom()
 }
 function prevTopic() {
   if (totalTopics.value === 0) return
   currentTopicIndex.value = (currentTopicIndex.value - 1 + totalTopics.value) % totalTopics.value
+  // 주제 변경 시 하나 랜덤 선택
+  handleRandom()
 }
 
 // 30초마다 다음 주제로 넘어가는 보조 타이머(스토어의 시간교체와 별개로 UX 보조)
@@ -192,6 +197,7 @@ function startTopicCountdown() {
   topicCountdown.value = secondsForAutoNext
   countdownTimer = setInterval(() => {
     if (topicCountdown.value <= 1) {
+      // 자동 전환 시에도 랜덤 선택 반영
       nextTopic()
       topicCountdown.value = secondsForAutoNext
     } else {
@@ -208,25 +214,11 @@ function stopTopicCountdown() {
 
 // 생명주기
 onMounted(async () => {
-  // 주제 세트 로드는 useTopicSetController(싱글톤)에서 담당
+  await topicSetStore.fetchTopicSets()
   startTopicCountdown()
-  // 최초 진입 시 왼쪽/오른쪽 중 하나를 랜덤 프리셀렉션
-  if (selectedAnimalIndex.value === null) {
-    selectedAnimalIndex.value = Math.random() < 0.5 ? 0 : 2
-  }
+  // 초기 진입 시에도 하나 랜덤 선택
+  handleRandom()
 })
-
-onUnmounted(() => {
-  stopTopicCountdown()
-})
-
-// 주제가 바뀔 때마다(버튼/자동/세트 교체 포함) 무작위로 선택되도록 보장
-watch(
-  () => currentTopic.value?.id,
-  () => {
-    selectedAnimalIndex.value = Math.random() < 0.5 ? 0 : 2
-  }
-)
 </script>
 
 <style scoped>
