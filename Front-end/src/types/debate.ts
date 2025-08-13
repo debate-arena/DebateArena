@@ -69,6 +69,7 @@ export interface DebateSpeakStartMessage {
 export interface DebateSpeakEndMessage {
   speaker: string;
   speakerEndAt: string;
+  nextSpeaker: string;
 }
 
 export interface DebateSelectTargetMessage {
