@@ -4,6 +4,7 @@ import com.ssafya408.debate.domain.api.dto.debate.SpeakerOrder;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
 import com.ssafya408.debate.domain.api.dto.room.WebRTCStatus;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,8 @@ public class DebateRedisInfo implements Serializable {
   private RoomStatus status;
   private WebRTCStatus webRTCStatus;
 
+  // 생성 시간 추가
+  private LocalDateTime createdAt;
 
   private List<SpeakerOrder> firstTeam;
   private List<SpeakerOrder> secondTeam;

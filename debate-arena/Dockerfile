@@ -1,20 +1,11 @@
-FROM openjdk:21-jdk-slim
+FROM openjdk:21-jdk-slim AS runtime
 
 WORKDIR /app
 
-# Gradle wrapper와 build 파일 복사
-COPY gradlew .
-COPY gradle gradle
-COPY build.gradle .
-COPY settings.gradle .
+# 로컬에서 빌드된 Boot JAR을 와일드카드로 복사 (버전 변경 대비)
+COPY build/libs/*SNAPSHOT.jar app.jar
 
-# 소스 코드 복사
-COPY src src
-
-# Gradle 빌드 실행
-RUN chmod +x ./gradlew
-RUN ./gradlew build -x test
-
-# JAR 파일 실행
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "build/libs/debate-arena-0.0.1-SNAPSHOT.jar"] 
+
+# JVM 옵션 추가로 성능 최적화
+ENTRYPOINT ["java", "-Xmx512m", "-Xms256m", "-jar", "app.jar"]

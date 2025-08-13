@@ -15,5 +15,5 @@ public class CreatedTransportRequestDto {
     private String userEmail;
     private Boolean isProducer;
     private String producerUserEmail; // isProducer == false일 때만 존재
-    private String sessionId;
+//    private String sessionId;
 }
