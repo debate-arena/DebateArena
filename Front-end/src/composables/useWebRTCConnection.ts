@@ -82,6 +82,7 @@ export interface WebRTCConnectionState {
   consumerTransport?: any
   localAudioTrack?: MediaStreamTrack | null
   audioProducer?: any
+  authToken?: string
 }
 //#endregion
 
@@ -109,6 +110,7 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
   }
 
   const expectedRemote = (options.participantsCount ?? 2) - 1
+  console.log("expectedRemote", expectedRemote)
 
   // 각 단계 완료 신호
   const stepDone = {
@@ -197,6 +199,48 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
   const pendingConsumerCompleted = new Map<string, Deferred<void>>()
   let produceA: string | null = null
   let produceV: string | null = null
+
+  // getUserMedia 중복 호출 방지 및 타임아웃 처리
+  let acquiringMicPromise: Promise<MediaStream> | null = null
+  const getUserMediaWithTimeout = async (timeoutMs = 8000): Promise<MediaStream> => {
+    return await Promise.race([
+      navigator.mediaDevices.getUserMedia({ audio: true, video: false }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('getUserMedia timeout')), timeoutMs))
+    ])
+  }
+
+  const acquireMicStream = async (): Promise<{ stream: MediaStream, track: MediaStreamTrack }> => {
+    if (state.value.localAudioTrack && state.value.localAudioTrack.readyState === 'live') {
+      const existingStream = new MediaStream([state.value.localAudioTrack])
+      return { stream: existingStream, track: state.value.localAudioTrack }
+    }
+    if (!acquiringMicPromise) {
+      acquiringMicPromise = (async () => {
+        try {
+          try {
+            return await getUserMediaWithTimeout(8000)
+          } catch (e) {
+            // 일시적 장치 점유 등으로 실패 시 한 번 재시도
+            await new Promise(res => setTimeout(res, 400))
+            return await getUserMediaWithTimeout(8000)
+          }
+        } finally {
+          // 완료/실패 후에는 다음 호출 시 새로 시도할 수 있도록 초기화
+          acquiringMicPromise = null
+        }
+      })()
+    }
+    const stream = await acquiringMicPromise
+    const track = stream.getAudioTracks()[0]
+    if (!track) {
+      throw new Error('오디오 트랙을 가져오지 못했습니다')
+    }
+    try {
+      state.value.localAudioTrack = track
+      audioController?.setLocalAudioTrack(track)
+    } catch {}
+    return { stream, track }
+  }
 
   // 내부 STOMP 클라이언트 상태 (외부 클라이언트가 없을 때만 사용)
   const internalStompState = ref({
@@ -422,6 +466,7 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       
       const data = await response.json()
       const authToken = data.token
+      state.value.authToken = authToken
 
       // STOMP 연결
       client.connect(signalingUrl.value, authToken, userInfo.email)
@@ -547,23 +592,13 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
           callback({ id: transport.id })
         })
         .catch(errback)
+        
 
       client.publish('/signaling/createProducer', { transportId: transport.id, kind: kind, rtpParameters: rtpParameters })
       console.log('✅ Producer 생성 요청:', kind)
     })
-    
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: false,
-    })
-    const track = stream.getAudioTracks()[0]
-    // 로컬 오디오 트랙 상태 및 오디오 컨트롤러에 설정
-    try {
-      state.value.localAudioTrack = track
-      audioController?.setLocalAudioTrack(track)
-    } catch (e) {
-      console.warn('로컬 오디오 트랙 설정 중 경고:', e)
-    }
+
+    const { track } = await acquireMicStream()
     const producer = await transport.produce({ track })
     state.value.audioProducer = producer
     
@@ -581,18 +616,7 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
     }
     
     try {
-      const stream = markRaw(
-        await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: false,
-        })
-      )
-      const audioTrack = stream.getAudioTracks()[0]
-      state.value.localAudioTrack = audioTrack
-      
-      // Audio Controller에 트랙 설정 (옵셔널)
-      audioController?.setLocalAudioTrack(audioTrack)
-      
+      const { track: audioTrack } = await acquireMicStream()
       const producer = await state.value.producerTransport.produce({
         track: audioTrack,
       })
@@ -905,7 +929,21 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
     client.subscribe('/user/queue/producer', (message) => {
       const response = JSON.parse(message.body)
       console.log('🔄 Producer 생성 응답 수신:', response)
+      
       const deferred = pendingProducerCompleted.get(state.value.producerTransport?.id)
+      console.log('🔄 deferred:', deferred)
+      // message.userEmail이 클라이언트의 이메일과 같으면 무시
+      if (response.userEmail === getCurrentUser().email) {
+        console.log('🔄 자신의 Producer 생성 응답이므로 무시')
+        stepDone.sendReady.resolve()
+        if (deferred) {
+          deferred.resolve()
+          pendingProducerCompleted.delete(state.value.producerTransport?.id)
+          console.log('🔄 Producer 생성 콜백 실행 완료')
+        }
+        return
+      }
+      
       if (deferred) {
         deferred.resolve()
         pendingProducerCompleted.delete(state.value.producerTransport?.id)
@@ -931,8 +969,12 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       handleNewProducer(participantInfo)
     })
 
-    console.log('✅ STOMP 메시지 핸들러 설정 완료')
+    client.subscribe(`/sub/room/${roomId.value}/connected`, (message) => {
+      console.log('🔄 모든 참가자 연결 완료', message.body)
+      stepDone.completed.resolve()
+    })
 
+    console.log('✅ STOMP 메시지 핸들러 설정 완료')
   }
 
   // 메인 WebRTC 연결 프로세스
