@@ -262,8 +262,8 @@ async def judging(summary_texts: dict, entire_data: dict = None):
     final_ratio1 = raw_weighted_score1 / total_weight if total_weight else 0.5
     final_ratio2 = raw_weighted_score2 / total_weight if total_weight else 0.5
 
-    num1_voting_head = round(final_ratio1 * 50)
-    num2_voting_head = 50 - num1_voting_head  # 보정
+    num1_voting_head = round(final_ratio1 * 49)
+    num2_voting_head = 49 - num1_voting_head  # 보정
 
     votes = {
         "num1": num1_voting_head,
@@ -282,7 +282,7 @@ async def judging(summary_texts: dict, entire_data: dict = None):
 
     # 9. 각 juror 별 유사도 기록 (디버깅 및 설명용)
     voted_details = []
-    for i in range(50):
+    for i in range(49):
         sim1 = num1_similarities[i]
         sim2 = num2_similarities[i]
         diff = sim1 - sim2
