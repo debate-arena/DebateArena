@@ -1,13 +1,21 @@
 package com.ssafya408.debate.domain.api.service;
 
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultRequest;
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultRequest.Entire;
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultRequest.TeamData;
+import com.ssafya408.debate.domain.api.dto.ai.DebateResultResponse;
 import com.ssafya408.debate.domain.api.dto.ai.OpinionTextRequest;
 import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseRequest;
 import com.ssafya408.debate.domain.api.dto.ai.SiegeDefenseRequest.Side;
 import com.ssafya408.debate.domain.api.dto.debate.*;
 import com.ssafya408.debate.domain.api.dto.control.MediaControlInfo;
 import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
+import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse.BattleSummary;
+import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse.OpinionSummary;
 import com.ssafya408.debate.domain.db.cache.DebateRedisInfo;
 import com.ssafya408.debate.domain.db.cache.DebateRedisRepository;
+import com.ssafya408.debate.domain.db.cache.SummaryRedisRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -56,6 +64,7 @@ public class DebateProcessScheduleService {
     private final TaskScheduler taskScheduler;
     private final DebateRedisRepository debateRedisRepository;
     private final AiService aiService;
+    private final SummaryRedisRepository summaryRedisRepository;
 
     public void gameStart(RoomManager roomManager) {
         if (roomManager == null) return;
@@ -202,7 +211,11 @@ public class DebateProcessScheduleService {
 
         broadcastToRoom(roomManager.getRoomId(), BATTLE_VOTE_START_SUFFIX, dto);
 
-        roomManager.advanceTurn();
+        // BATTLE_VOTE에서 BATTLE로 상태 전환
+        log.info("[상태 전환] BATTLE_VOTE → BATTLE");
+        roomManager.setStatus(RoomStatus.BATTLE);
+        roomManager.setCurrentBattleIndex(0);
+        
         taskScheduler.schedule(() -> {
             startBattleTurn(roomManager);
         }, Instant.now().plusSeconds(BATTLE_VOTE_TIME));
@@ -312,6 +325,26 @@ public class DebateProcessScheduleService {
             endVote(roomManager);
             return;
         }
+        
+        // VOTING 상태가 아닌 경우, 적절한 단계로 이동
+        if (roomManager.getStatus() != RoomStatus.VOTING) {
+            log.warn("[상태 오류] VOTING 상태가 아님: {}", roomManager.getStatus());
+            
+            if (roomManager.getStatus() == RoomStatus.BATTLE || 
+                roomManager.getStatus() == RoomStatus.BATTLE_VOTE) {
+                log.info("[상태 전환] BATTLE → VOTING으로 전환");
+                roomManager.setStatus(RoomStatus.VOTING);
+            } else if (roomManager.getStatus() == RoomStatus.OPINION) {
+                log.warn("[상태 오류] 아직 OPINION 단계 - 투표를 시작할 수 없음");
+                return;
+            } else if (roomManager.getStatus() == RoomStatus.FINISH) {
+                endGame(roomManager);
+                return;
+            } else {
+                log.error("[상태 오류] 예상치 못한 상태: {}", roomManager.getStatus());
+                return;
+            }
+        }
 
         log.info("[투표 진행 시작]");
 
@@ -327,6 +360,8 @@ public class DebateProcessScheduleService {
     }
 
     private void endVote(RoomManager roomManager) {
+        log.info("[투표 종료] roomId: {}, 현재 상태: {}", roomManager.getRoomId(), roomManager.getStatus());
+        
         if(roomManager.getStatus()!=RoomStatus.VOTE_RESULT){
             log.info("[이미 지나간 단계입니다.] {}",roomManager.getStatus());
             aiResult(roomManager);
@@ -337,6 +372,7 @@ public class DebateProcessScheduleService {
                 .voteInfo(roomManager.getVoteTeam())
                 .voteResult(roomManager.calculateWinner())
                 .build();
+
 
         log.info("[투표 종료] 투표자:{} 승리팀:{}", roomManager.getVoteTeam(),roomManager.calculateWinner());
 
@@ -399,6 +435,72 @@ public class DebateProcessScheduleService {
             roomManager.getCurrentIndex(),request);
     }
 
+    public Mono<Void> summarizeTotalText(RoomManager roomManager) {
+        DebateRedisInfo redisRoom = debateRedisRepository.findByRoomId(roomManager.getRoomId());
+
+        StringBuilder firstTeamText = new StringBuilder();
+        StringBuilder secondTeamText = new StringBuilder();
+        List<OpinionSummary> opinionSummaries = summaryRedisRepository.getOpinionSummaries(
+            roomManager.getRoomId());
+        List<BattleSummary> battleSummaries = summaryRedisRepository.getBattleSummaries(
+            roomManager.getRoomId());
+
+        int firstTeamScore=0, secondTeamScore=0;
+        for (int i = 0; i < roomManager.getPlayerCount(); i++) {
+            if(i<opinionSummaries.size()){
+                OpinionSummary opinionSummary = opinionSummaries.get(i);
+                if (opinionSummary.getTeam().equals("first")) {
+                        firstTeamText.append(opinionSummary.getText()).append(" ");
+                } else {
+                    secondTeamText.append(opinionSummary.getText()).append(" ");
+                }
+            }
+
+            if(i<battleSummaries.size()){
+                BattleSummary battleSummary = battleSummaries.get(i);
+                if (battleSummary.getAttack_team().equals("first")) {
+                    firstTeamText.append(battleSummary.getText()).append(" ");
+                    firstTeamScore+=battleSummary.getRebuttal_score();
+                } else {
+                    secondTeamText.append(battleSummary.getText()).append(" ");
+                    secondTeamScore+= battleSummary.getRebuttal_score();
+                }
+            }
+
+
+        }
+
+
+        double firstTeamAvg = ((double) firstTeamScore) / roomManager.getFirstTeam().size();
+        double secondTeamAvg = ((double) secondTeamScore) / roomManager.getSecondTeam().size();
+        log.info("first team score:{}\n summary >>> {}",firstTeamAvg, firstTeamText.toString());
+        log.info("second team score:{}\n >>> {}", secondTeamAvg, secondTeamText.toString());
+
+        DebateResultRequest resultRequest = DebateResultRequest.builder()
+            .topic(redisRoom.getTopicText())
+            .draw(true)
+            .entire(
+                Entire.builder()
+                    .num1(
+                        TeamData.builder()
+                            .position(redisRoom.getFirstOption())
+                            .text(firstTeamText.toString())
+                            .rebuttal_score(firstTeamAvg)
+                            .build()
+                    )
+                    .num2(
+                        TeamData.builder()
+                            .position(redisRoom.getSecondOption())
+                            .text(secondTeamText.toString())
+                            .rebuttal_score(secondTeamAvg)
+                            .build()
+                    )
+                    .build()
+            )
+            .build();
+        return aiService.requestDebateResult(roomManager.getRoomId(), resultRequest);
+
+    }
     /**
      * 사용자의 입장/진영 정보를 가져오는 헬퍼 메서드
      */
