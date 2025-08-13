@@ -453,18 +453,20 @@ public class DebateRoomApiController {
     }
   }
 
-  @PostMapping("/rooms/{roomId}/vote")
+  @PostMapping("/{roomId}/vote")
   @Operation(
           summary = "투표",
           description = "투표를 진행합니다."
   )
-  public void postVoting(@PathVariable Long roomId,@RequestBody VoteRequestDto req) {
+  public ResponseEntity<ApiResponse<String>> postVoting(Principal user,@PathVariable Long roomId,@RequestBody VoteRequestDto req) {
     try {
       log.info("[투표] 요청" );
-      debateService.voteWinnerTeam(roomId,req);
+      debateService.voteWinnerTeam(roomId,user.getName(),req);
       log.info("[투표] 성공" );
+      return ResponseEntity.ok(ApiResponse.success("투표 성공"));
     } catch (Exception e) {
       log.error("[투표] 실패 - 오류: {}", e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("투표 실패" + e.getMessage()));
     }
   }
 

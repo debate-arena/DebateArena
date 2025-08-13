@@ -25,24 +25,28 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class DebateProcessScheduleService {
 
-    private static final int PREPARING_STAGE_TIME = 30;
-    private static final int OPINION_STAGE_TIME = 30;
-    private static final int OPINION_TURN_OVER_TIME = 3;
-    private static final int BATTLE_VOTE_TIME = 30;
-    private static final int BATTLE_STAGE_TIME = 30;
-    private static final int BATTLE_TURN_OVER_TIME = 3;
-    private static final int VOTING_STAGE_TIME = 30;
-    private static final int VOTE_RESULT_STAGE_TIME = 5;
-    private static final int AI_RESULT_STAGE_TIME = 5;
+    private static final int PREPARING_STAGE_TIME = 10;
+    private static final int OPINION_STAGE_TIME = 10;
+    private static final int OPINION_TURN_OVER_TIME = 4;
+    private static final int BATTLE_VOTE_TIME = 10;
+    private static final int BATTLE_STAGE_TIME = 10;
+    private static final int BATTLE_TURN_OVER_TIME = 4;
+    private static final int VOTING_STAGE_TIME = 10;
+    private static final int VOTE_RESULT_STAGE_TIME = 4;
+    private static final int AI_RESULT_STAGE_TIME = 4;
 
     private static final String SIGNALING_MIC_ON_CHANNEL = "signaling:mic:on";
     private static final String SIGNALING_MIC_OFF_CHANNEL = "signaling:mic:off";
 
     private static final String ROOM_TOPIC_PREFIX = "/sub/debate/room/";
     private static final String START_OPINION_SUFFIX = "/start/opinion";
-    private static final String SPEAK_START_SUFFIX = "/speak/start";
-    private static final String SPEAK_END_SUFFIX = "/speak/end";
-    private static final String BATTLE_START_SUFFIX = "/start/battle";
+    private static final String OPINION_SPEAK_START_SUFFIX = "/speak/start";
+    private static final String OPINION_SPEAK_END_SUFFIX = "/speak/end";
+    private static final String BATTLE_VOTE_START_SUFFIX = "/start/battle";
+    private static final String BATTLE_ATTACK_SPEAK_START_SUFFIX = "/speak/attackStart";
+    private static final String BATTLE_ATTACK_SPEAK_END_SUFFIX = "/speak/attackEnd";
+    private static final String BATTLE_DEFENSE_SPEAK_START_SUFFIX = "/speak/DefenseStart";
+    private static final String BATTLE_DEFENSE_SPEAK_END_SUFFIX = "/speak/DefenseEnd";
     private static final String VOTE_START_SUFFIX = "/vote/start";
     private static final String VOTE_END_SUFFIX = "/vote/end";
 
@@ -113,7 +117,7 @@ public class DebateProcessScheduleService {
                 .build();
 
         redisTemplate.convertAndSend(SIGNALING_MIC_ON_CHANNEL, mediaControlInfo);
-        broadcastToRoom(roomManager.getRoomId(), SPEAK_START_SUFFIX, dto);
+        broadcastToRoom(roomManager.getRoomId(), OPINION_SPEAK_START_SUFFIX, dto);
 
         taskScheduler.schedule(() -> {
             endOpinionTurn(roomManager,mediaControlInfo);
@@ -135,13 +139,25 @@ public class DebateProcessScheduleService {
 
         log.info("[1페이즈 발언 종료] {}",mediaControlInfo.getSpeaker() );
 
+
+        redisTemplate.convertAndSend(SIGNALING_MIC_OFF_CHANNEL , mediaControlInfo);
+        roomManager.advanceTurn();
+
+        String nextSpeaker ;
+        if(roomManager.getStatus()!=RoomStatus.OPINION){
+            nextSpeaker = "";
+        }else{
+            nextSpeaker = roomManager.getCurrentSpeaker();
+        }
+
         SpeakerEndResponseDto dto = SpeakerEndResponseDto.builder()
                 .speaker(mediaControlInfo.getSpeaker())
                 .speakerEndAt(LocalDateTime.now())
+                .nextSpeaker(nextSpeaker)
                 .build();
-        redisTemplate.convertAndSend(SIGNALING_MIC_OFF_CHANNEL , mediaControlInfo);
-        broadcastToRoom(roomManager.getRoomId(), SPEAK_END_SUFFIX, dto);
-        roomManager.advanceTurn();
+
+        broadcastToRoom(roomManager.getRoomId(), OPINION_SPEAK_END_SUFFIX, dto);
+
         taskScheduler.schedule(() -> {
             startOpinionTurn(roomManager);
         }, Instant.now().plusSeconds(OPINION_TURN_OVER_TIME));
@@ -184,7 +200,7 @@ public class DebateProcessScheduleService {
                 .battleStartAt(LocalDateTime.now())
                 .build();
 
-        broadcastToRoom(roomManager.getRoomId(), BATTLE_START_SUFFIX, dto);
+        broadcastToRoom(roomManager.getRoomId(), BATTLE_VOTE_START_SUFFIX, dto);
 
         roomManager.advanceTurn();
         taskScheduler.schedule(() -> {
@@ -235,7 +251,11 @@ public class DebateProcessScheduleService {
                 .build();
 
         redisTemplate.convertAndSend(SIGNALING_MIC_ON_CHANNEL, mediaControlInfo);
-        broadcastToRoom(roomManager.getRoomId(), SPEAK_START_SUFFIX, dto);
+        if(roomManager.getTurn()==DebateTurn.ATTACK){
+            broadcastToRoom(roomManager.getRoomId(), BATTLE_ATTACK_SPEAK_START_SUFFIX, dto);
+        }else{
+            broadcastToRoom(roomManager.getRoomId(), BATTLE_DEFENSE_SPEAK_START_SUFFIX,dto);
+        }
         taskScheduler.schedule(() -> {
             endBattleTurn(roomManager,mediaControlInfo);
         }, Instant.now().plusSeconds(BATTLE_STAGE_TIME));
@@ -251,8 +271,6 @@ public class DebateProcessScheduleService {
                 .build();
 
         redisTemplate.convertAndSend(SIGNALING_MIC_OFF_CHANNEL , mediaControlInfo);
-        broadcastToRoom(roomManager.getRoomId(), SPEAK_END_SUFFIX, dto);
-
 
         /**
          * 공격 Turn 일때는 방어자에게 발언권을 주기위해 turn을 DEFENSE로 변경함
@@ -260,6 +278,8 @@ public class DebateProcessScheduleService {
          */
         if(roomManager.getTurn()==DebateTurn.ATTACK){
             roomManager.setTurn(DebateTurn.DEFENSE);
+            dto.setNextSpeaker(roomManager.getCurrentSpeaker());
+            broadcastToRoom(roomManager.getRoomId(), BATTLE_ATTACK_SPEAK_END_SUFFIX, dto);
             taskScheduler.schedule(() -> {
                 startBattleTurn(roomManager);
             }, Instant.now().plusSeconds(BATTLE_TURN_OVER_TIME));
@@ -272,6 +292,14 @@ public class DebateProcessScheduleService {
 //                            () -> log.info("broadcast done")     // 완료 콜백
 //                    );
             roomManager.advanceTurn();
+            String nextSpeaker ;
+            if(roomManager.getStatus()!=RoomStatus.BATTLE){
+                nextSpeaker = "";
+            }else{
+                nextSpeaker = roomManager.getCurrentSpeaker();
+            }
+            dto.setNextSpeaker(nextSpeaker);
+            broadcastToRoom(roomManager.getRoomId(), BATTLE_DEFENSE_SPEAK_END_SUFFIX, dto);
             taskScheduler.schedule(() -> {
                 startBattleTurn(roomManager);
             }, Instant.now().plusSeconds(BATTLE_TURN_OVER_TIME));

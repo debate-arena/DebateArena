@@ -10,4 +10,5 @@ import java.time.LocalDateTime;
 public class SpeakerEndResponseDto {
     private String speaker;
     private LocalDateTime speakerEndAt;
+    private String nextSpeaker;
 }

@@ -223,44 +223,31 @@ public class DebateService {
       return null;
     }
   }
-  public void userJoinMatch(String user, Long roomId) {
-    log.info("=== 사용자 토론방 입장 처리 시작 ===");
-    log.info("입장 요청 - 사용자: {}, 방ID: {}", user, roomId);
-    
+  public synchronized void userJoinMatch(String user, Long roomId) {
+    log.info("[userJoinMatch] 입장 {} {}",user, roomId);
     // TODO : 입장 전 권한 체크하는 로직 (Redis) 구현 필요
-    log.debug("입장 대기 큐에 사용자 추가 - 사용자: {}", user);
-    
-    Set<String> roomQueue = beforeGameStartQueue.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet());
-    roomQueue.add(user);
-    
-    log.info("현재 입장 대기 중인 사용자 수: {}", roomQueue.size());
-    log.debug("대기 중인 사용자 목록: {}", roomQueue);
-    
-    RoomManager roomManager = roomInfos.get(roomId);
-    if (roomManager == null) {
-      log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
-      log.error("현재 활성 방 목록: {}", roomInfos.keySet());
+    beforeGameStartQueue
+            .computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet())
+            .add(user);
+    RoomManager roomManager= roomInfos.get(roomId);
+
+    if(roomManager==null) {
       return;
     }
-    
-    int expectedPlayerCount = roomManager.getPlayerCount();
-    int currentJoinedCount = roomQueue.size();
-    
-    log.info("토론방 입장 현황 - 예상 참가자: {}, 현재 입장: {}", expectedPlayerCount, currentJoinedCount);
 
-    if (expectedPlayerCount == currentJoinedCount && !roomManager.isStart()) {
-      log.info("=== 모든 참가자 입장 완료 - 토론 시작 ===");
-      // TODO : Redis에서 WebRTCStatue 확인
-      log.info("토론 게임 시작 스케줄링 - 방ID: {}", roomId);
+    if(roomManager.getPlayerCount()==beforeGameStartQueue.get(roomId).size()){
+      if(roomManager.isStart()){
+        return;
+      }
       roomManager.setStart(true);
+      log.info("[토론 시작]");
+      // TODO : Redis에서 WebRTCStatue 확인
+      beforeGameStartQueue.get(roomId);
       scheduleService.gameStart(roomManager);
-    } else {
-      log.info("토론 시작 대기 중 - 추가로 {}명의 참가자가 필요합니다", expectedPlayerCount - currentJoinedCount);
-      // TODO : 게임 시작하면 beforeGameStartQueue 삭제
     }
 
     log.info("사용자 {}가 방 {}에 참여했습니다.", user, roomId);
-    log.info("=== 사용자 토론방 입장 처리 완료 ===");
+
   }
 
 
@@ -395,11 +382,12 @@ public class DebateService {
             .defender(req.getTarget())
             .build();
 
-    template.convertAndSend("/debate/room/"+req.getRoomId()+"/attack",res);
+    template.convertAndSend("/sub/debate/room/"+req.getRoomId()+"/attack",res);
   }
 
-  public void voteWinnerTeam(Long roomId, VoteRequestDto req) {
+  public void voteWinnerTeam(Long roomId,String user, VoteRequestDto req) {
     RoomManager roomManager= roomInfos.get(roomId);
+    log.info("vote] req {}",req);
     if(roomManager!=null && roomInfos.get(roomId).getStatus()==RoomStatus.VOTING){
       Map<String, Team> voteTeam = roomManager.getVoteTeam();
       if(voteTeam==null){
