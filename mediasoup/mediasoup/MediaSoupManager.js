@@ -319,8 +319,7 @@ class MediaSoupManager {
             error: error.message,
             ...this.extractBasicInfo(payload)
         };
-        
-        await publishMethod.call(this.redis, errorResponse);
+        // await publishMethod.call(this.redis, errorResponse);
     }
 
     // 기본 정보 추출 유틸리티
