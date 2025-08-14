@@ -1,12 +1,10 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { useTopicSetStore } from '@/store/topicSet'
 import { useMatchingStore } from '@/store/matching'
-import { useMatchingModals } from '@/composables/useMatchingModals'
 
 export function useMatchingTimer() {
   const topicSetStore = useTopicSetStore()
   const matchingStore = useMatchingStore()
-  const modals = useMatchingModals()
   
   const now = ref(Date.now())
   let timerInterval: ReturnType<typeof setInterval> | null = null
@@ -59,18 +57,15 @@ export function useMatchingTimer() {
       now.value = Date.now()
       
       // 타임아웃 체크
-      if (checkTimeout()) {
-        if (onTimeout) {
-          onTimeout()
-        }
+      // 콜백이 제공될 때만 타임아웃 동작을 수행
+      if (onTimeout && checkTimeout()) {
+        onTimeout()
         return
       }
       
       // 정각 체크
-      if (checkHourlyTimeout()) {
-        if (onTimeout) {
-          onTimeout()
-        }
+      if (onTimeout && checkHourlyTimeout()) {
+        onTimeout()
         return
       }
       

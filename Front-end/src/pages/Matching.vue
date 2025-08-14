@@ -44,22 +44,7 @@
       />
     </div>
     
-    <!-- 모달들 -->
-    <TimeoutModal 
-      v-model:open="modals.modalState.value.isTimeoutModalOpen" 
-      @close="handleTimeoutModalClose" 
-    />
-    
-    <TopicChangeModal 
-      v-model:open="modals.modalState.value.isTopicChangeModalOpen" 
-      @close="handleTopicChangeModalClose" 
-    />
-    
-    <HourWarningModal 
-      v-model:open="modals.modalState.value.isHourWarningModalOpen" 
-      @confirm="confirmHourWarning"
-      @close="modals.hideHourWarningModal()"
-    />
+    <!-- 모달들 (타임아웃/주제변경 알림 미사용) -->
     
     <LoginRequiredModal 
       v-model:open="modals.modalState.value.isLoginRequiredModalOpen" 
@@ -88,9 +73,10 @@ import { AlertCircle } from 'lucide-vue-next'
 import MatchingSelectionArea from '@/components/matching/MatchingSelectionArea.vue'
 import MatchResultPanel from '@/components/matching/MatchResultPanel.vue'
 import GameStatsPanel from '@/components/matching/GameStatsPanel.vue'
-import TimeoutModal from '@/components/matching/TimeoutModal.vue'
-import TopicChangeModal from '@/components/matching/TopicChangeModal.vue'
-import HourWarningModal from '@/components/matching/HourWarningModal.vue'
+// TimeoutModal, TopicChangeModal, HourWarningModal 미사용 처리
+// import TimeoutModal from '@/components/matching/TimeoutModal.vue'
+// import TopicChangeModal from '@/components/matching/TopicChangeModal.vue'
+// import HourWarningModal from '@/components/matching/HourWarningModal.vue'
 import LoginRequiredModal from '@/components/matching/LoginRequiredModal.vue'
 
 // Types
@@ -223,7 +209,8 @@ const handleMatchResult = (data: WebSocketMessage) => {
       matchingStore.setStatus('waiting')
       // 타이머 재가동을 위해 isMatching만 보장 (elapsedTime은 누적 유지)
       matchingStore.isMatching = true
-      startMatchingTimer(() => modals.showTimeoutModal())
+      // 타임아웃 모달 미사용: 콜백 없이 타이머만 유지
+      startMatchingTimer()
       // 초대장 상태 정리 (패널 언마운트 이후로 지연하여 topicId 0 로그 방지)
       nextTick(() => {
         matchingStore.clearInvitation()
@@ -276,11 +263,6 @@ const handleStartMatching = async () => {
     return
   }
   
-  if (topicSetStore.remainingTimeSeconds <= 300) {
-    modals.showHourWarningModal()
-    return
-  }
-  
   isStartingMatch.value = true
   
   try {
@@ -291,7 +273,8 @@ const handleStartMatching = async () => {
     webSocket.sendMatchRequest(request)
     
     matchingStore.startMatching()
-    startMatchingTimer(() => modals.showTimeoutModal())
+    // 타임아웃 모달 미사용: 콜백 없이 타이머 시작
+    startMatchingTimer()
   } catch (error) {
     console.error('❌ 매칭 시작 실패:', error)
     actions.handleError('매칭 시작에 실패했습니다.')
@@ -322,7 +305,8 @@ const handleModalAccept = () => {
   // (소켓은 유지, 서버 MATCH_RESULT 수신 시 최종 처리)
   if (!matchingStore.isMatching) {
     matchingStore.startMatching()
-    startMatchingTimer(() => modals.showTimeoutModal())
+    // 타임아웃 모달 미사용: 콜백 없이 타이머 시작
+    startMatchingTimer()
   }
 
   // 초대장 상태는 최종 결과 수신 후 정리 (여기서 초기화하면 주제/옵션 정보가 사라짐)
@@ -354,41 +338,7 @@ const handleMatchSuccess = (roomId: string) => {
   matchingStore.setStatus('completed')
 }
 
-const handleTimeoutModalClose = () => {
-  modals.hideTimeoutModal()
-  handleCancelMatching()
-}
-
-const handleTopicChangeModalClose = () => {
-  modals.hideTopicChangeModal()
-}
-
-const confirmHourWarning = async () => {
-  modals.hideHourWarningModal()
-  
-  if (!authStore.isLoggedIn) {
-    modals.showLoginRequiredModal()
-    return
-  }
-  
-  isStartingMatch.value = true
-  
-  try {
-    await webSocket.connect()
-    webSocket.handleMessage(handleWebSocketMessage)
-    
-    const request = matchingStore.toMatchRequest
-    webSocket.sendMatchRequest(request)
-    
-    matchingStore.startMatching()
-    startMatchingTimer(() => modals.showTimeoutModal())
-  } catch (error) {
-    console.error('❌ 매칭 시작 실패:', error)
-    actions.handleError('매칭 시작에 실패했습니다.')
-  } finally {
-    setTimeout(() => { isStartingMatch.value = false }, 1000)
-  }
-}
+// 타임아웃/주제변경(아워워닝/토픽체인지) 미사용으로 관련 핸들러 제거
 
 // Watchers
 watch(
