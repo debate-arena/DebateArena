@@ -6,6 +6,10 @@ const { v4: uuidv4 } = require('uuid');
 // .env.production 파일 로드
 require('dotenv').config({ path: '.env.production' });
 console.log('🔧 Environment variables loaded from .env.production');
+console.log('🔍 Redis configuration:');
+console.log(`   REDIS_HOST: ${process.env.REDIS_HOST}`);
+console.log(`   REDIS_PORT: ${process.env.REDIS_PORT}`);
+console.log(`   REDIS_PASSWORD: ${process.env.REDIS_PASSWORD ? '***' : 'not set'}`);
 
 // Redis clients
 let redisClient;
@@ -49,18 +53,22 @@ async function initializeRedis() {
         const redisPassword = process.env.REDIS_PASSWORD || '';
         const redisHost = process.env.REDIS_HOST || 'redis';
         const redisPort = process.env.REDIS_PORT || '6379';
+        
+        const redisUrl = `redis://${redisPassword ? `:${redisPassword}@` : ''}${redisHost}:${redisPort}`;
+        console.log(`🔗 Connecting to Redis: ${redisUrl.replace(redisPassword, '***')}`);
+        
         redisClient = redis.createClient({
-            url: `redis://${redisPassword ? `:${redisPassword}@` : ''}${redisHost}:${redisPort}`,
+            url: redisUrl,
         });
 
         // Subscriber client
         redisSubscriber = redis.createClient({
-            url: `redis://${redisPassword ? `:${redisPassword}@` : ''}${redisHost}:${redisPort}`,
+            url: redisUrl,
         });
 
         // Publisher client
         redisPublisher = redis.createClient({
-            url: `redis://${redisPassword ? `:${redisPassword}@` : ''}${redisHost}:${redisPort}`,
+            url: redisUrl,
         });
 
         await redisClient.connect();
