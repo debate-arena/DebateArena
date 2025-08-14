@@ -91,3 +91,9 @@ export interface DebateVoteEndMessage {
   voteResult: number, // 0: 좌측 진영, 1: 우측 진영, 2: 무승부
   voteEndAt: string;
 }
+
+export interface DebateChatMessage {
+  nickname: string;
+  message: string;
+  team: number; // 0: 좌측 진영, 1: 우측 진영, 2: 관전자
+}
