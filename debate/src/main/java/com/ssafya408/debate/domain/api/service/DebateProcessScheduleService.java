@@ -325,26 +325,6 @@ public class DebateProcessScheduleService {
             endVote(roomManager);
             return;
         }
-        
-        // VOTING 상태가 아닌 경우, 적절한 단계로 이동
-        if (roomManager.getStatus() != RoomStatus.VOTING) {
-            log.warn("[상태 오류] VOTING 상태가 아님: {}", roomManager.getStatus());
-            
-            if (roomManager.getStatus() == RoomStatus.BATTLE || 
-                roomManager.getStatus() == RoomStatus.BATTLE_VOTE) {
-                log.info("[상태 전환] BATTLE → VOTING으로 전환");
-                roomManager.setStatus(RoomStatus.VOTING);
-            } else if (roomManager.getStatus() == RoomStatus.OPINION) {
-                log.warn("[상태 오류] 아직 OPINION 단계 - 투표를 시작할 수 없음");
-                return;
-            } else if (roomManager.getStatus() == RoomStatus.FINISH) {
-                endGame(roomManager);
-                return;
-            } else {
-                log.error("[상태 오류] 예상치 못한 상태: {}", roomManager.getStatus());
-                return;
-            }
-        }
 
         log.info("[투표 진행 시작]");
 
