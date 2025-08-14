@@ -676,6 +676,21 @@ html, body {
   color: #FFFFFF;
 }
 
+/* Penguin: override ring color to violet only when selected/focused */
+.faction-peng.is-selected,
+.faction-peng:focus-within {
+  --ring-aurora: hsl(268 80% 60% / 0.9);
+}
+.faction-peng:is(
+  .is-selected,
+  :has(input:checked),
+  [aria-pressed="true"],
+  [data-state="on"],
+  [data-selected="true"]
+) {
+  --ring-aurora: hsl(268 80% 60% / 0.9);
+}
+
 /* 5) badge on selected state tuned for dark bg */
 .faction-card:is(.is-selected, :has(input:checked), [aria-pressed="true"], [data-state="on"], [data-selected="true"]) .choice-plate {
   /* 기본 선택 배지: 선택 텍스트 컬러(#fff) 유지 */
