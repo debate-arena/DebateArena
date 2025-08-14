@@ -111,6 +111,9 @@ const { startMatchingTimer, stopMatchingTimer, startAcceptTimer, stopAcceptTimer
 // State
 const isStartingMatch = ref(false)
 const selfAcceptance = ref<'pending' | 'accepted' | 'rejected'>('pending')
+// 중복 요청 방지용 키 및 수락/거절 전송 락
+const lastMatchRequestHash = ref<string | null>(null)
+const sentAcceptanceForMatchIds = new Set<string>()
 
 // Computed Properties
 const currentMatchTopicId = computed<number | null>(() => matchingStore.currentMatchTopicId)
@@ -122,6 +125,11 @@ const currentMatchTopicTitle = computed(() => {
   return topic?.title || (id ? `주제 ${id}` : '주제')
 })
 const currentMatchTotalCount = computed(() => getTotalCount(currentMatchMode.value))
+// 팀 정원(한 진영 최대 인원) 설정: 매칭 초대/모드 확정 시 동기화
+watch(currentMatchMode, (mode) => {
+  const perTeam = getTotalCount(mode) / 2
+  matchResultState.setTeamSize(perTeam)
+}, { immediate: true })
 
 // WebSocket Message Handler
 const handleWebSocketMessage = (data: WebSocketMessage) => {
@@ -168,6 +176,9 @@ const handleMatchInvitation = (data: WebSocketMessage) => {
     
     // MatchResultPanel 상태 초기화
     matchResultState.resetStanceAcceptance()
+    // 초대 시점의 모드 기반 팀 정원
+    const perTeam = getTotalCount(invitation.mode) / 2
+    matchResultState.setTeamSize(perTeam)
     selfAcceptance.value = 'pending'
     
     // 수락 타이머 시작
@@ -181,11 +192,7 @@ const handleAcceptanceStatus = (data: WebSocketMessage) => {
   
   if (data.status === 'success') {
     const { accept, stance } = processAcceptanceStatus(data)
-    
-    matchingStore.updateRoomInfo({ 
-      connectedUsers: matchingStore.roomInfo.connectedUsers + 1 
-    })
-    
+
     if (accept) {
       matchingStore.setLastAcceptedStance(stance)
     }
@@ -214,6 +221,7 @@ const handleMatchResult = (data: WebSocketMessage) => {
       // 초대장 상태 정리 (패널 언마운트 이후로 지연하여 topicId 0 로그 방지)
       nextTick(() => {
         matchingStore.clearInvitation()
+        matchResultState.resetStanceAcceptance()
       })
     } else {
       // 내가 거절/미응답: 초기 화면 복귀(선택값 보존), 소켓 종료
@@ -226,6 +234,7 @@ const handleMatchResult = (data: WebSocketMessage) => {
       }
       // 초대장 상태 정리
       matchingStore.clearInvitation()
+      matchResultState.resetStanceAcceptance()
     }
   }
 
@@ -270,16 +279,25 @@ const handleStartMatching = async () => {
     webSocket.handleMessage(handleWebSocketMessage)
     
     const request = matchingStore.toMatchRequest
+    const requestKey = JSON.stringify(request)
+    if (lastMatchRequestHash.value && lastMatchRequestHash.value === requestKey) {
+      // 동일 요청이 진행 중이면 무시
+      return
+    }
+    lastMatchRequestHash.value = requestKey
     webSocket.sendMatchRequest(request)
     
     matchingStore.startMatching()
     // 타임아웃 모달 미사용: 콜백 없이 타이머 시작
     startMatchingTimer()
+    // 시작 완료로 간주: 시작 락 해제 (isMatching이 비활성화 역할 지속)
+    isStartingMatch.value = false
+    lastMatchRequestHash.value = null
   } catch (error) {
     console.error('❌ 매칭 시작 실패:', error)
     actions.handleError('매칭 시작에 실패했습니다.')
-  } finally {
-    setTimeout(() => { isStartingMatch.value = false }, 1000)
+    isStartingMatch.value = false
+    lastMatchRequestHash.value = null
   }
 }
 
@@ -293,6 +311,11 @@ const handleModalAccept = () => {
   const matchId = matchingStore.currentMatchId
   const teamNumber = matchingStore.getCurrentUserTeam()
   
+  if (!matchId) return
+  // 동일 matchId로 중복 전송 차단
+  if (sentAcceptanceForMatchIds.has(matchId)) return
+  sentAcceptanceForMatchIds.add(matchId)
+
   if (matchId) {
     webSocket.sendMatchAcceptance(matchId, true, teamNumber)
   }
@@ -316,6 +339,11 @@ const handleModalReject = () => {
   const matchId = matchingStore.currentMatchId
   const teamNumber = matchingStore.getCurrentUserTeam()
   
+  if (!matchId) return
+  // 동일 matchId로 중복 전송 차단
+  if (sentAcceptanceForMatchIds.has(matchId)) return
+  sentAcceptanceForMatchIds.add(matchId)
+
   if (matchId) {
     webSocket.sendMatchAcceptance(matchId, false, teamNumber)
   }
@@ -336,6 +364,10 @@ const handleMatchSuccess = (roomId: string) => {
   })
   
   matchingStore.setStatus('completed')
+  // 전송 락 해제
+  if (matchingStore.currentMatchId) {
+    sentAcceptanceForMatchIds.delete(matchingStore.currentMatchId)
+  }
 }
 
 // 타임아웃/주제변경(아워워닝/토픽체인지) 미사용으로 관련 핸들러 제거

@@ -141,7 +141,7 @@ const googleIcon = computed(() => (themeStore.isDark ? googleDark : googleLight)
             <Button variant="ghost" size="sm" @click="$router.push('/matching')">
               매칭
             </Button>
-            <Button variant="ghost" size="sm" @click="$router.push('/debate-room')">
+            <Button variant="ghost" size="sm" disabled title="매칭 후 입장 가능">
               토론방
             </Button>
             
