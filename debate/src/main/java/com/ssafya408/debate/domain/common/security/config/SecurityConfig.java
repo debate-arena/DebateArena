@@ -2,6 +2,7 @@ package com.ssafya408.debate.domain.common.security.config;
 
 import com.ssafya408.debate.domain.common.security.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -23,6 +24,8 @@ import java.util.List;
 public class SecurityConfig {
 
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
+  @Value("${cors.allowed-origins:http://localhost}")
+  private List<String> allowedOrigins;
 
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -42,18 +45,10 @@ public class SecurityConfig {
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration configuration = new CorsConfiguration();
-    
-    // 허용할 origin 설정 (더 많은 origin 추가)
-    configuration.setAllowedOriginPatterns(List.of(
-        "http://localhost:3000",
-        "http://localhost:8081", 
-        "http://localhost:8080",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8081",
-        "http://127.0.0.1:8080",
-        "https://70.12.246.231:3000"
-    ));
-    
+
+    // 허용할 origin 설정 (yml 관리)
+    configuration.setAllowedOriginPatterns(allowedOrigins);
+
     // 허용할 HTTP 메서드 설정
     configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
     

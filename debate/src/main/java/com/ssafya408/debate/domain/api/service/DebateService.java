@@ -304,8 +304,7 @@ public class DebateService {
 
   // 토론 턴 진행 (currentOpinionIndex 또는 currentBattleIndex 증가)
   public Map<String, Object> advanceDebateTurn(Long roomId) {
-    log.info("=== 토론 턴 진행 시작 ===");
-    log.info("요청된 방ID: {}", roomId);
+    log.info("=== 토론 턴 진행 요청 - roomId: {} ===", roomId);
     
     RoomManager roomManager = roomInfos.get(roomId);
     if (roomManager == null) {
@@ -314,26 +313,42 @@ public class DebateService {
       throw new RuntimeException("토론방을 찾을 수 없습니다: " + roomId);
     }
 
-    String currentSpeaker = roomManager.getCurrentSpeaker();
-    log.info("발화자 >>> {}", currentSpeaker);
-
-    if (roomManager.getStatus() == RoomStatus.OPINION) {
-      String speakerTotalOpinion = roomManager.getSpeakerTotalOpinion(currentSpeaker);
-      log.info("턴 종료 | 발화자 전체 내용: {}", speakerTotalOpinion);
-
-    } else {
-      STTAttackDefense battleContent = roomManager.getCurrentTotalSTTBattle();
-      log.info("배틀 STT 메시지 종합 시작 - 공격자 발화 >>> {}, 방어자 발화: {}", battleContent.getAttack(), battleContent.getDefense());
-
+    // 상태 유효성 검증
+    if (!roomManager.isValidStatus()) {
+      log.error("토론방 상태가 유효하지 않습니다 - 방ID: {}, 상태: {}", roomId, roomManager.getStatus());
+      throw new RuntimeException("토론방 상태가 유효하지 않습니다: " + roomManager.getStatus());
     }
-    return roomManager.advanceTurn();
+
+    // 토론 진행 가능 상태 검증
+    if (!roomManager.canProceedDebate()) {
+      log.warn("현재 상태에서 토론을 진행할 수 없습니다 - 방ID: {}, 상태: {}", roomId, roomManager.getStatus());
+      Map<String, Object> result = new HashMap<>();
+      result.put("roomId", roomId);
+      result.put("currentStatus", roomManager.getStatus());
+      result.put("message", "현재 상태에서 토론을 진행할 수 없습니다: " + roomManager.getStatus());
+      result.put("timestamp", java.time.LocalDateTime.now().toString());
+      return result;
+    }
+
+    log.info("토론 턴 진행 시작 - roomId: {}, 현재 상태: {}, opinionIndex: {}, battleIndex: {}",
+        roomId, roomManager.getStatus(), roomManager.getCurrentOpinionIndex(), roomManager.getCurrentBattleIndex());
+
+    Map<String, Object> result = roomManager.advanceTurn();
+    result.put("currentStatus", roomManager.getStatus());
+    result.put("currentOpinionIndex", roomManager.getCurrentOpinionIndex());
+    result.put("currentBattleIndex", roomManager.getCurrentBattleIndex());
+    result.put("message", "턴이 성공적으로 진행되었습니다");
+    result.put("timestamp", java.time.LocalDateTime.now().toString());
+
+    log.info("토론 턴 진행 완료 - roomId: {}, status: {}, opinionIndex: {}, battleIndex: {}",
+        roomId, roomManager.getStatus(), roomManager.getCurrentOpinionIndex(), roomManager.getCurrentBattleIndex());
+    return result;
   }
 
   // 토론 턴 초기화 (테스트용): 상태 OPINION으로, 인덱스 0으로 리셋
   public Map<String, Object> resetDebateTurn(Long roomId) {
-    log.info("=== 토론 턴 초기화 시작 ===");
-    log.info("요청된 방ID: {}", roomId);
-
+    log.info("=== 토론 턴 초기화 요청 - roomId: {} ===", roomId);
+    
     RoomManager roomManager = roomInfos.get(roomId);
     if (roomManager == null) {
       log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
@@ -341,6 +356,27 @@ public class DebateService {
       throw new RuntimeException("토론방을 찾을 수 없습니다: " + roomId);
     }
 
+    // 상태 유효성 검증
+    if (!roomManager.isValidStatus()) {
+      log.error("토론방 상태가 유효하지 않습니다 - 방ID: {}, 상태: {}", roomId, roomManager.getStatus());
+      throw new RuntimeException("토론방 상태가 유효하지 않습니다: " + roomManager.getStatus());
+    }
+
+    // 토론이 완료된 상태인지 확인
+    if (roomManager.isDebateFinished()) {
+      log.warn("토론이 이미 완료된 상태입니다 - 방ID: {}, 상태: {}", roomId, roomManager.getStatus());
+      Map<String, Object> result = new HashMap<>();
+      result.put("roomId", roomId);
+      result.put("currentStatus", roomManager.getStatus());
+      result.put("message", "토론이 이미 완료된 상태입니다: " + roomManager.getStatus());
+      result.put("timestamp", java.time.LocalDateTime.now().toString());
+      return result;
+    }
+
+    log.info("토론 턴 초기화 시작 - roomId: {}, 현재 상태: {}, opinionIndex: {}, battleIndex: {}",
+        roomId, roomManager.getStatus(), roomManager.getCurrentOpinionIndex(), roomManager.getCurrentBattleIndex());
+
+    // 상태를 OPINION으로 초기화하고 인덱스들을 리셋
     roomManager.setStatus(RoomStatus.OPINION);
     roomManager.setCurrentOpinionIndex(0);
     roomManager.setCurrentBattleIndex(0);
@@ -358,24 +394,30 @@ public class DebateService {
     return result;
   }
   public void selectAttackTarget(String user, SelectTargetRequestDto req) {
-    // TODO : 방이 Stage 1,2 사이일때만 공격자 선택을 가능하도록 함
-    RoomManager roomManager= roomInfos.get(req.getRoomId());
+    log.info("[공격자 선택] 사용자: {}, 방ID: {}, 타겟: {}", user, req.getRoomId(), req.getTarget());
+    
+    RoomManager roomManager = roomInfos.get(req.getRoomId());
 
-    if(roomManager == null || roomManager.getStatus() == RoomStatus.FINISH) {
-      // TODO : EXCEPTION
-      return ;
+    if (roomManager == null) {
+      log.warn("[공격자 선택 실패] 방을 찾을 수 없음 - 방ID: {}", req.getRoomId());
+      return;
     }
 
-    Map<String,String> attackTarget = roomManager.getAttackTarget();
-    if(attackTarget==null){
-      // TODO : EXCEPTION
+    // 상태 검증 - BATTLE_VOTE 또는 BATTLE 단계에서만 공격자 선택 가능
+    if (!roomManager.canProceedDebate() || roomManager.getStatus() == RoomStatus.OPINION) {
+      log.warn("[공격자 선택 실패] 현재 상태에서 공격자 선택 불가 - 상태: {}", roomManager.getStatus());
+      return;
+    }
+
+    Map<String, String> attackTarget = roomManager.getAttackTarget();
+    if (attackTarget == null) {
       attackTarget = new HashMap<>();
     }
     attackTarget.put(user, req.getTarget());
     roomManager.setAttackTarget(attackTarget);
 
-    log.info("[공격자 생성] {} -> {} ",user,req.getTarget());
-    log.info("[공격자 생성] {} ",attackTarget);
+    log.info("[공격자 생성] {} -> {}", user, req.getTarget());
+    log.info("[공격자 목록] {}", attackTarget);
 
     SelectTargetResponseDto res = SelectTargetResponseDto.builder()
             .attacker(user)
@@ -386,6 +428,7 @@ public class DebateService {
   }
 
   public void voteWinnerTeam(Long roomId, VoteRequestDto req) {
+
     RoomManager roomManager= roomInfos.get(roomId);
     log.info("vote] req {}",req);
     if(roomManager!=null && roomInfos.get(roomId).getStatus()==RoomStatus.VOTING){
@@ -398,6 +441,21 @@ public class DebateService {
     }else{
       log.info("투표를 할 수 없는 시간입니다.");
     }
+    
+    if (!roomManager.canVote()) {
+      log.warn("[투표 실패] 현재 상태에서 투표 불가 - 상태: {}", roomManager.getStatus());
+      return;
+    }
+    
+    Map<String, Integer> voteTeam = roomManager.getVoteTeam();
+    if (voteTeam == null) {
+      voteTeam = new HashMap<>();
+    }
+    voteTeam.put(req.getUserEmail(), req.getTeam());
+    roomManager.setVoteTeam(voteTeam);
+    
+    log.info("[투표 완료] 사용자: {}, 팀: {}, 현재 투표 수: {}", 
+        req.getUserEmail(), req.getTeam(), voteTeam.size());
   }
   /**
    * 시청자가 토론방에 입장할 때 현재까지의 요약 정보와 추가 데이터를 반환

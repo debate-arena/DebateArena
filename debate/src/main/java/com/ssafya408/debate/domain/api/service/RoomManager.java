@@ -160,6 +160,64 @@ public class RoomManager {
   public Set<String> getAudiences() {
     return new HashSet<>(audiences);
   }
+
+  /**
+   * 상태 유효성 검증
+   * @return 상태가 유효한지 여부
+   */
+  public boolean isValidStatus() {
+    return status != null && (
+      status == RoomStatus.CONNECTING ||
+      status == RoomStatus.PREPARING ||
+      status == RoomStatus.OPINION ||
+      status == RoomStatus.BATTLE_VOTE ||
+      status == RoomStatus.BATTLE ||
+      status == RoomStatus.VOTING ||
+          status == RoomStatus.VOTE_RESULT ||
+          status == RoomStatus.AI_RESULT ||
+      status == RoomStatus.FINISH
+    );
+  }
+
+  /**
+   * 토론 진행 가능 상태인지 확인
+   * @return 토론 진행 가능 여부
+   */
+  public boolean canProceedDebate() {
+    return status == RoomStatus.OPINION || 
+           status == RoomStatus.BATTLE_VOTE || 
+           status == RoomStatus.BATTLE;
+  }
+
+  /**
+   * 투표 가능 상태인지 확인
+   * @return 투표 가능 여부
+   */
+  public boolean canVote() {
+    return status == RoomStatus.VOTING;
+  }
+
+  /**
+   * 토론 완료 상태인지 확인
+   * @return 토론 완료 여부
+   */
+  public boolean isDebateFinished() {
+    return status == RoomStatus.FINISH;
+  }
+
+  /**
+   * 상태 동기화 - DebateProcessScheduleService와 동기화
+   * @param expectedStatus 예상 상태
+   * @return 동기화 성공 여부
+   */
+  public boolean synchronizeStatus(RoomStatus expectedStatus) {
+    if (status != expectedStatus) {
+      log.warn("[상태 동기화] 현재 상태: {} → 예상 상태: {}", status, expectedStatus);
+      status = expectedStatus;
+      return true;
+    }
+    return false;
+  }
   public static RoomManager generateRoomManager(Long roomId,MatchType type,Long topicId,
       List<String> firstTeam,
       List<String> secondTeam) {
@@ -305,7 +363,7 @@ public class RoomManager {
         if (currentOpinionIndex >= playerCount) {
           status = RoomStatus.BATTLE_VOTE;
           result.put("phaseChanged", true);
-          result.put("newPhase", "battle");
+          result.put("newPhase", "battle_vote");
         }
         result.put("currentStatus", status);
         result.put("currentIndex", status == RoomStatus.OPINION ? currentOpinionIndex : currentBattleIndex);
@@ -317,26 +375,24 @@ public class RoomManager {
       
     }
     else if(status == RoomStatus.BATTLE_VOTE) {
-
       status=RoomStatus.BATTLE;
     }
     else if (status == RoomStatus.BATTLE) {
       // 배틀 단계에서 턴 진행
       if (currentBattleIndex < playerCount) {
         currentBattleIndex++;
+
         // 배틀 단계 완료 체크
         if (currentBattleIndex >= playerCount) {
-
           status = RoomStatus.VOTING;
-
           result.put("debateFinished", true);
+          result.put("newPhase", "voting");
         }
         
         result.put("currentStatus", status);
         result.put("currentIndex", currentBattleIndex);
         result.put("isFinished", isFinished());
       }
-
       else {
         log.info("배틀 단계가 이미 완료되었습니다");
 //        throw new RuntimeException("배틀 단계가 이미 완료되었습니다");
