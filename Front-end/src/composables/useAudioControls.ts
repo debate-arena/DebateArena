@@ -48,12 +48,15 @@ export function useAudioControls() {
   // 발화 모니터 루프 시작
   const startSpeakingMonitor = () => {
       const step = () => {
+      const step = () => {
       analyserNodes.forEach((analyser, key) => {
         try {
           const rms = computeRmsFromAnalyser(analyser)
           const prev = speakingEnergies.get(key) ?? 0
           const energy = prev * 0.85 + rms * 0.15 // 지수 평활
           speakingEnergies.set(key, energy)
+          // 임계치 완화: 원격 오디오의 평균 RMS가 낮아 감지 실패하는 경우가 있어 조정
+          const THRESHOLD = 0.02
           // 임계치 완화: 원격 오디오의 평균 RMS가 낮아 감지 실패하는 경우가 있어 조정
           const THRESHOLD = 0.02
           participantSpeakingState[key] = energy > THRESHOLD
@@ -69,6 +72,10 @@ export function useAudioControls() {
   const sourceNode = ref<MediaStreamAudioSourceNode | null>(null)
   const modulatedStream = ref<MediaStream | null>(null)
   const originalTrack = ref<MediaStreamTrack | null>(null)
+  // 변조 체인 노드들을 보존하여 GC로 인한 트랙 종료를 방지
+  const processingNodes: AudioNode[] = []
+  const destinationNode = ref<MediaStreamAudioDestinationNode | null>(null)
+  const keepAliveGainNode = ref<GainNode | null>(null)
   // 변조 체인 노드들을 보존하여 GC로 인한 트랙 종료를 방지
   const processingNodes: AudioNode[] = []
   const destinationNode = ref<MediaStreamAudioDestinationNode | null>(null)
@@ -371,6 +378,7 @@ export function useAudioControls() {
     try {
       const ctx = initAudioContext()
       await ctx.resume?.()
+      await ctx.resume?.()
       
       if (!localAudioTrack.value) {
         throw new Error('로컬 오디오 트랙이 없습니다.')
@@ -396,6 +404,7 @@ export function useAudioControls() {
         gainNode.gain.value = 1.2 // 약간 볼륨 증가
         
         // MediaStreamDestination 생성 + 그래프 유지용 keepAlive 경로
+        // MediaStreamDestination 생성 + 그래프 유지용 keepAlive 경로
         const destination = ctx.createMediaStreamDestination()
         const keepAlive = ctx.createGain()
         keepAlive.gain.value = 0.000001
@@ -413,12 +422,23 @@ export function useAudioControls() {
         processingNodes.push(pitchShiftNode, gainNode, keepAlive)
         destinationNode.value = destination
         keepAliveGainNode.value = keepAlive
+        // 분기: 한쪽은 송신용 destination, 한쪽은 무음 출력으로 그래프 활성 유지
+        gainNode.connect(destination)
+        gainNode.connect(keepAlive)
+        keepAlive.connect(ctx.destination)
+        // 노드 보존
+        processingNodes.splice(0, processingNodes.length)
+        processingNodes.push(pitchShiftNode, gainNode, keepAlive)
+        destinationNode.value = destination
+        keepAliveGainNode.value = keepAlive
         
         // 변조된 스트림 저장
         modulatedStream.value = destination.stream
         const modulatedTrack = modulatedStream.value.getAudioTracks()[0]
         
         if (modulatedTrack) {
+          // 송신 품질 힌트
+          try { (modulatedTrack as any).contentHint = 'speech' } catch {}
           // 송신 품질 힌트
           try { (modulatedTrack as any).contentHint = 'speech' } catch {}
           // Producer에서 사용하는 트랙을 변조된 트랙으로 교체
@@ -447,7 +467,10 @@ export function useAudioControls() {
         gainNode2.gain.value = 1.2
         
         // MediaStreamDestination 생성 + 그래프 유지용 keepAlive 경로
+        // MediaStreamDestination 생성 + 그래프 유지용 keepAlive 경로
         const destination = ctx.createMediaStreamDestination()
+        const keepAlive = ctx.createGain()
+        keepAlive.gain.value = 0
         const keepAlive = ctx.createGain()
         keepAlive.gain.value = 0
         
@@ -465,12 +488,22 @@ export function useAudioControls() {
         processingNodes.push(gainNode1, highpassFilter, gainNode2, keepAlive)
         destinationNode.value = destination
         keepAliveGainNode.value = keepAlive
+        // 분기 연결: destination 및 무음 출력
+        gainNode2.connect(destination)
+        gainNode2.connect(keepAlive)
+        keepAlive.connect(ctx.destination)
+        // 노드 보존
+        processingNodes.splice(0, processingNodes.length)
+        processingNodes.push(gainNode1, highpassFilter, gainNode2, keepAlive)
+        destinationNode.value = destination
+        keepAliveGainNode.value = keepAlive
         
         // 변조된 스트림 저장
         modulatedStream.value = destination.stream
         const modulatedTrack = modulatedStream.value.getAudioTracks()[0]
         
         if (modulatedTrack) {
+          try { (modulatedTrack as any).contentHint = 'speech' } catch {}
           try { (modulatedTrack as any).contentHint = 'speech' } catch {}
           localAudioTrack.value = modulatedTrack
           console.log('✅ 음성 변조 적용 완료 (필터 체인 방식)')
@@ -496,6 +529,13 @@ export function useAudioControls() {
         sourceNode.value.disconnect()
         sourceNode.value = null
       }
+      try { destinationNode.value?.disconnect() } catch {}
+      destinationNode.value = null
+      try { keepAliveGainNode.value?.disconnect() } catch {}
+      keepAliveGainNode.value = null
+      // 체인 노드 정리
+      try { processingNodes.forEach(n => { try { n.disconnect() } catch {} }) } catch {}
+      processingNodes.splice(0, processingNodes.length)
       try { destinationNode.value?.disconnect() } catch {}
       destinationNode.value = null
       try { keepAliveGainNode.value?.disconnect() } catch {}
@@ -644,4 +684,5 @@ export function useAudioControls() {
   // 싱글턴 저장 후 반환
   audioControlsSingleton = api
   return api
+}
 }
