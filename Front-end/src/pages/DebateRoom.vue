@@ -450,9 +450,7 @@
                         nextSpeaker
                       }}입니다.
                     </template>
-                    <template v-else>
-                      대기시간
-                    </template>
+                    <template v-else> 대기시간 </template>
                   </div>
 
                   <!-- 메인 카운트다운 숫자 -->
@@ -500,9 +498,13 @@
                           <Avatar
                             :class="[
                               'w-16 h-16 relative overflow-visible cursor-pointer',
-                              (participant.userId === debateStore.myEmail
-                                ? audioControls.getLocalSpeaking()
-                                : audioControls.getParticipantSpeaking(participant.userId))
+                              (
+                                participant.userId === debateStore.myEmail
+                                  ? audioControls.getLocalSpeaking()
+                                  : audioControls.getParticipantSpeaking(
+                                      participant.userId
+                                    )
+                              )
                                 ? 'speaking-glow'
                                 : '',
                             ]"
@@ -512,6 +514,13 @@
                               :alt="participant.displayName"
                               class="border-2 border-black rounded-full bg-white"
                             />
+                            <!-- 발언자 아이콘 -->
+                            <div
+                              v-if="participant.userId === currentSpeaker"
+                              class="absolute top-6 z-10 w-16 h-16 flex items-center justify-center text-2xl"
+                            >
+                              🗣️
+                            </div>
                             <!-- 공격/수비 아이콘 -->
                             <div
                               v-if="participantStates[participant.userId]"
@@ -562,19 +571,6 @@
                                       v
                                     )
                                 "
-                                class="border-gray-200"
-                              />
-                            </div>
-                            <div
-                              v-if="participant.userId === debateStore.myEmail"
-                              class="flex items-center justify-between"
-                            >
-                              <Label class="text-sm">음성 변조</Label>
-                              <Switch
-                                :modelValue="
-                                  audioControls.isVoiceModulated.value
-                                "
-                                @update:modelValue="onToggleVoiceMod"
                                 class="border-gray-200"
                               />
                             </div>
@@ -675,9 +671,13 @@
                           <Avatar
                             :class="[
                               'w-16 h-16 relative overflow-visible cursor-pointer',
-                              (participant.userId === debateStore.myEmail
-                                ? audioControls.getLocalSpeaking()
-                                : audioControls.getParticipantSpeaking(participant.userId))
+                              (
+                                participant.userId === debateStore.myEmail
+                                  ? audioControls.getLocalSpeaking()
+                                  : audioControls.getParticipantSpeaking(
+                                      participant.userId
+                                    )
+                              )
                                 ? 'speaking-glow'
                                 : '',
                             ]"
@@ -687,6 +687,13 @@
                               :alt="participant.displayName"
                               class="border-2 border-black rounded-full bg-white"
                             />
+                            <!-- 발언자 아이콘 -->
+                            <div
+                              v-if="participant.userId === currentSpeaker"
+                              class="absolute top-6 z-10 w-16 h-16 flex items-center justify-center text-2xl"
+                            >
+                              🗣️
+                            </div>
                             <!-- 공격/수비 아이콘 -->
                             <div
                               v-if="participantStates[participant.userId]"
@@ -737,19 +744,6 @@
                                       v
                                     )
                                 "
-                                class="border-gray-200"
-                              />
-                            </div>
-                            <div
-                              v-if="participant.userId === debateStore.myEmail"
-                              class="flex items-center justify-between"
-                            >
-                              <Label class="text-sm">음성 변조</Label>
-                              <Switch
-                                :modelValue="
-                                  audioControls.isVoiceModulated.value
-                                "
-                                @update:modelValue="onToggleVoiceMod"
                                 class="border-gray-200"
                               />
                             </div>
@@ -940,7 +934,7 @@
                     :class="[
                       'relative p-8 rounded-4xl text-lg shadow-sm cursor-pointer select-text',
                       message.team === 0
-                        ? 'bg-[hsl(var(--debate-left-deep))] text-slate-800 ml-28 mr-28'
+                        ? 'bg-[hsl(var(--debate-left-deep))] text-white ml-28 mr-28'
                         : 'bg-[hsl(var(--debate-right-deep))] text-white mr-28 ml-28',
                     ]"
                     style="min-height: 80px; display: flex; align-items: center"
@@ -976,7 +970,7 @@
                       >
                       <span
                         v-else-if="message.summaryText"
-                        class="px-2 py-0.5 rounded-full bg-black/20"
+                        class="px-2 py-0.5 rounded-full bg-white text-black"
                         >{{
                           message.display === "summary" ? "요약" : "원문"
                         }}</span
@@ -989,7 +983,7 @@
                 <div v-if="message.type === 'vote'">
                   <div
                     :class="[
-                      'relative p-8 rounded-4xl text-lg shadow-sm mx-28 bg-gray-400',
+                      'relative p-8 rounded-4xl text-lg shadow-sm mx-28 bg-[hsl(var(--debate-random-bg))]',
                     ]"
                     style="
                       min-height: 80px;
@@ -998,13 +992,15 @@
                       justify-content: center;
                     "
                   >
-                    <div class="flex flex-col items-center">
+                    <div class="flex flex-col items-center text-black">
                       <h2 class="text-3xl font-bold">투표 결과</h2>
                       <div
                         class="flex flex-row text-center justify-center gap-8 mt-4"
                       >
                         <div class="flex flex-col items-center">
-                          <div class="text-4xl font-bold text-debate-left">
+                          <div
+                            class="text-4xl font-bold text-[hsl(var(--debate-left-deep))]"
+                          >
                             {{
                               Object.values(message.voteInfo ?? {}).filter(
                                 (v) => v === 0
@@ -1014,7 +1010,9 @@
                         </div>
                         <div class="text-3xl font-bold self-center">VS</div>
                         <div class="flex flex-col items-center">
-                          <div class="text-4xl font-bold text-debate-right">
+                          <div
+                            class="text-4xl font-bold text-[hsl(var(--debate-right-deep))]"
+                          >
                             {{
                               Object.values(message.voteInfo ?? {}).filter(
                                 (v) => v === 1
@@ -1075,7 +1073,7 @@
                           </div>
                           <!-- 진영색깔 원 -->
                           <div
-                            class="w-12 h-12 rounded-full mt-2 flex items-center justify-center shadow-md font-bold border-2 border-black"
+                            class="w-12 h-12 rounded-full mt-2 flex items-center justify-center shadow-md font-bold border-2 border-black text-white"
                             :class="[
                               message.voteInfo?.[leftTeam.userId] === undefined
                                 ? 'bg-red-400'
@@ -1136,7 +1134,7 @@
                           </div>
                           <!-- 진영색깔 원 -->
                           <div
-                            class="w-12 h-12 rounded-full mt-2 flex items-center justify-center shadow-md font-bold border-2 border-black"
+                            class="w-12 h-12 rounded-full mt-2 flex items-center justify-center shadow-md font-bold border-2 border-black text-white"
                             :class="[
                               message.voteInfo?.[rightTeam.userId] === undefined
                                 ? 'bg-red-400'
@@ -1163,13 +1161,11 @@
                 <div v-if="message.type === 'ai' && isTie">
                   <div
                     :class="[
-                      'relative p-8 rounded-4xl text-lg shadow-sm mx-28 bg-gray-400',
+                      'relative p-8 rounded-4xl text-lg shadow-sm mx-28 bg-[hsl(var(--debate-random-bg))] text-black',
                     ]"
                   >
                     <div class="flex flex-col items-center">
-                      <h2 class="text-3xl font-bold text-gray-800">
-                        AI 판정단 결과
-                      </h2>
+                      <h2 class="text-3xl font-bold">AI 판정단 결과</h2>
                       <div v-if="isLoadingAIMessage">
                         <!-- 로딩 점들 -->
                         <div
@@ -1197,10 +1193,14 @@
                         <div
                           class="flex items-center justify-center space-x-16 mt-6"
                         >
-                          <div class="text-6xl font-bold text-debate-left">
+                          <div
+                            class="text-6xl font-bold text-[hsl(var(--debate-left-deep))]"
+                          >
                             {{ message.aiInfo?.L }}
                           </div>
-                          <div class="text-6xl font-bold text-debate-right">
+                          <div
+                            class="text-6xl font-bold text-[hsl(var(--debate-right-deep))]"
+                          >
                             {{ message.aiInfo?.R }}
                           </div>
                         </div>
@@ -1267,7 +1267,7 @@
                     : 'border-black hover:bg-[hsl(var(--debate-left-deep))] hover:text-white hover:shadow-md hover:-translate-y-0.5',
                 ]"
               >
-              <div class="flex flex-col items-center">
+                <div class="flex flex-col items-center">
                   <div>
                     <Avatar :class="['w-10 h-10']">
                       <AvatarImage
@@ -1278,7 +1278,7 @@
                     </Avatar>
                   </div>
                   <div
-                    class="text-xs font-semibold text-slate-700 text-center leading-tight h-[2.6em] flex items-center justify-center"
+                    class="text-xs font-semibold text-center leading-tight h-[2.6em] flex items-center justify-center"
                     style="width: 100px"
                   >
                     <span
@@ -1295,8 +1295,19 @@
                     </span>
                   </div>
                 </div>
-                <div class="font-bold">
-                  {{ messages.filter(m => m.sender === participant.displayName).slice(-1)[0]?.summaryText || '요약 없음' }}
+                <div class="font-bold flex-1 min-w-0 break-words p-4 text-left">
+                  {{
+                    (() => {
+                      const lastMessage = messages
+                        .filter((m) => m.sender === participant.displayName)
+                        .slice(-1)[0];
+                      return (
+                        lastMessage?.summaryText ||
+                        lastMessage?.sttText ||
+                        "메시지 없음"
+                      );
+                    })()
+                  }}
                 </div>
                 <div
                   v-if="
@@ -1351,7 +1362,7 @@
                     </Avatar>
                   </div>
                   <div
-                    class="text-xs font-semibold text-slate-700 text-center leading-tight h-[2.6em] flex items-center justify-center"
+                    class="text-xs font-semibold text-center leading-tight h-[2.6em] flex items-center justify-center"
                     style="width: 100px"
                   >
                     <span
@@ -1368,8 +1379,19 @@
                     </span>
                   </div>
                 </div>
-                <div class="font-bold">
-                  {{ messages.filter(m => m.sender === participant.displayName).slice(-1)[0]?.summaryText || '요약 없음' }}
+                <div class="font-bold flex-1 min-w-0 break-words p-4 text-left">
+                  {{
+                    (() => {
+                      const lastMessage = messages
+                        .filter((m) => m.sender === participant.displayName)
+                        .slice(-1)[0];
+                      return (
+                        lastMessage?.summaryText ||
+                        lastMessage?.sttText ||
+                        "메시지 없음"
+                      );
+                    })()
+                  }}
                 </div>
                 <div
                   v-if="
@@ -1416,11 +1438,7 @@
                   <div
                     class="col-span-1 grid grid-cols-1 items-center justify-items-center"
                   >
-                    <Avatar
-                      :class="[
-                        'w-16 h-16 overflow-visible',
-                      ]"
-                    >
+                    <Avatar :class="['w-16 h-16 overflow-visible']">
                       <AvatarImage
                         :src="debateLeftProfile"
                         :alt="row.left.displayName"
@@ -1484,11 +1502,7 @@
                   <div
                     class="col-span-1 grid grid-cols-1 items-center justify-items-center"
                   >
-                    <Avatar
-                      :class="[
-                        'w-16 h-16 overflow-visible',
-                      ]"
-                    >
+                    <Avatar :class="['w-16 h-16 overflow-visible']">
                       <AvatarImage
                         :src="debateRightProfile"
                         :alt="row.right.displayName"
@@ -1546,10 +1560,26 @@
               {{ debateSubject }}
             </DialogTitle>
           </DialogHeader>
-          <div class="grid grid-cols-2 gap-4 text-center">
+          <!-- 발화자가 아닌 경우 최종 투표중 메시지 표시 -->
+          <div
+            v-if="
+              !roomStore.leftTeam.some(
+                (p) => p.userId === debateStore.myEmail
+              ) &&
+              !roomStore.rightTeam.some((p) => p.userId === debateStore.myEmail)
+            "
+            class="text-center py-8"
+          >
+            <div class="text-2xl font-bold text-gray-600 mb-4">최종 투표중</div>
+            <div class="text-lg text-gray-500">
+              참가자들이 투표를 진행하고 있습니다.
+            </div>
+          </div>
+          <!-- 참가자인 경우 투표 버튼 표시 -->
+          <div v-else class="grid grid-cols-2 gap-4 text-center">
             <Button
               variant="outline"
-              class="w-full h-full hover:bg-blue-500 rounded-xl bg-[hsl(var(--debate-left-deep))] text-white hover:-translate-y-0.5 transition-all duration-300"
+              class="w-full h-full hover:bg-[hsl(var(--debate-left-deep))] rounded-xl bg-[hsl(var(--debate-left-deep))] text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-70"
               @click="vote(debateStore.myEmail, 0)"
               :disabled="isVoteDisabled"
               :class="[
@@ -1560,13 +1590,23 @@
             >
               <Card class="border-none shadow-none">
                 <CardContent class="flex items-center justify-center h-full">
-                  <div class="text-2xl">{{ debateLeftTeam }}</div>
+                  <div
+                    class="text-2xl whitespace-pre-wrap text-center leading-tight"
+                  >
+                    {{
+                      debateLeftTeam && debateLeftTeam.length > 10
+                        ? debateLeftTeam.substring(0, 10) +
+                          "\n" +
+                          debateLeftTeam.substring(10)
+                        : debateLeftTeam
+                    }}
+                  </div>
                 </CardContent>
               </Card>
             </Button>
             <Button
               variant="outline"
-              class="w-full h-full hover:bg-blue-500 rounded-xl bg-[hsl(var(--debate-right-deep))] text-white hover:-translate-y-0.5 transition-all duration-300"
+              class="w-full h-full rounded-xl hover:bg-[hsl(var(--debate-right-deep))] bg-[hsl(var(--debate-right-deep))] text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-70"
               @click="vote(debateStore.myEmail, 1)"
               :disabled="isVoteDisabled"
               :class="[
@@ -1577,7 +1617,17 @@
             >
               <Card class="border-none shadow-none">
                 <CardContent class="flex items-center justify-center h-full">
-                  <div class="text-2xl">{{ debateRightTeam }}</div>
+                  <div
+                    class="text-2xl whitespace-pre-wrap text-center leading-tight"
+                  >
+                    {{
+                      debateRightTeam && debateRightTeam.length > 10
+                        ? debateRightTeam.substring(0, 10) +
+                          "\n" +
+                          debateRightTeam.substring(10)
+                        : debateRightTeam
+                    }}
+                  </div>
                 </CardContent>
               </Card>
             </Button>
@@ -1702,9 +1752,15 @@
                     <!-- 왼쪽: 시청자 아바타 이미지 -->
                     <Avatar class="w-12 h-12 mt-2">
                       <AvatarImage
-                        :src="audienceProfile"
-                        alt="시청자"
-                        class="border-2 border-black rounded-full"
+                        :src="
+                          chatMessage.team === 0
+                            ? debateLeftProfile
+                            : chatMessage.team === 1
+                              ? debateRightProfile
+                              : audienceProfile
+                        "
+                        :alt="chatMessage.nickname"
+                        class="border-2 border-black rounded-full bg-white"
                       />
                     </Avatar>
 
@@ -1807,6 +1863,7 @@ import type {
   DebateSelectTargetResponse,
   DebateVoteStartMessage,
   DebateVoteEndMessage,
+  DebateChatMessage,
 } from "@/types/debate";
 import {
   useWebRTCConnection,
@@ -1845,23 +1902,24 @@ const targetSelectionStore = useTargetSelectionStore();
 const audioControls = useAudioControls();
 
 const roomIdParams = route.query.roomId as string;
-console.log("roomIdParams", roomIdParams);
 
 // URL 파라미터에서 사용자 정보 가져오기
-// 예시 URL: /debate-room/11?roomId=11&userEmail=user01@test.com&side=L&isModerator=true
+// 예시 URL: /debate-room/11?roomId=11&userEmail=user01@test.com&side=L&isModerator=true&viewer=true
 const currentUserEmail = route.query.userEmail as string;
 const currentUserSide = (route.query.side as string) || "L";
 const isModerator = route.query.isModerator === "true" || false;
+const isViewer = route.query.viewer === "true" || false;
 
 console.log("currentUserEmail", currentUserEmail);
 console.log("currentUserSide", currentUserSide);
 console.log("isModerator", isModerator);
+console.log("isViewer", isViewer);
 
 // debate 스토어에 정보 설정
 debateStore.setRoomId(roomIdParams);
 debateStore.setMyInfo(
   currentUserEmail,
-  currentUserSide as "L" | "R",
+  isViewer ? null : (currentUserSide as "L" | "R"),
   isModerator
 );
 
@@ -1947,12 +2005,41 @@ const isParticipantMuted = (userId: string) => {
 // 내 프로필 팝오버에서 음성 변조 토글 핸들러
 const onToggleVoiceMod = async (next: boolean) => {
   try {
+    // 현재 UI 음소거 상태를 스냅샷해둔다 (교체 후 다시 반영)
+    const wasMuted = audioControls.isMuted.value;
+
+    // 변조 on/off 실제 토글
     if (next !== audioControls.isVoiceModulated.value) {
       await audioControls.toggleVoiceModulation();
     }
-    // 변조 적용 후 현재 로컬 트랙을 WebRTC Producer에 반영
-    if (audioControls.localAudioTrack.value) {
-      await replaceLocalAudioTrack(audioControls.localAudioTrack.value);
+
+    // 변조 적용 후 로컬 트랙 가져오기
+    const track = audioControls.localAudioTrack.value;
+
+    if (track && (track as any).readyState === "live") {
+      // ① 교체 직전에는 항상 켠 상태로 올린다 (mute 여부는 교체 후에 반영)
+      track.enabled = true;
+
+      // ② Producer 트랙 교체
+      let ok = await replaceLocalAudioTrack(track);
+      if (!ok && typeof recreateAudioProducerWithTrack === "function") {
+        await recreateAudioProducerWithTrack(track);
+        ok = true;
+      }
+
+      // ③ 교체(또는 재생성) 후, 실제 UI 음소거 상태를 Producer 트랙에 반영
+      const producerTrack = (state.value.audioProducer as any)?.track as
+        | MediaStreamTrack
+        | undefined;
+      if (producerTrack) {
+        producerTrack.enabled = !wasMuted;
+      } else {
+        console.warn(
+          "⚠️ audioProducer 트랙을 찾지 못해 mute 상태를 반영하지 못했습니다."
+        );
+      }
+    } else {
+      console.warn("⚠️ 교체할 로컬 오디오 트랙이 live 상태가 아님. 교체 생략");
     }
   } catch (e) {
     console.error("음성 변조 토글 실패:", e);
@@ -2151,6 +2238,7 @@ const {
   startWebRTCConnection,
   disconnectWebRTC,
   replaceLocalAudioTrack,
+  recreateAudioProducerWithTrack,
 } = useWebRTCConnection({
   audioController: audioControls,
   participantsCount: roomStore.room?.participants.length ?? 1,
@@ -2160,6 +2248,7 @@ const {
     nickname: currentUserSide,
     isLoggedIn: true,
   },
+  enableSend: !isViewer,
 });
 
 const connectionStep = computed(() => {
@@ -2422,7 +2511,7 @@ const vote = async (userId: string, side: number) => {
       mode: "cors",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify({ userEmail: userId, team: side }),
     }
@@ -2605,6 +2694,7 @@ const audienceMessages = ref<
     text: string;
     nickname: string;
     timestamp: Date;
+    team: number;
   }>
 >([]);
 const audienceChatContainer = ref<HTMLElement>();
@@ -2628,16 +2718,21 @@ const formatTime = (date: Date) => {
 
 // 시청자 채팅 메시지 전송
 const sendChatMessage = () => {
-  if (newChatMessage.value.trim()) {
-    audienceMessages.value.push({
-      id: audienceMessageIdCounter++,
-      text: newChatMessage.value,
-      nickname: authStore.userNickname || "익명",
-      timestamp: new Date(),
+  if (newChatMessage.value.trim() === "") {
+    console.log("채팅 메시지가 비어있습니다.");
+    return;
+  } else {
+    console.log("채팅 메시지를 전송합니다.");
+    debateClient.value.publish({
+      destination: `/pub/debate/chat`,
+      body: JSON.stringify({
+        roomId: roomStore.room?.roomId,
+        nickname: authStore.userNickname || "익명",
+        message: newChatMessage.value,
+      }),
     });
-
-    newChatMessage.value = "";
   }
+  newChatMessage.value = "";
 };
 
 // 테스트용 메시지 추가 함수 (개발 중에만 사용)
@@ -2746,7 +2841,7 @@ const addTestMessageBattle = () => {
     {
       text: "애들이 장난감 뺏는 건 악해서가 아니라 아직 사회 규칙을 배우지 못해서임. 이기적 행동은 본성이라기보다 미성숙함의 결과고, 성장하면서 배려와 공감 능력이 발달함. 선한 본성이 교육과 경험으로 드러나는 거지, 본래부터 악한 건 아님.",
       summaryText: "이기심은 미성숙함의 결과일 뿐, 본성은 선함.",
-      sender: leftTeam.value[1].displayName,
+      sender: leftTeam.value[0].displayName,
       team: 0,
       mode: "battle",
       isAttacker: true,
@@ -2754,7 +2849,7 @@ const addTestMessageBattle = () => {
     {
       text: "사람이 착한 행동을 배우는 것도 결국 규칙과 처벌, 보상의 영향임. 선한 본성이 있다면 왜 제도와 교육이 없으면 쉽게 무너질까? 착해 보이는 행동도 환경이 억누르기 때문에 가능한 거고, 본성은 여전히 이기적인 상태임.",
       summaryText: "선함은 제도·환경의 억제 결과일 뿐, 본성은 이기적임.",
-      sender: rightTeam.value[1].displayName,
+      sender: rightTeam.value[0].displayName,
       team: 1,
       mode: "battle",
       isDefender: true,
@@ -2805,12 +2900,14 @@ const addTestAudienceChat = () => {
   ];
 
   const randomChat = testChats[Math.floor(Math.random() * testChats.length)];
+  const randomTeam = Math.floor(Math.random() * 3);
 
   audienceMessages.value.push({
     id: audienceMessageIdCounter++,
     text: randomChat.text,
     nickname: randomChat.nickname,
     timestamp: new Date(),
+    team: randomTeam,
   });
 };
 
@@ -2904,7 +3001,9 @@ const subscribeToDebateRoom = (client: Client) => {
         }
         isPreparationTime.value = false;
         nextSpeaker.value = "";
-        stt.startOpinion();
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.startOpinion();
+        }
         startSpeakingTimer();
       }
     );
@@ -2914,6 +3013,7 @@ const subscribeToDebateRoom = (client: Client) => {
         const msg = JSON.parse(message.body) as DebateSpeakEndMessage;
         console.log("🔍 진영논리 발언 종료: ", msg);
         speakerEndAt.value = msg.speakerEndAt + "+09:00";
+        currentSpeaker.value = "";
         if (isLeftSpeaking.value) {
           isLeftSpeaking.value = false;
         }
@@ -2921,7 +3021,9 @@ const subscribeToDebateRoom = (client: Client) => {
           isRightSpeaking.value = false;
         }
         nextSpeaker.value = msg.nextSpeaker;
-        stt.stop();
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.stop();
+        }
         startSpeakingTransitionTimer();
       }
     );
@@ -2969,7 +3071,9 @@ const subscribeToDebateRoom = (client: Client) => {
           isLeftSpeaking.value = false;
         }
         nextSpeaker.value = "";
-        stt.startBattleAttack();
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.startBattleAttack();
+        }
         startSpeakingTimer();
       }
     );
@@ -2983,6 +3087,7 @@ const subscribeToDebateRoom = (client: Client) => {
         if (currentSpeaker.value) {
           participantStates.value[currentSpeaker.value] = null;
         }
+        currentSpeaker.value = "";
         if (isLeftSpeaking.value) {
           isLeftSpeaking.value = false;
         }
@@ -2990,7 +3095,9 @@ const subscribeToDebateRoom = (client: Client) => {
           isRightSpeaking.value = false;
         }
         nextSpeaker.value = msg.nextSpeaker;
-        stt.stop();
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.stop();
+        }
         startSpeakingTransitionTimer();
       }
     );
@@ -3013,7 +3120,9 @@ const subscribeToDebateRoom = (client: Client) => {
           isRightSpeaking.value = true;
         }
         nextSpeaker.value = "";
-        stt.startBattleDefense();
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.startBattleDefense();
+        }
         startSpeakingTimer();
       }
     );
@@ -3027,6 +3136,7 @@ const subscribeToDebateRoom = (client: Client) => {
         if (currentSpeaker.value) {
           participantStates.value[currentSpeaker.value] = null;
         }
+        currentSpeaker.value = "";
         if (isLeftSpeaking.value) {
           isLeftSpeaking.value = false;
         }
@@ -3034,7 +3144,9 @@ const subscribeToDebateRoom = (client: Client) => {
           isRightSpeaking.value = false;
         }
         nextSpeaker.value = msg.nextSpeaker;
-        stt.stop();
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.stop();
+        }
         startSpeakingTransitionTimer();
       }
     );
@@ -3077,6 +3189,20 @@ const subscribeToDebateRoom = (client: Client) => {
         });
       }
     );
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/chat`,
+      (message) => {
+        const msg = JSON.parse(message.body) as DebateChatMessage;
+        console.log("🔍 채팅 메시지: ", msg);
+        audienceMessages.value.push({
+          id: audienceMessageIdCounter++,
+          text: msg.message,
+          nickname: msg.nickname,
+          timestamp: new Date(),
+          team: msg.team,
+        });
+      }
+    );
   }
 };
 
@@ -3104,6 +3230,8 @@ onMounted(async () => {
     // addTestMessageBattle();
     // addTestMessageBattle();
     // addTestVoteMessage();
+    // isTie.value = true;
+    // isLoadingAIMessage.value = false;
     // addTestAIMessage();
   }, 1000);
 

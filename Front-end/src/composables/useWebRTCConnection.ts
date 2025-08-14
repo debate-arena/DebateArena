@@ -59,6 +59,8 @@ export interface WebRTCConnectionOptions {
   onParticipantUpdate?: (participants: WebRTCParticipant[]) => void
   onError?: (error: string) => void
   participantsCount?: number
+  // 시청자 모드 등 송신 비활성화 여부 (기본: true = 송신 활성)
+  enableSend?: boolean
 }
 
 export interface WebRTCParticipant {
@@ -111,6 +113,15 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
 
   const expectedRemote = (options.participantsCount ?? 2) - 1
   console.log("expectedRemote", expectedRemote)
+  // 송신 가능 여부 (시청자는 false)
+  const enableSend = options.enableSend ?? true
+
+  // 시청자일 경우 기대 원격 수 조정 (시청자는 자신을 제외하지 않음)
+  const adjustedExpectedRemote = computed(() => {
+    const total = options.participantsCount ?? 2
+    return total - (enableSend ? 1 : 0)
+  })
+
 
   // 각 단계 완료 신호
   const stepDone = {
@@ -163,14 +174,15 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
   // 계산된 속성들
   const allParticipantsConnected = computed(() => {
     const currentParticipants = state.value.participants.length
-    return expectedRemote > 0 && currentParticipants === expectedRemote && state.value.participants.every(p => p.connected)
+    const expected = adjustedExpectedRemote.value
+    return expected > 0 && currentParticipants === expected && state.value.participants.every(p => p.connected)
   })
   
   watch(
     () => ({
       total: state.value.participants.length,
       allConnected: allParticipantsConnected.value,
-      expected: expectedRemote
+      expected: adjustedExpectedRemote.value
     }
   ),
     ({ total, allConnected, expected }) => {
@@ -1023,12 +1035,17 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       await stepDone.recvReady.promise
       console.log('🔄 수신 준비 단계 완료')
       
-      // 6. send 단계
-      updateConnectionStep('send')
-      await createProducerTransport(client)
-      await connectProducerTransport(client, state.value.producerTransport)
-      await stepDone.sendReady.promise
-      console.log('🔄 송신 준비 단계 완료') 
+      // 6. send 단계 (시청자는 건너뜀)
+      if (enableSend) {
+        updateConnectionStep('send')
+        await createProducerTransport(client)
+        await connectProducerTransport(client, state.value.producerTransport)
+        await stepDone.sendReady.promise
+        console.log('🔄 송신 준비 단계 완료')
+      } else {
+        console.log('⏭️ 시청자 모드: 송신 단계 건너뜀')
+        stepDone.sendReady.resolve()
+      }
       
       // 7. consumer 단계
       updateConnectionStep('consumer')
@@ -1170,18 +1187,51 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
     // 추가: 로컬 트랙 교체 API (Producer 트랙 교체)
     replaceLocalAudioTrack: async (newTrack: MediaStreamTrack) => {
       try {
-        if (state.value.audioProducer && newTrack) {
-          await state.value.audioProducer.replaceTrack({ track: newTrack })
-          state.value.localAudioTrack?.stop?.()
-          state.value.localAudioTrack = newTrack
-          audioController?.setLocalAudioTrack(newTrack)
-          console.log('🔄 송신 트랙이 새 트랙으로 교체됨')
-          return true
+        const producer = state.value.audioProducer
+        if (!producer) return false
+        if (!newTrack) return false
+        // 새 트랙이 live 상태인지 확인 (ended면 교체 시 InvalidStateError 발생)
+        if ((newTrack as any).readyState && (newTrack as any).readyState !== 'live') {
+          console.warn('⚠️ 새 오디오 트랙이 live 상태가 아님. 교체 중단')
+          return false
         }
+        newTrack.enabled = true
+        await producer.replaceTrack({ track: newTrack })
+        // 교체 결과 검증 및 상태 반영
+        if ((producer as any).track && (producer as any).track.id !== newTrack.id) {
+          console.warn('⚠️ replaceTrack 후 producer.track이 새 트랙과 일치하지 않음. 폴백 재생성 시도')
+          // 폴백: Producer 재생성
+          if (!state.value.producerTransport) return false
+          try { producer.close?.() } catch {}
+          const recreated = await state.value.producerTransport.produce({ track: newTrack })
+          state.value.audioProducer = recreated
+        }
+        state.value.localAudioTrack = newTrack
+        audioController?.setLocalAudioTrack(newTrack)
+        console.log('🔄 송신 트랙이 새 트랙으로 교체됨')
+        return true
       } catch (e) {
         console.error('❌ 송신 트랙 교체 실패:', e)
+        return false
       }
-      return false
+    },
+    // 교체 실패 시 강제 재생성 API
+    recreateAudioProducerWithTrack: async (newTrack: MediaStreamTrack) => {
+      try {
+        if (!state.value.producerTransport) return false
+        if (!newTrack) return false
+        if ((newTrack as any).readyState && (newTrack as any).readyState !== 'live') return false
+        try { state.value.audioProducer?.close?.() } catch {}
+        const producer = await state.value.producerTransport.produce({ track: newTrack })
+        state.value.audioProducer = producer
+        state.value.localAudioTrack = newTrack
+        audioController?.setLocalAudioTrack(newTrack)
+        console.log('♻️ 오디오 Producer를 새 트랙으로 재생성 완료')
+        return true
+      } catch (e) {
+        console.error('❌ 오디오 Producer 재생성 실패:', e)
+        return false
+      }
     },
     
     // 핸들러 함수들 (디버깅/테스트용)
