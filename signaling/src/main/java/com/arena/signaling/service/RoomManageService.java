@@ -226,6 +226,15 @@ public class RoomManageService {
         if(participant == null) return;
         participant.setProducerId(createdProducerDto.getProducerId());
     }
+
+    public Boolean isRoomValid(Long roomId) {
+        Map<String, Object> entries = redisRepository.getRoom(roomId);
+        if(entries.isEmpty()) {
+            return false;
+        }else{
+            return true;
+        }
+    }
 //    public void updateParticipantProducerInfo(CreatedProducerDto createdProducerDto) {
 //
 //        log.info("[updateParticipantProducerInfo] {} ", createdProducerDto);

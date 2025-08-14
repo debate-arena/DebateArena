@@ -2,6 +2,7 @@ package com.arena.signaling.controller;
 
 import com.arena.signaling.dto.request.*;
 import com.arena.signaling.service.MediasoupPublishService;
+import com.arena.signaling.service.RoomManageService;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,12 +17,17 @@ import org.springframework.stereotype.Controller;
 public class SignalingController {
 
     private final MediasoupPublishService mediasoupPublishService;
+    private final RoomManageService roomManageService;
 
     @MessageMapping("/join")
     public void join(@Payload CreateRouterRequest req, SimpMessageHeaderAccessor headerAccessor) {
         try {
+            if(!roomManageService.isRoomValid(req.getRoomId())){
+                throw new IllegalArgumentException("해당 방이 존재하지 않음");
+            }
             mediasoupPublishService.createRouter(headerAccessor, req);
         } catch (Exception e) {
+            log.debug("해당 방이 없습니다.");
             log.error("Error processing join request: {}", e.getMessage(), e);
         }
     }
