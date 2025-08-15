@@ -44,22 +44,7 @@
       />
     </div>
     
-    <!-- 모달들 -->
-    <TimeoutModal 
-      v-model:open="modals.modalState.value.isTimeoutModalOpen" 
-      @close="handleTimeoutModalClose" 
-    />
-    
-    <TopicChangeModal 
-      v-model:open="modals.modalState.value.isTopicChangeModalOpen" 
-      @close="handleTopicChangeModalClose" 
-    />
-    
-    <HourWarningModal 
-      v-model:open="modals.modalState.value.isHourWarningModalOpen" 
-      @confirm="confirmHourWarning"
-      @close="modals.hideHourWarningModal()"
-    />
+    <!-- 모달들 (타임아웃/주제변경 알림 미사용) -->
     
     <LoginRequiredModal 
       v-model:open="modals.modalState.value.isLoginRequiredModalOpen" 
@@ -88,9 +73,10 @@ import { AlertCircle } from 'lucide-vue-next'
 import MatchingSelectionArea from '@/components/matching/MatchingSelectionArea.vue'
 import MatchResultPanel from '@/components/matching/MatchResultPanel.vue'
 import GameStatsPanel from '@/components/matching/GameStatsPanel.vue'
-import TimeoutModal from '@/components/matching/TimeoutModal.vue'
-import TopicChangeModal from '@/components/matching/TopicChangeModal.vue'
-import HourWarningModal from '@/components/matching/HourWarningModal.vue'
+// TimeoutModal, TopicChangeModal, HourWarningModal 미사용 처리
+// import TimeoutModal from '@/components/matching/TimeoutModal.vue'
+// import TopicChangeModal from '@/components/matching/TopicChangeModal.vue'
+// import HourWarningModal from '@/components/matching/HourWarningModal.vue'
 import LoginRequiredModal from '@/components/matching/LoginRequiredModal.vue'
 
 // Types
@@ -125,6 +111,9 @@ const { startMatchingTimer, stopMatchingTimer, startAcceptTimer, stopAcceptTimer
 // State
 const isStartingMatch = ref(false)
 const selfAcceptance = ref<'pending' | 'accepted' | 'rejected'>('pending')
+// 중복 요청 방지용 키 및 수락/거절 전송 락
+const lastMatchRequestHash = ref<string | null>(null)
+const sentAcceptanceForMatchIds = new Set<string>()
 
 // Computed Properties
 const currentMatchTopicId = computed<number | null>(() => matchingStore.currentMatchTopicId)
@@ -136,6 +125,11 @@ const currentMatchTopicTitle = computed(() => {
   return topic?.title || (id ? `주제 ${id}` : '주제')
 })
 const currentMatchTotalCount = computed(() => getTotalCount(currentMatchMode.value))
+// 팀 정원(한 진영 최대 인원) 설정: 매칭 초대/모드 확정 시 동기화
+watch(currentMatchMode, (mode) => {
+  const perTeam = getTotalCount(mode) / 2
+  matchResultState.setTeamSize(perTeam)
+}, { immediate: true })
 
 // WebSocket Message Handler
 const handleWebSocketMessage = (data: WebSocketMessage) => {
@@ -182,6 +176,9 @@ const handleMatchInvitation = (data: WebSocketMessage) => {
     
     // MatchResultPanel 상태 초기화
     matchResultState.resetStanceAcceptance()
+    // 초대 시점의 모드 기반 팀 정원
+    const perTeam = getTotalCount(invitation.mode) / 2
+    matchResultState.setTeamSize(perTeam)
     selfAcceptance.value = 'pending'
     
     // 수락 타이머 시작
@@ -195,11 +192,7 @@ const handleAcceptanceStatus = (data: WebSocketMessage) => {
   
   if (data.status === 'success') {
     const { accept, stance } = processAcceptanceStatus(data)
-    
-    matchingStore.updateRoomInfo({ 
-      connectedUsers: matchingStore.roomInfo.connectedUsers + 1 
-    })
-    
+
     if (accept) {
       matchingStore.setLastAcceptedStance(stance)
     }
@@ -223,10 +216,12 @@ const handleMatchResult = (data: WebSocketMessage) => {
       matchingStore.setStatus('waiting')
       // 타이머 재가동을 위해 isMatching만 보장 (elapsedTime은 누적 유지)
       matchingStore.isMatching = true
-      startMatchingTimer(() => modals.showTimeoutModal())
+      // 타임아웃 모달 미사용: 콜백 없이 타이머만 유지
+      startMatchingTimer()
       // 초대장 상태 정리 (패널 언마운트 이후로 지연하여 topicId 0 로그 방지)
       nextTick(() => {
         matchingStore.clearInvitation()
+        matchResultState.resetStanceAcceptance()
       })
     } else {
       // 내가 거절/미응답: 초기 화면 복귀(선택값 보존), 소켓 종료
@@ -239,6 +234,7 @@ const handleMatchResult = (data: WebSocketMessage) => {
       }
       // 초대장 상태 정리
       matchingStore.clearInvitation()
+      matchResultState.resetStanceAcceptance()
     }
   }
 
@@ -276,11 +272,6 @@ const handleStartMatching = async () => {
     return
   }
   
-  if (topicSetStore.remainingTimeSeconds <= 300) {
-    modals.showHourWarningModal()
-    return
-  }
-  
   isStartingMatch.value = true
   
   try {
@@ -288,15 +279,25 @@ const handleStartMatching = async () => {
     webSocket.handleMessage(handleWebSocketMessage)
     
     const request = matchingStore.toMatchRequest
+    const requestKey = JSON.stringify(request)
+    if (lastMatchRequestHash.value && lastMatchRequestHash.value === requestKey) {
+      // 동일 요청이 진행 중이면 무시
+      return
+    }
+    lastMatchRequestHash.value = requestKey
     webSocket.sendMatchRequest(request)
     
     matchingStore.startMatching()
-    startMatchingTimer(() => modals.showTimeoutModal())
+    // 타임아웃 모달 미사용: 콜백 없이 타이머 시작
+    startMatchingTimer()
+    // 시작 완료로 간주: 시작 락 해제 (isMatching이 비활성화 역할 지속)
+    isStartingMatch.value = false
+    lastMatchRequestHash.value = null
   } catch (error) {
     console.error('❌ 매칭 시작 실패:', error)
     actions.handleError('매칭 시작에 실패했습니다.')
-  } finally {
-    setTimeout(() => { isStartingMatch.value = false }, 1000)
+    isStartingMatch.value = false
+    lastMatchRequestHash.value = null
   }
 }
 
@@ -310,6 +311,11 @@ const handleModalAccept = () => {
   const matchId = matchingStore.currentMatchId
   const teamNumber = matchingStore.getCurrentUserTeam()
   
+  if (!matchId) return
+  // 동일 matchId로 중복 전송 차단
+  if (sentAcceptanceForMatchIds.has(matchId)) return
+  sentAcceptanceForMatchIds.add(matchId)
+
   if (matchId) {
     webSocket.sendMatchAcceptance(matchId, true, teamNumber)
   }
@@ -322,7 +328,8 @@ const handleModalAccept = () => {
   // (소켓은 유지, 서버 MATCH_RESULT 수신 시 최종 처리)
   if (!matchingStore.isMatching) {
     matchingStore.startMatching()
-    startMatchingTimer(() => modals.showTimeoutModal())
+    // 타임아웃 모달 미사용: 콜백 없이 타이머 시작
+    startMatchingTimer()
   }
 
   // 초대장 상태는 최종 결과 수신 후 정리 (여기서 초기화하면 주제/옵션 정보가 사라짐)
@@ -332,6 +339,11 @@ const handleModalReject = () => {
   const matchId = matchingStore.currentMatchId
   const teamNumber = matchingStore.getCurrentUserTeam()
   
+  if (!matchId) return
+  // 동일 matchId로 중복 전송 차단
+  if (sentAcceptanceForMatchIds.has(matchId)) return
+  sentAcceptanceForMatchIds.add(matchId)
+
   if (matchId) {
     webSocket.sendMatchAcceptance(matchId, false, teamNumber)
   }
@@ -352,43 +364,13 @@ const handleMatchSuccess = (roomId: string) => {
   })
   
   matchingStore.setStatus('completed')
-}
-
-const handleTimeoutModalClose = () => {
-  modals.hideTimeoutModal()
-  handleCancelMatching()
-}
-
-const handleTopicChangeModalClose = () => {
-  modals.hideTopicChangeModal()
-}
-
-const confirmHourWarning = async () => {
-  modals.hideHourWarningModal()
-  
-  if (!authStore.isLoggedIn) {
-    modals.showLoginRequiredModal()
-    return
-  }
-  
-  isStartingMatch.value = true
-  
-  try {
-    await webSocket.connect()
-    webSocket.handleMessage(handleWebSocketMessage)
-    
-    const request = matchingStore.toMatchRequest
-    webSocket.sendMatchRequest(request)
-    
-    matchingStore.startMatching()
-    startMatchingTimer(() => modals.showTimeoutModal())
-  } catch (error) {
-    console.error('❌ 매칭 시작 실패:', error)
-    actions.handleError('매칭 시작에 실패했습니다.')
-  } finally {
-    setTimeout(() => { isStartingMatch.value = false }, 1000)
+  // 전송 락 해제
+  if (matchingStore.currentMatchId) {
+    sentAcceptanceForMatchIds.delete(matchingStore.currentMatchId)
   }
 }
+
+// 타임아웃/주제변경(아워워닝/토픽체인지) 미사용으로 관련 핸들러 제거
 
 // Watchers
 watch(

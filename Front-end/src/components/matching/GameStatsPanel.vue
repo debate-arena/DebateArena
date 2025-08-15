@@ -1,5 +1,5 @@
 <template>
-  <Card class="min-h-[400px] border-0">
+  <Card class="min-h-[400px] border-0 shadow-none">
     <CardContent class="p-8">
       <!-- 중앙 매칭 이미지 -->
       <div class="flex flex-col items-center justify-center space-y-6 text-foreground">
@@ -10,7 +10,7 @@
             alt="매칭 중" 
             class="w-full h-full object-contain animate-pulse polar-icon"
           />
-          <!-- 매칭 중 애니메이션 효과 -->
+          <!-- 매칭 중 애니메이션 효과 (중앙 원형 테두리) -->
           <div class="absolute inset-0 rounded-full border-2 border-blue-400/30 animate-ping"></div>
         </div>
         

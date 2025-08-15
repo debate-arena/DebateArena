@@ -141,7 +141,7 @@ const googleIcon = computed(() => (themeStore.isDark ? googleDark : googleLight)
             <Button variant="ghost" size="sm" @click="$router.push('/matching')">
               매칭
             </Button>
-            <Button variant="ghost" size="sm" @click="$router.push('/debate-room')">
+            <Button variant="ghost" size="sm" disabled title="매칭 후 입장 가능">
               토론방
             </Button>
             
@@ -195,7 +195,7 @@ const googleIcon = computed(() => (themeStore.isDark ? googleDark : googleLight)
     <!-- 메인 콘텐츠 -->
     <main class="flex-1">
       <TooltipProvider>
-        <div class="mx-auto w-full">
+        <div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <RouterView />
         </div>
       </TooltipProvider>
