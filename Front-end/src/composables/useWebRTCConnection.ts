@@ -59,6 +59,8 @@ export interface WebRTCConnectionOptions {
   onParticipantUpdate?: (participants: WebRTCParticipant[]) => void
   onError?: (error: string) => void
   participantsCount?: number
+  // 시청자 모드 등 송신 비활성화 여부 (기본: true = 송신 활성)
+  enableSend?: boolean
 }
 
 export interface WebRTCParticipant {
@@ -82,6 +84,7 @@ export interface WebRTCConnectionState {
   consumerTransport?: any
   localAudioTrack?: MediaStreamTrack | null
   audioProducer?: any
+  authToken?: string
 }
 //#endregion
 
@@ -109,6 +112,16 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
   }
 
   const expectedRemote = (options.participantsCount ?? 2) - 1
+  console.log("expectedRemote", expectedRemote)
+  // 송신 가능 여부 (시청자는 false)
+  const enableSend = options.enableSend ?? true
+
+  // 시청자일 경우 기대 원격 수 조정 (시청자는 자신을 제외하지 않음)
+  const adjustedExpectedRemote = computed(() => {
+    const total = options.participantsCount ?? 2
+    return total - (enableSend ? 1 : 0)
+  })
+
 
   // 각 단계 완료 신호
   const stepDone = {
@@ -161,14 +174,15 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
   // 계산된 속성들
   const allParticipantsConnected = computed(() => {
     const currentParticipants = state.value.participants.length
-    return expectedRemote > 0 && currentParticipants === expectedRemote && state.value.participants.every(p => p.connected)
+    const expected = adjustedExpectedRemote.value
+    return expected > 0 && currentParticipants === expected && state.value.participants.every(p => p.connected)
   })
   
   watch(
     () => ({
       total: state.value.participants.length,
       allConnected: allParticipantsConnected.value,
-      expected: expectedRemote
+      expected: adjustedExpectedRemote.value
     }
   ),
     ({ total, allConnected, expected }) => {
@@ -197,6 +211,48 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
   const pendingConsumerCompleted = new Map<string, Deferred<void>>()
   let produceA: string | null = null
   let produceV: string | null = null
+
+  // getUserMedia 중복 호출 방지 및 타임아웃 처리
+  let acquiringMicPromise: Promise<MediaStream> | null = null
+  const getUserMediaWithTimeout = async (timeoutMs = 8000): Promise<MediaStream> => {
+    return await Promise.race([
+      navigator.mediaDevices.getUserMedia({ audio: true, video: false }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('getUserMedia timeout')), timeoutMs))
+    ])
+  }
+
+  const acquireMicStream = async (): Promise<{ stream: MediaStream, track: MediaStreamTrack }> => {
+    if (state.value.localAudioTrack && state.value.localAudioTrack.readyState === 'live') {
+      const existingStream = new MediaStream([state.value.localAudioTrack])
+      return { stream: existingStream, track: state.value.localAudioTrack }
+    }
+    if (!acquiringMicPromise) {
+      acquiringMicPromise = (async () => {
+        try {
+          try {
+            return await getUserMediaWithTimeout(8000)
+          } catch (e) {
+            // 일시적 장치 점유 등으로 실패 시 한 번 재시도
+            await new Promise(res => setTimeout(res, 400))
+            return await getUserMediaWithTimeout(8000)
+          }
+        } finally {
+          // 완료/실패 후에는 다음 호출 시 새로 시도할 수 있도록 초기화
+          acquiringMicPromise = null
+        }
+      })()
+    }
+    const stream = await acquiringMicPromise
+    const track = stream.getAudioTracks()[0]
+    if (!track) {
+      throw new Error('오디오 트랙을 가져오지 못했습니다')
+    }
+    try {
+      state.value.localAudioTrack = track
+      audioController?.setLocalAudioTrack(track)
+    } catch {}
+    return { stream, track }
+  }
 
   // 내부 STOMP 클라이언트 상태 (외부 클라이언트가 없을 때만 사용)
   const internalStompState = ref({
@@ -422,6 +478,7 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       
       const data = await response.json()
       const authToken = data.token
+      state.value.authToken = authToken
 
       // STOMP 연결
       client.connect(signalingUrl.value, authToken, userInfo.email)
@@ -547,23 +604,13 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
           callback({ id: transport.id })
         })
         .catch(errback)
+        
 
       client.publish('/signaling/createProducer', { transportId: transport.id, kind: kind, rtpParameters: rtpParameters })
       console.log('✅ Producer 생성 요청:', kind)
     })
-    
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: false,
-    })
-    const track = stream.getAudioTracks()[0]
-    // 로컬 오디오 트랙 상태 및 오디오 컨트롤러에 설정
-    try {
-      state.value.localAudioTrack = track
-      audioController?.setLocalAudioTrack(track)
-    } catch (e) {
-      console.warn('로컬 오디오 트랙 설정 중 경고:', e)
-    }
+
+    const { track } = await acquireMicStream()
     const producer = await transport.produce({ track })
     state.value.audioProducer = producer
     
@@ -581,18 +628,7 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
     }
     
     try {
-      const stream = markRaw(
-        await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: false,
-        })
-      )
-      const audioTrack = stream.getAudioTracks()[0]
-      state.value.localAudioTrack = audioTrack
-      
-      // Audio Controller에 트랙 설정 (옵셔널)
-      audioController?.setLocalAudioTrack(audioTrack)
-      
+      const { track: audioTrack } = await acquireMicStream()
       const producer = await state.value.producerTransport.produce({
         track: audioTrack,
       })
@@ -905,7 +941,21 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
     client.subscribe('/user/queue/producer', (message) => {
       const response = JSON.parse(message.body)
       console.log('🔄 Producer 생성 응답 수신:', response)
+      
       const deferred = pendingProducerCompleted.get(state.value.producerTransport?.id)
+      console.log('🔄 deferred:', deferred)
+      // message.userEmail이 클라이언트의 이메일과 같으면 무시
+      if (response.userEmail === getCurrentUser().email) {
+        console.log('🔄 자신의 Producer 생성 응답이므로 무시')
+        stepDone.sendReady.resolve()
+        if (deferred) {
+          deferred.resolve()
+          pendingProducerCompleted.delete(state.value.producerTransport?.id)
+          console.log('🔄 Producer 생성 콜백 실행 완료')
+        }
+        return
+      }
+      
       if (deferred) {
         deferred.resolve()
         pendingProducerCompleted.delete(state.value.producerTransport?.id)
@@ -931,8 +981,12 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       handleNewProducer(participantInfo)
     })
 
-    console.log('✅ STOMP 메시지 핸들러 설정 완료')
+    client.subscribe(`/sub/room/${roomId.value}/connected`, (message) => {
+      console.log('🔄 모든 참가자 연결 완료', message.body)
+      stepDone.completed.resolve()
+    })
 
+    console.log('✅ STOMP 메시지 핸들러 설정 완료')
   }
 
   // 메인 WebRTC 연결 프로세스
@@ -981,12 +1035,17 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
       await stepDone.recvReady.promise
       console.log('🔄 수신 준비 단계 완료')
       
-      // 6. send 단계
-      updateConnectionStep('send')
-      await createProducerTransport(client)
-      await connectProducerTransport(client, state.value.producerTransport)
-      await stepDone.sendReady.promise
-      console.log('🔄 송신 준비 단계 완료') 
+      // 6. send 단계 (시청자는 건너뜀)
+      if (enableSend) {
+        updateConnectionStep('send')
+        await createProducerTransport(client)
+        await connectProducerTransport(client, state.value.producerTransport)
+        await stepDone.sendReady.promise
+        console.log('🔄 송신 준비 단계 완료')
+      } else {
+        console.log('⏭️ 시청자 모드: 송신 단계 건너뜀')
+        stepDone.sendReady.resolve()
+      }
       
       // 7. consumer 단계
       updateConnectionStep('consumer')
@@ -1128,18 +1187,51 @@ export const useWebRTCConnection = (options: WebRTCConnectionOptions = {}) => {
     // 추가: 로컬 트랙 교체 API (Producer 트랙 교체)
     replaceLocalAudioTrack: async (newTrack: MediaStreamTrack) => {
       try {
-        if (state.value.audioProducer && newTrack) {
-          await state.value.audioProducer.replaceTrack({ track: newTrack })
-          state.value.localAudioTrack?.stop?.()
-          state.value.localAudioTrack = newTrack
-          audioController?.setLocalAudioTrack(newTrack)
-          console.log('🔄 송신 트랙이 새 트랙으로 교체됨')
-          return true
+        const producer = state.value.audioProducer
+        if (!producer) return false
+        if (!newTrack) return false
+        // 새 트랙이 live 상태인지 확인 (ended면 교체 시 InvalidStateError 발생)
+        if ((newTrack as any).readyState && (newTrack as any).readyState !== 'live') {
+          console.warn('⚠️ 새 오디오 트랙이 live 상태가 아님. 교체 중단')
+          return false
         }
+        newTrack.enabled = true
+        await producer.replaceTrack({ track: newTrack })
+        // 교체 결과 검증 및 상태 반영
+        if ((producer as any).track && (producer as any).track.id !== newTrack.id) {
+          console.warn('⚠️ replaceTrack 후 producer.track이 새 트랙과 일치하지 않음. 폴백 재생성 시도')
+          // 폴백: Producer 재생성
+          if (!state.value.producerTransport) return false
+          try { producer.close?.() } catch {}
+          const recreated = await state.value.producerTransport.produce({ track: newTrack })
+          state.value.audioProducer = recreated
+        }
+        state.value.localAudioTrack = newTrack
+        audioController?.setLocalAudioTrack(newTrack)
+        console.log('🔄 송신 트랙이 새 트랙으로 교체됨')
+        return true
       } catch (e) {
         console.error('❌ 송신 트랙 교체 실패:', e)
+        return false
       }
-      return false
+    },
+    // 교체 실패 시 강제 재생성 API
+    recreateAudioProducerWithTrack: async (newTrack: MediaStreamTrack) => {
+      try {
+        if (!state.value.producerTransport) return false
+        if (!newTrack) return false
+        if ((newTrack as any).readyState && (newTrack as any).readyState !== 'live') return false
+        try { state.value.audioProducer?.close?.() } catch {}
+        const producer = await state.value.producerTransport.produce({ track: newTrack })
+        state.value.audioProducer = producer
+        state.value.localAudioTrack = newTrack
+        audioController?.setLocalAudioTrack(newTrack)
+        console.log('♻️ 오디오 Producer를 새 트랙으로 재생성 완료')
+        return true
+      } catch (e) {
+        console.error('❌ 오디오 Producer 재생성 실패:', e)
+        return false
+      }
     },
     
     // 핸들러 함수들 (디버깅/테스트용)

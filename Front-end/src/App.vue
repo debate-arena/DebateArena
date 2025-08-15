@@ -125,7 +125,7 @@ const googleIcon = computed(() => (themeStore.isDark ? googleDark : googleLight)
             <img 
               :src="logo" 
               alt="Logo" 
-              class="h-8 w-8 cursor-pointer hover:opacity-80 transition-all duration-300"
+              class="h-8 cursor-pointer hover:opacity-80 transition-all duration-300"
               :class="{ 'brightness-0 invert': themeStore.isDark }"
               @click="$router.push('/')"
             />

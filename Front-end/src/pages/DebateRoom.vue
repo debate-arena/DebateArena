@@ -8,7 +8,7 @@
       <!-- WebRTC 연결 중 화면 -->
       <div
         v-if="state.isConnecting || !isTimerStarted"
-        class="absolute inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center"
+        class="absolute inset-0 z-50 bg-black/90 flex items-center justify-center"
       >
         <div class="text-center">
           <!-- 로딩 애니메이션 -->
@@ -78,16 +78,7 @@
                     class="flex flex-col items-center space-y-2 w-32"
                   >
                     <div class="relative">
-                      <Avatar
-                        :class="[
-                          'w-16 h-16',
-                          audioControls.getParticipantSpeaking(
-                            participant.userId
-                          )
-                            ? 'speaking-glow'
-                            : '',
-                        ]"
-                      >
+                      <Avatar :class="['w-16 h-16']">
                         <AvatarImage
                           :src="debateLeftProfile"
                           alt="좌측 진영"
@@ -169,16 +160,7 @@
                     class="flex flex-col items-center space-y-2 w-32"
                   >
                     <div class="relative">
-                      <Avatar
-                        :class="[
-                          'w-16 h-16',
-                          audioControls.getParticipantSpeaking(
-                            participant.userId
-                          )
-                            ? 'speaking-glow'
-                            : '',
-                        ]"
-                      >
+                      <Avatar :class="['w-16 h-16']">
                         <AvatarImage
                           :src="debateRightProfile"
                           alt="우측 진영"
@@ -189,11 +171,26 @@
                       <div
                         :class="[
                           'absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center',
-                          'bg-gray-400',
+                          state.participants.find(
+                            (p) => p.producerUserEmail === participant.userId
+                          )?.connected ||
+                          (participant.userId === debateStore.myEmail &&
+                            state.isConnected)
+                            ? 'bg-green-500'
+                            : 'bg-gray-400',
                         ]"
                       >
                         <div
-                          class="w-3 h-3 bg-white rounded-full animate-pulse"
+                          :class="[
+                            'w-3 h-3 rounded-full',
+                            state.participants.find(
+                              (p) => p.producerUserEmail === participant.userId
+                            )?.connected ||
+                            (participant.userId === debateStore.myEmail &&
+                              state.isConnected)
+                              ? 'bg-white'
+                              : 'bg-white animate-pulse',
+                          ]"
                         ></div>
                       </div>
                     </div>
@@ -217,7 +214,15 @@
                     <span
                       class="text-xs px-2 py-1 rounded-full bg-gray-500/20 text-gray-300"
                     >
-                      연결 중...
+                      {{
+                        state.participants.find(
+                          (p) => p.producerUserEmail === participant.userId
+                        )?.connected ||
+                        (participant.userId === debateStore.myEmail &&
+                          state.isConnected)
+                          ? "연결됨"
+                          : "연결 중..."
+                      }}
                     </span>
                   </div>
                 </div>
@@ -287,14 +292,7 @@
                     :key="participant.userId"
                     class="flex flex-col items-center space-y-2 w-32"
                   >
-                    <Avatar
-                      :class="[
-                        'w-16 h-16',
-                        audioControls.getParticipantSpeaking(participant.userId)
-                          ? 'speaking-glow'
-                          : '',
-                      ]"
-                    >
+                    <Avatar :class="['w-16 h-16']">
                       <AvatarImage
                         :src="debateLeftProfile"
                         :alt="participant.displayName"
@@ -341,14 +339,7 @@
                     :key="participant.userId"
                     class="flex flex-col items-center space-y-2 w-32"
                   >
-                    <Avatar
-                      :class="[
-                        'w-16 h-16',
-                        audioControls.getParticipantSpeaking(participant.userId)
-                          ? 'speaking-glow'
-                          : '',
-                      ]"
-                    >
+                    <Avatar :class="['w-16 h-16']">
                       <AvatarImage
                         :src="debateRightProfile"
                         :alt="participant.displayName"
@@ -397,6 +388,7 @@
       >
         <!-- 상단 토론 정보 영역 (축소/확장 가능) -->
         <Card
+          class="bg-white"
           :class="[
             'mb-6 flex-shrink-0 transition-all duration-500 ease-in-out overflow-hidden relative pb-0',
             isDebateInfoCollapsed ? 'h-12' : 'max-h-screen',
@@ -447,8 +439,18 @@
                 <div class="text-center">
                   <!-- 설명 텍스트 -->
                   <div class="text-sm font-medium mb-2">
-                    다음 발언자는
-                    {{ currentSpeaker ? currentSpeaker : "준비 중..." }}입니다.
+                    <template v-if="nextSpeaker !== ''">
+                      다음 발언자는
+                      {{
+                        roomStore.leftTeam.find((p) => p.userId === nextSpeaker)
+                          ?.displayName ||
+                        roomStore.rightTeam.find(
+                          (p) => p.userId === nextSpeaker
+                        )?.displayName ||
+                        nextSpeaker
+                      }}입니다.
+                    </template>
+                    <template v-else> 대기시간 </template>
                   </div>
 
                   <!-- 메인 카운트다운 숫자 -->
@@ -461,7 +463,7 @@
                     <div
                       class="bg-blue-500 h-3 rounded-full transition-all duration-1000 ease-linear"
                       :style="{
-                        width: `${((speakingTransitionTimeLeft || 0) / (SPEAKING_TRANSITION_DURATION / 1000)) * 100}%`,
+                        width: `${((speakingTransitionTimeLeft || 0) / (3000 / 1000)) * 100}%`,
                       }"
                     ></div>
                   </div>
@@ -476,11 +478,11 @@
             >
               <!-- 좌측 진영 정보 -->
               <Card
-                class="bg-debate-left transition-all duration-700 ease-in-out border-debate-left text-black gap-2"
+                class="bg-[hsl(var(--debate-left-deep))] transition-all duration-700 ease-in-out border-debate-left text-white gap-2"
                 style="transition-delay: 300ms"
               >
                 <CardHeader>
-                  <CardTitle class="text-2xl text-center">{{
+                  <CardTitle class="text-2xl text-center px-4">{{
                     debateLeftTeam
                   }}</CardTitle>
                 </CardHeader>
@@ -496,8 +498,12 @@
                           <Avatar
                             :class="[
                               'w-16 h-16 relative overflow-visible cursor-pointer',
-                              audioControls.getParticipantSpeaking(
-                                participant.userId
+                              (
+                                participant.userId === debateStore.myEmail
+                                  ? audioControls.getLocalSpeaking()
+                                  : audioControls.getParticipantSpeaking(
+                                      participant.userId
+                                    )
                               )
                                 ? 'speaking-glow'
                                 : '',
@@ -508,6 +514,13 @@
                               :alt="participant.displayName"
                               class="border-2 border-black rounded-full bg-white"
                             />
+                            <!-- 발언자 아이콘 -->
+                            <div
+                              v-if="participant.userId === currentSpeaker"
+                              class="absolute top-6 z-10 w-16 h-16 flex items-center justify-center text-2xl"
+                            >
+                              🗣️
+                            </div>
                             <!-- 공격/수비 아이콘 -->
                             <div
                               v-if="participantStates[participant.userId]"
@@ -558,17 +571,6 @@
                                       v
                                     )
                                 "
-                                class="border-gray-200"
-                              />
-                            </div>
-                            <div
-                              v-if="participant.userId === debateStore.myEmail"
-                              class="flex items-center justify-between"
-                            >
-                              <Label class="text-sm">음성 변조</Label>
-                              <Switch
-                                :modelValue="audioControls.isVoiceModulated.value"
-                                @update:modelValue="onToggleVoiceMod"
                                 class="border-gray-200"
                               />
                             </div>
@@ -633,7 +635,7 @@
                       {{ isLeftSpeaking ? speakingTimeLeft || 0 : 0 }}초
                     </div>
                     <!-- 프로그레스 바 -->
-                    <div class="w-full bg-gray-800 rounded-full h-3 mx-auto">
+                    <div class="w-full bg-white rounded-full h-3 mx-auto">
                       <div
                         class="bg-blue-500 h-3 rounded-full transition-all duration-1000 ease-linear"
                         :style="{
@@ -649,11 +651,11 @@
 
               <!-- 우측 진영 정보 -->
               <Card
-                class="bg-debate-right transition-all duration-700 ease-in-out border-debate-right text-white gap-2"
+                class="bg-[hsl(var(--debate-right-deep))] transition-all duration-700 ease-in-out border-debate-right text-white gap-2"
                 style="transition-delay: 300ms"
               >
                 <CardHeader class="p-0">
-                  <CardTitle class="text-2xl text-center">{{
+                  <CardTitle class="text-2xl text-center px-4">{{
                     debateRightTeam
                   }}</CardTitle>
                 </CardHeader>
@@ -669,8 +671,12 @@
                           <Avatar
                             :class="[
                               'w-16 h-16 relative overflow-visible cursor-pointer',
-                              audioControls.getParticipantSpeaking(
-                                participant.userId
+                              (
+                                participant.userId === debateStore.myEmail
+                                  ? audioControls.getLocalSpeaking()
+                                  : audioControls.getParticipantSpeaking(
+                                      participant.userId
+                                    )
                               )
                                 ? 'speaking-glow'
                                 : '',
@@ -679,8 +685,15 @@
                             <AvatarImage
                               :src="debateRightProfile"
                               :alt="participant.displayName"
-                              class="border-2 border-white rounded-full bg-white"
+                              class="border-2 border-black rounded-full bg-white"
                             />
+                            <!-- 발언자 아이콘 -->
+                            <div
+                              v-if="participant.userId === currentSpeaker"
+                              class="absolute top-6 z-10 w-16 h-16 flex items-center justify-center text-2xl"
+                            >
+                              🗣️
+                            </div>
                             <!-- 공격/수비 아이콘 -->
                             <div
                               v-if="participantStates[participant.userId]"
@@ -731,17 +744,6 @@
                                       v
                                     )
                                 "
-                                class="border-gray-200"
-                              />
-                            </div>
-                            <div
-                              v-if="participant.userId === debateStore.myEmail"
-                              class="flex items-center justify-between"
-                            >
-                              <Label class="text-sm">음성 변조</Label>
-                              <Switch
-                                :modelValue="audioControls.isVoiceModulated.value"
-                                @update:modelValue="onToggleVoiceMod"
                                 class="border-gray-200"
                               />
                             </div>
@@ -854,7 +856,7 @@
         </Card>
 
         <!-- STT 실시간 토론 내용 영역 (스크롤 가능) -->
-        <Card class="flex flex-col min-h-0">
+        <Card class="flex flex-col min-h-0 bg-white">
           <!-- 현재 발언자 및 대기시간 표시 -->
           <CardContent class="p-0">
             <!-- 메시지 영역 (스크롤 가능) -->
@@ -884,11 +886,6 @@
                     <Avatar
                       :class="[
                         'w-[min(6vw,64px)] h-[min(6vw,64px)] relative overflow-visible',
-                        message.sender
-                          ? audioControls.getParticipantSpeaking(message.sender)
-                            ? 'speaking-glow'
-                            : ''
-                          : '',
                       ]"
                     >
                       <AvatarImage
@@ -937,8 +934,8 @@
                     :class="[
                       'relative p-8 rounded-4xl text-lg shadow-sm cursor-pointer select-text',
                       message.team === 0
-                        ? 'bg-debate-left text-slate-800 ml-28 mr-28'
-                        : 'bg-debate-right text-white mr-28 ml-28',
+                        ? 'bg-[hsl(var(--debate-left-deep))] text-white ml-28 mr-28'
+                        : 'bg-[hsl(var(--debate-right-deep))] text-white mr-28 ml-28',
                     ]"
                     style="min-height: 80px; display: flex; align-items: center"
                     :title="
@@ -973,7 +970,7 @@
                       >
                       <span
                         v-else-if="message.summaryText"
-                        class="px-2 py-0.5 rounded-full bg-black/20"
+                        class="px-2 py-0.5 rounded-full bg-white text-black"
                         >{{
                           message.display === "summary" ? "요약" : "원문"
                         }}</span
@@ -986,7 +983,7 @@
                 <div v-if="message.type === 'vote'">
                   <div
                     :class="[
-                      'relative p-8 rounded-4xl text-lg shadow-sm mx-28 bg-gray-400',
+                      'relative p-8 rounded-4xl text-lg shadow-sm mx-28 bg-[hsl(var(--debate-random-bg))]',
                     ]"
                     style="
                       min-height: 80px;
@@ -995,13 +992,15 @@
                       justify-content: center;
                     "
                   >
-                    <div class="flex flex-col items-center">
+                    <div class="flex flex-col items-center text-black">
                       <h2 class="text-3xl font-bold">투표 결과</h2>
                       <div
                         class="flex flex-row text-center justify-center gap-8 mt-4"
                       >
                         <div class="flex flex-col items-center">
-                          <div class="text-4xl font-bold text-debate-left">
+                          <div
+                            class="text-4xl font-bold text-[hsl(var(--debate-left-deep))]"
+                          >
                             {{
                               Object.values(message.voteInfo ?? {}).filter(
                                 (v) => v === 0
@@ -1011,7 +1010,9 @@
                         </div>
                         <div class="text-3xl font-bold self-center">VS</div>
                         <div class="flex flex-col items-center">
-                          <div class="text-4xl font-bold text-debate-right">
+                          <div
+                            class="text-4xl font-bold text-[hsl(var(--debate-right-deep))]"
+                          >
                             {{
                               Object.values(message.voteInfo ?? {}).filter(
                                 (v) => v === 1
@@ -1040,11 +1041,6 @@
                           <Avatar
                             :class="[
                               'w-[min(6vw,64px)] h-[min(6vw,64px)] relative overflow-visible',
-                              audioControls.getParticipantSpeaking(
-                                leftTeam.userId
-                              )
-                                ? 'speaking-glow'
-                                : '',
                             ]"
                           >
                             <AvatarImage
@@ -1077,13 +1073,13 @@
                           </div>
                           <!-- 진영색깔 원 -->
                           <div
-                            class="w-12 h-12 rounded-full mt-2 flex items-center justify-center shadow-md font-bold border-2 border-black"
+                            class="w-12 h-12 rounded-full mt-2 flex items-center justify-center shadow-md font-bold border-2 border-black text-white"
                             :class="[
                               message.voteInfo?.[leftTeam.userId] === undefined
                                 ? 'bg-red-400'
                                 : message.voteInfo?.[leftTeam.userId] === 0
-                                  ? 'bg-debate-left'
-                                  : 'bg-debate-right text-white',
+                                  ? 'bg-[hsl(var(--debate-left-deep))]'
+                                  : 'bg-[hsl(var(--debate-right-deep))] text-white',
                             ]"
                           >
                             {{
@@ -1107,11 +1103,6 @@
                           <Avatar
                             :class="[
                               'w-[min(6vw,64px)] h-[min(6vw,64px)] relative overflow-visible',
-                              audioControls.getParticipantSpeaking(
-                                rightTeam.userId
-                              )
-                                ? 'speaking-glow'
-                                : '',
                             ]"
                           >
                             <AvatarImage
@@ -1143,13 +1134,13 @@
                           </div>
                           <!-- 진영색깔 원 -->
                           <div
-                            class="w-12 h-12 rounded-full mt-2 flex items-center justify-center shadow-md font-bold"
+                            class="w-12 h-12 rounded-full mt-2 flex items-center justify-center shadow-md font-bold border-2 border-black text-white"
                             :class="[
                               message.voteInfo?.[rightTeam.userId] === undefined
-                                ? 'bg-gray-400'
+                                ? 'bg-red-400'
                                 : message.voteInfo?.[rightTeam.userId] === 0
-                                  ? 'bg-debate-left'
-                                  : 'bg-debate-right text-white',
+                                  ? 'bg-[hsl(var(--debate-left-deep))]'
+                                  : 'bg-[hsl(var(--debate-right-deep))] text-white',
                             ]"
                           >
                             {{
@@ -1170,13 +1161,11 @@
                 <div v-if="message.type === 'ai' && isTie">
                   <div
                     :class="[
-                      'relative p-8 rounded-4xl text-lg shadow-sm mx-28 bg-gray-400',
+                      'relative p-8 rounded-4xl text-lg shadow-sm mx-28 bg-[hsl(var(--debate-random-bg))] text-black',
                     ]"
                   >
                     <div class="flex flex-col items-center">
-                      <h2 class="text-3xl font-bold text-gray-800">
-                        AI 판정단 결과
-                      </h2>
+                      <h2 class="text-3xl font-bold">AI 판정단 결과</h2>
                       <div v-if="isLoadingAIMessage">
                         <!-- 로딩 점들 -->
                         <div
@@ -1204,10 +1193,14 @@
                         <div
                           class="flex items-center justify-center space-x-16 mt-6"
                         >
-                          <div class="text-6xl font-bold text-debate-left">
+                          <div
+                            class="text-6xl font-bold text-[hsl(var(--debate-left-deep))]"
+                          >
                             {{ message.aiInfo?.L }}
                           </div>
-                          <div class="text-6xl font-bold text-debate-right">
+                          <div
+                            class="text-6xl font-bold text-[hsl(var(--debate-right-deep))]"
+                          >
                             {{ message.aiInfo?.R }}
                           </div>
                         </div>
@@ -1220,14 +1213,14 @@
                             <div
                               v-for="n in message.aiInfo?.L"
                               :key="`ai-left-${n}`"
-                              class="w-4 h-4 bg-debate-left rounded-sm shadow-md"
+                              class="w-4 h-4 bg-[hsl(var(--debate-left-deep))] rounded-sm shadow-md"
                             ></div>
                           </div>
                           <div class="grid grid-cols-5 gap-2">
                             <div
                               v-for="n in message.aiInfo?.R"
                               :key="`ai-right-${n}`"
-                              class="w-4 h-4 bg-debate-right rounded-sm shadow-md"
+                              class="w-4 h-4 bg-[hsl(var(--debate-right-deep))] rounded-sm shadow-md"
                             ></div>
                           </div>
                         </div>
@@ -1270,28 +1263,51 @@
                 :class="[
                   'flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-all duration-200 border-2 mt-2',
                   selectedCurrentTarget?.userId === participant.userId
-                    ? 'shadow-sm bg-blue-400'
-                    : 'border-gray-200 dark:border-gray-700 hover:bg-blue-300 dark:hover:bg-blue-300 hover:shadow-md hover:-translate-y-0.5',
+                    ? 'shadow-sm bg-[hsl(var(--debate-left-deep))] text-white border-black'
+                    : 'border-black hover:bg-[hsl(var(--debate-left-deep))] hover:text-white hover:shadow-md hover:-translate-y-0.5',
                 ]"
               >
-                <Avatar
-                  :class="[
-                    'w-10 h-10',
-                    audioControls.getParticipantSpeaking(participant.userId)
-                      ? 'speaking-glow'
-                      : '',
-                  ]"
-                >
-                  <AvatarImage
-                    :src="debateLeftProfile"
-                    :alt="participant.displayName"
-                    class="border-2 border-black rounded-full"
-                  />
-                </Avatar>
-                <div class="flex-1 min-w-0">
-                  <div class="font-medium text-sm truncate">
-                    {{ participant.displayName }}
+                <div class="flex flex-col items-center">
+                  <div>
+                    <Avatar :class="['w-10 h-10']">
+                      <AvatarImage
+                        :src="debateLeftProfile"
+                        :alt="participant.displayName"
+                        class="border-2 border-black rounded-full bg-white"
+                      />
+                    </Avatar>
                   </div>
+                  <div
+                    class="text-xs font-semibold text-center leading-tight h-[2.6em] flex items-center justify-center"
+                    style="width: 100px"
+                  >
+                    <span
+                      v-if="
+                        participant.displayName &&
+                        participant.displayName.length <= 8
+                      "
+                      >{{ participant.displayName }}</span
+                    >
+                    <span v-else-if="participant.displayName" class="block">
+                      {{ participant.displayName.substring(0, 8) }}<br />{{
+                        participant.displayName.substring(8)
+                      }}
+                    </span>
+                  </div>
+                </div>
+                <div class="font-bold flex-1 min-w-0 break-words p-4 text-left">
+                  {{
+                    (() => {
+                      const lastMessage = messages
+                        .filter((m) => m.sender === participant.displayName)
+                        .slice(-1)[0];
+                      return (
+                        lastMessage?.summaryText ||
+                        lastMessage?.sttText ||
+                        "메시지 없음"
+                      );
+                    })()
+                  }}
                 </div>
                 <div
                   v-if="
@@ -1331,28 +1347,51 @@
                 :class="[
                   'flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-all duration-200 border-2 mt-2',
                   selectedCurrentTarget?.userId === participant.userId
-                    ? 'shadow-sm bg-blue-400'
-                    : 'border-gray-200 dark:border-gray-700 hover:bg-blue-300 dark:hover:bg-blue-300 hover:shadow-md hover:-translate-y-0.5',
+                    ? 'shadow-sm bg-[hsl(var(--debate-right-deep))] text-white border-black'
+                    : 'border-black hover:bg-[hsl(var(--debate-right-deep))] hover:text-white hover:shadow-md hover:-translate-y-0.5',
                 ]"
               >
-                <Avatar
-                  :class="[
-                    'w-10 h-10',
-                    audioControls.getParticipantSpeaking(participant.userId)
-                      ? 'speaking-glow'
-                      : '',
-                  ]"
-                >
-                  <AvatarImage
-                    :src="debateRightProfile"
-                    :alt="participant.displayName"
-                    class="border-2 border-black rounded-full"
-                  />
-                </Avatar>
-                <div class="flex-1 min-w-0">
-                  <div class="font-medium text-sm truncate">
-                    {{ participant.displayName }}
+                <div class="flex flex-col items-center">
+                  <div>
+                    <Avatar :class="['w-10 h-10']">
+                      <AvatarImage
+                        :src="debateRightProfile"
+                        :alt="participant.displayName"
+                        class="border-2 border-black rounded-full bg-white"
+                      />
+                    </Avatar>
                   </div>
+                  <div
+                    class="text-xs font-semibold text-center leading-tight h-[2.6em] flex items-center justify-center"
+                    style="width: 100px"
+                  >
+                    <span
+                      v-if="
+                        participant.displayName &&
+                        participant.displayName.length <= 8
+                      "
+                      >{{ participant.displayName }}</span
+                    >
+                    <span v-else-if="participant.displayName" class="block">
+                      {{ participant.displayName.substring(0, 8) }}<br />{{
+                        participant.displayName.substring(8)
+                      }}
+                    </span>
+                  </div>
+                </div>
+                <div class="font-bold flex-1 min-w-0 break-words p-4 text-left">
+                  {{
+                    (() => {
+                      const lastMessage = messages
+                        .filter((m) => m.sender === participant.displayName)
+                        .slice(-1)[0];
+                      return (
+                        lastMessage?.summaryText ||
+                        lastMessage?.sttText ||
+                        "메시지 없음"
+                      );
+                    })()
+                  }}
                 </div>
                 <div
                   v-if="
@@ -1399,18 +1438,7 @@
                   <div
                     class="col-span-1 grid grid-cols-1 items-center justify-items-center"
                   >
-                    <Avatar
-                      :class="[
-                        'w-16 h-16 overflow-visible',
-                        row.left
-                          ? audioControls.getParticipantSpeaking(
-                              row.left.userId
-                            )
-                            ? 'speaking-glow'
-                            : ''
-                          : '',
-                      ]"
-                    >
+                    <Avatar :class="['w-16 h-16 overflow-visible']">
                       <AvatarImage
                         :src="debateLeftProfile"
                         :alt="row.left.displayName"
@@ -1474,18 +1502,7 @@
                   <div
                     class="col-span-1 grid grid-cols-1 items-center justify-items-center"
                   >
-                    <Avatar
-                      :class="[
-                        'w-16 h-16 overflow-visible',
-                        row.right
-                          ? audioControls.getParticipantSpeaking(
-                              row.right.userId
-                            )
-                            ? 'speaking-glow'
-                            : ''
-                          : '',
-                      ]"
-                    >
+                    <Avatar :class="['w-16 h-16 overflow-visible']">
                       <AvatarImage
                         :src="debateRightProfile"
                         :alt="row.right.displayName"
@@ -1543,36 +1560,70 @@
               {{ debateSubject }}
             </DialogTitle>
           </DialogHeader>
-          <div class="grid grid-cols-2 gap-4 text-center">
+          <!-- 발화자가 아닌 경우 최종 투표중 메시지 표시 -->
+          <div v-if="!roomStore.leftTeam.some(p => p.userId === debateStore.myEmail) && !roomStore.rightTeam.some(p => p.userId === debateStore.myEmail)" class="text-center py-8">
+            <div class="text-2xl font-bold text-gray-600 mb-4">최종 투표중</div>
+            <div class="text-lg text-gray-500">참가자들이 투표를 진행하고 있습니다.</div>
+          </div>
+          <!-- 참가자인 경우 투표 버튼 표시 -->
+          <div v-else class="grid grid-cols-2 gap-4 text-center">
             <Button
               variant="outline"
-              class="w-full h-full hover:bg-blue-200 rounded-xl"
+              class="w-full h-full hover:bg-[hsl(var(--debate-left-deep))] rounded-xl bg-[hsl(var(--debate-left-deep))] text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-70"
               @click="vote(debateStore.myEmail, 0)"
               :disabled="isVoteDisabled"
-              :class="[voteTeam === 0 ? 'bg-blue-500' : '']"
+              :class="[
+                voteTeam === 0
+                  ? 'bg-[hsl(var(--debate-left-deep))]'
+                  : 'bg-gray-300',
+              ]"
             >
               <Card class="border-none shadow-none">
                 <CardContent class="flex items-center justify-center h-full">
-                  <div class="text-2xl">{{ debateLeftTeam }}</div>
+                  <div
+                    class="text-2xl whitespace-pre-wrap text-center leading-tight"
+                  >
+                    {{
+                      debateLeftTeam && debateLeftTeam.length > 10
+                        ? debateLeftTeam.substring(0, 10) +
+                          "\n" +
+                          debateLeftTeam.substring(10)
+                        : debateLeftTeam
+                    }}
+                  </div>
                 </CardContent>
               </Card>
             </Button>
             <Button
               variant="outline"
-              class="w-full h-full hover:bg-blue-200 rounded-xl"
+              class="w-full h-full rounded-xl hover:bg-[hsl(var(--debate-right-deep))] bg-[hsl(var(--debate-right-deep))] text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-70"
               @click="vote(debateStore.myEmail, 1)"
               :disabled="isVoteDisabled"
-              :class="[voteTeam === 1 ? 'bg-blue-500' : '']"
+              :class="[
+                voteTeam === 1
+                  ? 'bg-[hsl(var(--debate-right-deep))]'
+                  : 'bg-gray-300',
+              ]"
             >
               <Card class="border-none shadow-none">
                 <CardContent class="flex items-center justify-center h-full">
-                  <div class="text-2xl">{{ debateRightTeam }}</div>
+                  <div
+                    class="text-2xl whitespace-pre-wrap text-center leading-tight"
+                  >
+                    {{
+                      debateRightTeam && debateRightTeam.length > 10
+                        ? debateRightTeam.substring(0, 10) +
+                          "\n" +
+                          debateRightTeam.substring(10)
+                        : debateRightTeam
+                    }}
+                  </div>
                 </CardContent>
               </Card>
             </Button>
           </div>
 
-          <!-- 공격 대상 선택 시간 -->
+          <!-- 선택 시간 -->
           <DialogFooter class="mt-2">
             <div class="text-center w-full">
               <div class="text-xs">남은 시간</div>
@@ -1663,7 +1714,7 @@
       >
         <div class="sticky top-12" style="height: calc(100vh - 120px)">
           <!-- 시청자 채팅창 -->
-          <Card class="h-full flex flex-col">
+          <Card class="h-full flex flex-col bg-white">
             <!-- 시청자 채팅 헤더 -->
             <CardHeader
               class="flex flex-row items-center justify-between space-y-0 pb-3"
@@ -1691,9 +1742,9 @@
                     <!-- 왼쪽: 시청자 아바타 이미지 -->
                     <Avatar class="w-12 h-12 mt-2">
                       <AvatarImage
-                        :src="audienceProfile"
-                        alt="시청자"
-                        class="border-2 border-black rounded-full"
+                        :src="chatMessage.team === 0 ? debateLeftProfile : chatMessage.team === 1 ? debateRightProfile : audienceProfile"
+                        :alt="chatMessage.nickname"
+                        class="border-2 border-black rounded-full bg-white"
                       />
                     </Avatar>
 
@@ -1796,6 +1847,7 @@ import type {
   DebateSelectTargetResponse,
   DebateVoteStartMessage,
   DebateVoteEndMessage,
+  DebateChatMessage,
 } from "@/types/debate";
 import {
   useWebRTCConnection,
@@ -1826,6 +1878,35 @@ import { Label } from "@/components/ui/label";
 const client = ref<Client | null>(null);
 const route = useRoute();
 
+// Debate Store 사용
+const debateStore = useDebateStore();
+const roomStore = useRoomStore();
+const authStore = useAuthStore();
+const targetSelectionStore = useTargetSelectionStore();
+const audioControls = useAudioControls();
+
+const roomIdParams = route.query.roomId as string;
+
+// URL 파라미터에서 사용자 정보 가져오기
+// 예시 URL: /debate-room/11?roomId=11&userEmail=user01@test.com&side=L&isModerator=true&viewer=true
+const currentUserEmail = route.query.userEmail as string;
+const currentUserSide = (route.query.side as string) || "L";
+const isModerator = route.query.isModerator === "true" || false;
+const isViewer = route.query.viewer === "true" || false;
+
+console.log("currentUserEmail", currentUserEmail);
+console.log("currentUserSide", currentUserSide);
+console.log("isModerator", isModerator);
+console.log("isViewer", isViewer);
+
+// debate 스토어에 정보 설정
+debateStore.setRoomId(roomIdParams);
+debateStore.setMyInfo(
+  currentUserEmail,
+  (isViewer ? null : (currentUserSide as "L" | "R")),
+  isModerator
+);
+
 // @stomp/stompjs Client를 StompClient 인터페이스에 맞게 래핑
 const createStompClientWrapper = (client: any): StompClient | undefined => {
   if (!client) return undefined;
@@ -1851,31 +1932,44 @@ const createStompClientWrapper = (client: any): StompClient | undefined => {
   };
 };
 
-// Debate Store 사용
-const debateStore = useDebateStore();
-const roomStore = useRoomStore();
-const authStore = useAuthStore();
-const targetSelectionStore = useTargetSelectionStore();
-const audioControls = useAudioControls();
+const getAuthToken = async () => {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_BASE_URL}/api/auth/token`,
+    {
+      method: "POST",
+      mode: "cors",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ userEmail: currentUserEmail }),
+    }
+  );
 
-targetSelectionStore.applySelect({
-  attacker: "user01@test.com",
-  defender: "user02@test.com",
-});
+  const data = await response.json();
+  const authToken = data.token;
 
-targetSelectionStore.applySelect({
-  attacker: "user02@test.com",
-  defender: "user01@test.com",
-});
+  return authToken;
+};
 
-targetSelectionStore.applySelect({
-  attacker: "user04@test.com",
-  defender: "user01@test.com",
-});
-targetSelectionStore.applySelect({
-  attacker: "user03@test.com",
-  defender: "user04@test.com",
-});
+// targetSelectionStore.applySelect({
+//   attacker: "user01@test.com",
+//   defender: "user02@test.com",
+// });
+
+// targetSelectionStore.applySelect({
+//   attacker: "user02@test.com",
+//   defender: "user01@test.com",
+// });
+
+// targetSelectionStore.applySelect({
+//   attacker: "user04@test.com",
+//   defender: "user01@test.com",
+// });
+// targetSelectionStore.applySelect({
+//   attacker: "user03@test.com",
+//   defender: "user04@test.com",
+// });
 
 // 참가자별 오디오 엘리먼트 참조 설정
 const setParticipantAudioRef = (userEmail: string, el: any) => {
@@ -1892,24 +1986,31 @@ const isParticipantMuted = (userId: string) => {
   return muted || volume <= 0;
 };
 
-// 내 프로필 팝오버에서 음성 변조 토글 핸들러
-const onToggleVoiceMod = async (next: boolean) => {
-  try {
-    if (next !== audioControls.isVoiceModulated.value) {
-      await audioControls.toggleVoiceModulation();
+  // 내 프로필 팝오버에서 음성 변조 토글 핸들러
+  const onToggleVoiceMod = async (next: boolean) => {
+    try {
+      if (next !== audioControls.isVoiceModulated.value) {
+        await audioControls.toggleVoiceModulation();
+      }
+      // 변조 적용 후 현재 로컬 트랙을 WebRTC Producer에 반영
+      const track = audioControls.localAudioTrack.value
+      if (track && (track as any).readyState === 'live') {
+        track.enabled = !audioControls.isMuted.value
+        const ok = await replaceLocalAudioTrack(track);
+        if (!ok && typeof (recreateAudioProducerWithTrack) === 'function') {
+          await recreateAudioProducerWithTrack(track)
+        }
+      } else {
+        console.warn('⚠️ 교체할 로컬 오디오 트랙이 live 상태가 아님. 교체 생략')
+      }
+    } catch (e) {
+      console.error("음성 변조 토글 실패:", e);
     }
-    // 변조 적용 후 현재 로컬 트랙을 WebRTC Producer에 반영
-    if (audioControls.localAudioTrack.value) {
-      await replaceLocalAudioTrack(audioControls.localAudioTrack.value);
-    }
-  } catch (e) {
-    console.error('음성 변조 토글 실패:', e);
-  }
-};
+  };
 
 // 테스트용 참가자 데이터 추가가
 roomStore.setRoom({
-  roomId: "11",
+  roomId: roomIdParams,
   participants: [
     { userId: "user01@test.com", displayName: "김정택", side: "L" },
     {
@@ -1917,36 +2018,44 @@ roomStore.setRoom({
       displayName: "권우상권우상권우권우상권우상권우",
       side: "R",
     },
-    { userId: "user03@test.com", displayName: "김형수", side: "L" },
-    { userId: "user04@test.com", displayName: "지준오", side: "R" },
+    // { userId: "user03@test.com", displayName: "김형수", side: "L" },
+    // { userId: "user04@test.com", displayName: "지준오", side: "R" },
   ],
   topic: "인간은 성선설인가 성악설인가?",
   leftTeamName: "성선설",
   rightTeamName: "성악설",
-  mode: "1",
+  mode: "0",
 });
-watch(isSttConnected, (isConnected)=>{ if(!isConnected) joined.value = false; });
-
-// 로그
-const recv = ref<Array<{ ts: number; payload: unknown }>>([]),
-  sent = ref<Array<{ ts: number; segment: unknown }>>([]);
-onSttMessage((p: any)=> recv.value.unshift({ ts: Date.now(), payload: p }));
-onSegmentReady((s: any)=> sent.value.unshift({ ts: Date.now(), segment: s }));
-
-const startOpinion = () => start({ phase: "OPINION" });
-const startAttack = () => start({ phase: "BATTLE", isAttack: true });
-const startDefense = () => start({ phase: "BATTLE", isAttack: false });
-const clear = () => {
-  recv.value = [];
-  sent.value = [];
-};
-const fmt = (o: any) => JSON.stringify(o, null, 2);
-
-
-
 
 // STT 관련
-const isSttConnected = ref(false);
+const msgIndexByTurn = new Map<string, number>();
+const opinionQueueByUser = new Map<string, string[]>();
+const battleQueueByUser = new Map<string, string[]>();
+
+function attachSummaryByQueue(
+  user: string,
+  summary: string,
+  mode: "normal" | "battle"
+) {
+  const queueMap = mode === "battle" ? battleQueueByUser : opinionQueueByUser;
+  const q = queueMap.get(user) ?? [];
+  const turnKey = q.shift(); // 가장 오래된 미해결 턴
+  queueMap.set(user, q);
+
+  if (!turnKey) return; // 붙일 대상 없음
+
+  const idx = msgIndexByTurn.get(turnKey);
+  if (idx == null) return;
+
+  const m = messages.value[idx];
+  m.summaryText = summary;
+  m.summaryPending = false;
+  m.display = "summary"; // 요약 먼저 보여주고 싶으면
+}
+
+const makeTurnKey = (user: string, startedAt: string) => {
+  return `${user}|${startedAt}`;
+};
 
 const stt = useStt(client, roomStore.room?.roomId ?? 0, {
   lang: "ko-KR",
@@ -1958,32 +2067,114 @@ stt.onSttMessage((payload: any) => {
   const text = body?.text ?? JSON.stringify(payload);
   const now = new Date();
 
-  // 같은 화자의 같은 발언 턴(speakerStartAt 기준)에서는 한 말풍선으로 합치기
-  const turnKey = `${currentSpeaker.value}|${speakerStartAt.value}`;
-  const last = messages.value[messages.value.length - 1];
+  const turnKey = makeTurnKey(user, speakerStartAt.value);
 
-  if (
-    last &&
-    last.type === "stt" &&
-    last.sender === user &&
-    last.turnKey === turnKey
-  ) {
-    // 마지막 STT 말풍선에 이어 붙이기
-    last.sttText = [last.sttText, text].filter(Boolean).join(" ");
-    last.timestamp = now;
-  } else {
+  const messageMode: "normal" | "battle" | undefined =
+    currentStageIndex.value < 2
+      ? "normal"
+      : currentStageIndex.value < 4
+        ? "battle"
+        : undefined;
+
+  let idx = msgIndexByTurn.get(turnKey);
+
+  if (idx == null) {
+    const side = roomStore.room?.participants.find(
+      (p) => p.userId === user
+    )?.side;
+    const team = side === "L" ? 0 : side === "R" ? 1 : undefined;
+
     messages.value.push({
       id: messageIdCounter++,
       type: "stt",
-      mode: "normal",
+      mode: messageMode,
+      team,
       timestamp: now,
       sender: user,
-      sttText: text,
+      sttText: "",
+      isAttacker:
+        currentStageIndex.value >= 2 &&
+        currentSpeaker.value === user &&
+        isAttackPhase.value
+          ? true
+          : undefined,
+      isDefender:
+        currentStageIndex.value >= 2 &&
+        currentSpeaker.value === user &&
+        isDefensePhase.value
+          ? true
+          : undefined,
+      summaryPending: true,
+      display: "stt",
       turnKey,
     });
+    idx = messages.value.length - 1;
+    msgIndexByTurn.set(turnKey, idx);
+
+    // 요약 대기 큐에 등록 (모드별로)
+    const q =
+      messageMode === "battle"
+        ? (battleQueueByUser.get(user) ?? [])
+        : (opinionQueueByUser.get(user) ?? []);
+    q.push(turnKey);
+    if (messageMode === "battle") battleQueueByUser.set(user, q);
+    else opinionQueueByUser.set(user, q);
   }
 
-  if (messages.value.length > 200) messages.value.pop();
+  // 3) 텍스트 누적
+  const m = messages.value[idx];
+  m.sttText = [m.sttText, text].filter(Boolean).join(" ");
+  m.timestamp = now;
+
+  // 4) 메모리 관리
+  const LIMIT = 200;
+  if (messages.value.length > LIMIT) {
+    const removed = messages.value.shift(); // 가장 오래된 것 제거
+    if (removed?.turnKey) {
+      // 맵/큐 정리
+      msgIndexByTurn.delete(removed.turnKey);
+      // 큐 내부에서도 제거
+      const removeFromQueue = (q: Map<string, string[]>) => {
+        const arr = q.get(removed.sender ?? "");
+        if (!arr) return;
+        const i = arr.indexOf(removed.turnKey!);
+        if (i >= 0) arr.splice(i, 1);
+      };
+      removeFromQueue(opinionQueueByUser);
+      removeFromQueue(battleQueueByUser);
+
+      // 인덱스 재빌드(간단히 전체 재계산)
+      msgIndexByTurn.clear();
+      messages.value.forEach(
+        (msg, i) => msg.turnKey && msgIndexByTurn.set(msg.turnKey, i)
+      );
+    }
+  }
+});
+
+stt.onOpinionSummary((payload: any) => {
+  console.log("onOpinionSummary", payload);
+  const user = payload?.user ?? "-";
+  const summary = payload?.summary ?? payload?.text ?? JSON.stringify(payload);
+  attachSummaryByQueue(user, summary, "normal");
+});
+
+stt.onBattleSummary((payload: any) => {
+  console.log("onBattleSummary", payload);
+  const user = payload?.user ?? "-";
+  const summary = payload?.summary ?? payload?.text ?? JSON.stringify(payload);
+  attachSummaryByQueue(user, summary, "battle");
+});
+
+stt.onResultSummary((payload: any) => {
+  console.log("onResultSummary", payload);
+  const text = payload?.summary ?? payload?.text ?? JSON.stringify(payload);
+  messages.value.push({
+    id: messageIdCounter++,
+    type: "result",
+    timestamp: new Date(),
+    summaryText: text,
+  });
 });
 
 const isRec = computed(() => !!stt.isRecognizing.value);
@@ -2009,10 +2200,17 @@ const {
   startWebRTCConnection,
   disconnectWebRTC,
   replaceLocalAudioTrack,
+  recreateAudioProducerWithTrack,
 } = useWebRTCConnection({
   audioController: audioControls,
   participantsCount: roomStore.room?.participants.length ?? 1,
-  stompClient: createStompClientWrapper(client),
+  stompClient: createStompClientWrapper(client.value),
+  userInfo: {
+    email: currentUserEmail,
+    nickname: currentUserSide,
+    isLoggedIn: true,
+  },
+  enableSend: !isViewer,
 });
 
 const connectionStep = computed(() => {
@@ -2039,6 +2237,7 @@ const currentStage = ref(stages[currentStageIndex.value]);
 
 // 발언 순서
 const currentSpeaker = ref("");
+const nextSpeaker = ref("");
 const speakerStartAt = ref("");
 const speakingTimeLeft = ref(0);
 const isSpeakingStarted = ref(false);
@@ -2080,7 +2279,7 @@ const startSpeakingTimer = () => {
   currentTime.value = Date.now();
   const elapsedMs = currentTime.value - serverStartMs;
   const remainingMs = Math.max(speakingDuration.value - elapsedMs, 0);
-  speakingTimeLeft.value = Math.ceil(30000 / 1000);
+  speakingTimeLeft.value = Math.ceil(remainingMs / 1000);
   isSpeakingStarted.value = true;
   if (speakingTimer.value) {
     clearInterval(speakingTimer.value);
@@ -2112,6 +2311,8 @@ const selectedCurrentTarget = ref<{
   displayName: string;
 } | null>(null);
 const selectTargetConfirmed = ref(false);
+const isAttackPhase = ref(false);
+const isDefensePhase = ref(false);
 
 const handleSelectTargetModalClose = (newValue: boolean) => {
   if (selectTargetTimeLeft.value > 0) {
@@ -2163,11 +2364,14 @@ const selectTarget = () => {
 
   selectedPrevTarget.value = selectedCurrentTarget.value;
 
+  console.log("roomStore.room?.roomId", roomStore.room?.roomId);
+  console.log("selectedCurrentTarget", selectedCurrentTarget.value);
+
   // 공격 대상 선택 서버로 전송
-  client.value?.publish({
+  debateClient.value?.publish({
     destination: `/pub/debate/attack`,
     body: JSON.stringify({
-      roomId: roomId.value,
+      roomId: roomStore.room?.roomId,
       target: selectedCurrentTarget.value?.userId,
     }),
   });
@@ -2178,9 +2382,7 @@ const startSelectTargetTimer = () => {
   const serverStartMs = new Date(selectTargetStartAt.value).getTime();
   currentTime.value = Date.now();
   const elapsedMs = currentTime.value - serverStartMs;
-  // const remainingMs = Math.max(SELECT_TARGET_DURATION - elapsedMs, 0);
-  const remainingMs = 30000;
-
+  const remainingMs = Math.max(SELECT_TARGET_DURATION - elapsedMs, 0);
   selectTargetTimeLeft.value = Math.ceil(remainingMs / 1000);
   isSelectTarget.value = true;
 
@@ -2259,16 +2461,25 @@ const voteInfo = ref<Record<string, number>>({});
 const isTie = ref(false);
 const isLoadingAIMessage = ref(true);
 
-const vote = (userId: string, side: number) => {
+const vote = async (userId: string, side: number) => {
   voteTeam.value = side;
   isVoteDisabled.value = true;
-  client.value?.publish({
-    destination: `/rooms/${roomId.value}/vote`,
-    body: JSON.stringify({
-      userEmail: userId,
-      voteTeam: side,
-    }),
-  });
+  const token = await getAuthToken();
+  console.log("vote send", userId, side);
+  const response = await fetch(
+    `${import.meta.env.VITE_DEBATE_BASE_URL}/rooms/${roomStore.room?.roomId}/vote`,
+    {
+      method: "POST",
+      mode: "cors",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ userEmail: userId, team: side }),
+    }
+  );
+  const data = await response.json();
+  console.log("vote response", data);
 };
 
 const startVoteTimer = () => {
@@ -2354,7 +2565,7 @@ const startPreparationTimer = () => {
   currentTime.value = Date.now();
   const elapsedMs = currentTime.value - serverStartMs;
   const remainingMs = Math.max(PREPARATION_DURATION - elapsedMs, 0);
-  preparationTimeLeft.value = Math.ceil(30000 / 1000);
+  preparationTimeLeft.value = Math.ceil(remainingMs / 1000);
   isTimerStarted.value = true;
   if (preparationTimer.value) {
     clearInterval(preparationTimer.value);
@@ -2375,7 +2586,7 @@ const startPreparationTimer = () => {
 // 발언 전환시간 관련 변수
 const speakingTransitionTimeLeft = ref(0);
 const speakingTransitionTimer = ref<number | null>(null);
-const SPEAKING_TRANSITION_DURATION = 3 * 1000;
+const SPEAKING_TRANSITION_DURATION = 4 * 1000;
 const speakerEndAt = ref("");
 const isTransitionStarted = ref(false);
 
@@ -2445,6 +2656,7 @@ const audienceMessages = ref<
     text: string;
     nickname: string;
     timestamp: Date;
+    team: number;
   }>
 >([]);
 const audienceChatContainer = ref<HTMLElement>();
@@ -2468,16 +2680,21 @@ const formatTime = (date: Date) => {
 
 // 시청자 채팅 메시지 전송
 const sendChatMessage = () => {
-  if (newChatMessage.value.trim()) {
-    audienceMessages.value.push({
-      id: audienceMessageIdCounter++,
-      text: newChatMessage.value,
-      nickname: authStore.userNickname || "익명",
-      timestamp: new Date(),
+  if (newChatMessage.value.trim() === "") {
+    console.log("채팅 메시지가 비어있습니다.");
+    return;
+  } else {
+    console.log("채팅 메시지를 전송합니다.");
+    debateClient.value.publish({
+      destination: `/pub/debate/chat`,
+      body: JSON.stringify({
+        roomId: roomStore.room?.roomId,
+        nickname: authStore.userNickname || "익명",
+        message: newChatMessage.value,
+      }),
     });
-
-    newChatMessage.value = "";
   }
+  newChatMessage.value = "";
 };
 
 // 테스트용 메시지 추가 함수 (개발 중에만 사용)
@@ -2518,7 +2735,7 @@ const addTestSTTMessage = () => {
   };
 
   const last = messages.value[messages.value.length - 1];
-  
+
   if (STTCount === 0) {
     messages.value.push({
       id: messageIdCounter++,
@@ -2586,7 +2803,7 @@ const addTestMessageBattle = () => {
     {
       text: "애들이 장난감 뺏는 건 악해서가 아니라 아직 사회 규칙을 배우지 못해서임. 이기적 행동은 본성이라기보다 미성숙함의 결과고, 성장하면서 배려와 공감 능력이 발달함. 선한 본성이 교육과 경험으로 드러나는 거지, 본래부터 악한 건 아님.",
       summaryText: "이기심은 미성숙함의 결과일 뿐, 본성은 선함.",
-      sender: leftTeam.value[1].displayName,
+      sender: leftTeam.value[0].displayName,
       team: 0,
       mode: "battle",
       isAttacker: true,
@@ -2594,7 +2811,7 @@ const addTestMessageBattle = () => {
     {
       text: "사람이 착한 행동을 배우는 것도 결국 규칙과 처벌, 보상의 영향임. 선한 본성이 있다면 왜 제도와 교육이 없으면 쉽게 무너질까? 착해 보이는 행동도 환경이 억누르기 때문에 가능한 거고, 본성은 여전히 이기적인 상태임.",
       summaryText: "선함은 제도·환경의 억제 결과일 뿐, 본성은 이기적임.",
-      sender: rightTeam.value[1].displayName,
+      sender: rightTeam.value[0].displayName,
       team: 1,
       mode: "battle",
       isDefender: true,
@@ -2645,12 +2862,14 @@ const addTestAudienceChat = () => {
   ];
 
   const randomChat = testChats[Math.floor(Math.random() * testChats.length)];
+  const randomTeam = Math.floor(Math.random() * 3);
 
   audienceMessages.value.push({
     id: audienceMessageIdCounter++,
     text: randomChat.text,
     nickname: randomChat.nickname,
     timestamp: new Date(),
+    team: randomTeam,
   });
 };
 
@@ -2659,12 +2878,59 @@ const toggleDebateInfo = () => {
   isDebateInfoCollapsed.value = !isDebateInfoCollapsed.value;
 };
 
-const subscribeToDebateRoom = () => {
+const debateClient = ref<any>(null);
+
+const connectToDebateRoom = async () => {
+  console.log("🔍 connectToDebateRoom");
+  const authToken = await getAuthToken();
+  return new Promise((resolve, reject) => {
+    try {
+      // @stomp/stompjs Client 동적 import
+      import("@stomp/stompjs")
+        .then(({ Client }) => {
+          debateClient.value = new Client({
+            brokerURL: `${import.meta.env.VITE_DEBATE_WS_URL}/ws`,
+            connectHeaders: {
+              Authorization: `Bearer ${authToken}`,
+              login: currentUserEmail,
+            },
+            debug: (str) => {
+              console.log("내부 STOMP Debug:", str);
+            },
+            reconnectDelay: 5000,
+            heartbeatIncoming: 4000,
+            heartbeatOutgoing: 4000,
+            onConnect: (frame) => {
+              console.log("✅ 내부 STOMP 연결됨:", frame);
+              resolve(debateClient.value);
+            },
+            onDisconnect: (frame) => {
+              console.log("❌ 내부 STOMP 연결 해제됨:", frame);
+            },
+            onStompError: (frame) => {
+              console.error("💥 내부 STOMP 오류:", frame);
+              reject(new Error(`STOMP 오류: ${frame.headers.message}`));
+            },
+            onWebSocketError: (error) => {
+              console.error("🔌 내부 WebSocket 오류:", error);
+              reject(error);
+            },
+          });
+          debateClient.value.activate();
+        })
+        .catch(reject);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const subscribeToDebateRoom = (client: Client) => {
   console.log("🔍 subscribeToDebateRoom");
-  const stompClient = createStompClientWrapper(client.value);
-  if (stompClient) {
-    stompClient.subscribe(
-      `/sub/debate/room/${roomId.value}/start/opinion`,
+
+  if (client) {
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/start/opinion`,
       (message) => {
         const msg = JSON.parse(message.body) as DebateStartMessage;
         console.log("🔍 토론 시작 알림: ", msg);
@@ -2678,12 +2944,11 @@ const subscribeToDebateRoom = () => {
         startPreparationTimer();
       }
     );
-    stompClient.subscribe(
-      `/sub/debate/room/${roomId.value}/speak/start`,
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/speak/start`,
       (message) => {
         const msg = JSON.parse(message.body) as DebateSpeakStartMessage;
         console.log("🔍 진영논리 발언 시작: ", msg);
-        isPreparationTime.value = false;
         currentSpeaker.value = msg.speaker;
         speakerStartAt.value = msg.speakerStartAt + "+09:00";
         currentStageIndex.value = 0;
@@ -2691,25 +2956,41 @@ const subscribeToDebateRoom = () => {
         speakingDuration.value = 60 * 1000;
         if (roomStore.leftTeam.find((p) => p.userId === currentSpeaker.value)) {
           isLeftSpeaking.value = true;
+          isRightSpeaking.value = false;
         } else {
           isRightSpeaking.value = true;
+          isLeftSpeaking.value = false;
         }
-        stt.startOpinion();
+        isPreparationTime.value = false;
+        nextSpeaker.value = "";
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.startOpinion();
+        }
         startSpeakingTimer();
       }
     );
-    stompClient.subscribe(
-      `/sub/debate/room/${roomId.value}/speak/end`,
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/speak/end`,
       (message) => {
         const msg = JSON.parse(message.body) as DebateSpeakEndMessage;
         console.log("🔍 진영논리 발언 종료: ", msg);
         speakerEndAt.value = msg.speakerEndAt + "+09:00";
-        stt.stop();
+        currentSpeaker.value = "";
+        if (isLeftSpeaking.value) {
+          isLeftSpeaking.value = false;
+        }
+        if (isRightSpeaking.value) {
+          isRightSpeaking.value = false;
+        }
+        nextSpeaker.value = msg.nextSpeaker;
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.stop();
+        }
         startSpeakingTransitionTimer();
       }
     );
-    stompClient.subscribe(
-      `/sub/debate/room/${roomId.value}/start/battle`,
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/start/battle`,
       (message) => {
         const msg = JSON.parse(message.body) as DebateSelectTargetMessage;
         console.log("🔍 공격 선택 시작: ", msg);
@@ -2719,8 +3000,8 @@ const subscribeToDebateRoom = () => {
         startSelectTargetTimer();
       }
     );
-    stompClient.subscribe(
-      `/sub/debate/room/${roomId.value}/attack`,
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/attack`,
       (message) => {
         const msg = JSON.parse(message.body) as DebateSelectTargetResponse;
         console.log("🔍 공격 선택 응답: ", msg);
@@ -2730,37 +3011,60 @@ const subscribeToDebateRoom = () => {
         targetSelectionStore.applySelect(msg);
       }
     );
-    stompClient.subscribe(
-      `/sub/debate/room/${roomId.value}/speak/attackStart`,
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/speak/attackStart`,
       (message) => {
         const msg = JSON.parse(message.body) as DebateSpeakStartMessage;
         console.log("🔍 공격 발언 시작: ", msg);
+        isSelectTarget.value = false;
         currentSpeaker.value = msg.speaker;
         speakerStartAt.value = msg.speakerStartAt + "+09:00";
         currentStageIndex.value = 2;
         currentStage.value = stages[currentStageIndex.value];
         speakingDuration.value = 30 * 1000;
+        isAttackPhase.value = true;
+        // 공격자 상태 설정
+        participantStates.value[msg.speaker] = "attack";
         if (roomStore.leftTeam.find((p) => p.userId === currentSpeaker.value)) {
           isLeftSpeaking.value = true;
+          isRightSpeaking.value = false;
         } else {
           isRightSpeaking.value = true;
+          isLeftSpeaking.value = false;
         }
-        stt.startBattleAttack();
+        nextSpeaker.value = "";
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.startBattleAttack();
+        }
         startSpeakingTimer();
       }
     );
-    stompClient.subscribe(
-      `/sub/debate/room/${roomId.value}/speak/attackEnd`,
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/speak/attackEnd`,
       (message) => {
         const msg = JSON.parse(message.body) as DebateSpeakEndMessage;
         console.log("🔍 공격 발언 종료: ", msg);
         speakerEndAt.value = msg.speakerEndAt + "+09:00";
-        stt.stop();
+        // 공격자 상태 해제
+        if (currentSpeaker.value) {
+          participantStates.value[currentSpeaker.value] = null;
+        }
+        currentSpeaker.value = "";
+        if (isLeftSpeaking.value) {
+          isLeftSpeaking.value = false;
+        }
+        if (isRightSpeaking.value) {
+          isRightSpeaking.value = false;
+        }
+        nextSpeaker.value = msg.nextSpeaker;
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.stop();
+        }
         startSpeakingTransitionTimer();
       }
     );
-    stompClient.subscribe(
-      `/sub/debate/room/${roomId.value}/speak/defenseStart`,
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/speak/defenseStart`,
       (message) => {
         const msg = JSON.parse(message.body) as DebateSpeakStartMessage;
         console.log("🔍 방어 발언 시작: ", msg);
@@ -2769,27 +3073,47 @@ const subscribeToDebateRoom = () => {
         currentStageIndex.value = 2;
         currentStage.value = stages[currentStageIndex.value];
         speakingDuration.value = 30 * 1000;
+        isDefensePhase.value = true;
+        // 방어자 상태 설정
+        participantStates.value[msg.speaker] = "defense";
         if (roomStore.leftTeam.find((p) => p.userId === currentSpeaker.value)) {
           isLeftSpeaking.value = true;
         } else {
           isRightSpeaking.value = true;
         }
-        stt.startBattleDefense();
+        nextSpeaker.value = "";
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.startBattleDefense();
+        }
         startSpeakingTimer();
       }
     );
-    stompClient.subscribe(
-      `/sub/debate/room/${roomId.value}/speak/defenseEnd`,
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/speak/defenseEnd`,
       (message) => {
         const msg = JSON.parse(message.body) as DebateSpeakEndMessage;
         console.log("🔍 방어 발언 종료: ", msg);
         speakerEndAt.value = msg.speakerEndAt + "+09:00";
-        stt.stop();
+        // 방어자 상태 해제
+        if (currentSpeaker.value) {
+          participantStates.value[currentSpeaker.value] = null;
+        }
+        currentSpeaker.value = "";
+        if (isLeftSpeaking.value) {
+          isLeftSpeaking.value = false;
+        }
+        if (isRightSpeaking.value) {
+          isRightSpeaking.value = false;
+        }
+        nextSpeaker.value = msg.nextSpeaker;
+        if (currentSpeaker.value === debateStore.myEmail) {
+          stt.stop();
+        }
         startSpeakingTransitionTimer();
       }
     );
-    stompClient.subscribe(
-      `/sub/debate/room/${roomId.value}/vote/start`,
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/vote/start`,
       (message) => {
         const msg = JSON.parse(message.body) as DebateVoteStartMessage;
         console.log("🔍 투표 시작 알림: ", msg);
@@ -2798,11 +3122,12 @@ const subscribeToDebateRoom = () => {
         voteTimeLeft.value = Math.ceil(VOTE_DURATION / 1000);
         currentStageIndex.value = 3;
         currentStage.value = stages[currentStageIndex.value];
+        nextSpeaker.value = "";
         startVoteTimer();
       }
     );
-    stompClient.subscribe(
-      `/sub/debate/room/${roomId.value}/vote/end`,
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/vote/end`,
       (message) => {
         const msg = JSON.parse(message.body) as DebateVoteEndMessage;
         console.log("🔍 투표 종료 알림: ", msg);
@@ -2826,42 +3151,35 @@ const subscribeToDebateRoom = () => {
         });
       }
     );
+    client.subscribe(
+      `/sub/debate/room/${roomStore.room?.roomId}/chat`,
+      (message) => {
+        const msg = JSON.parse(message.body) as DebateChatMessage;
+        console.log("🔍 채팅 메시지: ", msg);
+        audienceMessages.value.push({
+          id: audienceMessageIdCounter++,
+          text: msg.message,
+          nickname: msg.nickname,
+          timestamp: new Date(),
+          team: msg.team,
+        });
+      }
+    );
   }
-};
-
-const getAuthToken = async () => {
-  const response = await fetch(
-    `${import.meta.env.VITE_API_BASE_URL}/api/auth/token`,
-    {
-      method: "POST",
-      mode: "cors",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ userEmail: debateStore.myEmail }),
-    }
-  );
-
-  const data = await response.json();
-  const authToken = data.token;
-
-  return authToken;
 };
 
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
   console.log("🚀 토론방 초기화 시작");
 
-  debateStore.setRoomId("11");
-  debateStore.setMyInfo("user01@test.com", "L", false);
+  // debateStore.setRoomId("11");
+  // debateStore.setMyInfo("user01@test.com", "L", false);
 
-  // 개발용 빠른 시작: 커스텀 방에서 온 경우에는 건너뜀
   setTimeout(() => {
-    stepDone.completed.resolve();
-    state.value.isConnecting = false;
-    startPreparationTimer();
-    isPreparationTime.value = false;
+    // stepDone.completed.resolve();
+    // state.value.isConnecting = false;
+    // startPreparationTimer();
+    // isPreparationTime.value = false;
     // isTransitionStarted.value = true;
     // startSpeakingTransitionTimer();
     // startSpeakingTimer();
@@ -2869,17 +3187,26 @@ onMounted(async () => {
     // startSelectTargetTimer();
     // isVoteTime.value = true;
     // startVoteTimer();
-    addTestMessageNormal();
-    addTestMessageNormal();
-    addTestMessageBattle();
-    addTestMessageBattle();
-    addTestVoteMessage();
-    addTestAIMessage();
+    // addTestMessageNormal();
+    // addTestMessageNormal();
+    // addTestMessageBattle();
+    // addTestMessageBattle();
+    // addTestVoteMessage();
+    // isTie.value = true;
+    // isLoadingAIMessage.value = false;
+    // addTestAIMessage();
   }, 1000);
 
-  await subscribeToDebateRoom();
-  await startWebRTCConnection(roomStore.room?.roomId ?? "404");
+  await connectToDebateRoom();
+  subscribeToDebateRoom(debateClient.value!);
+  await startWebRTCConnection(roomStore.room?.roomId ?? "");
   console.log("🔍 토론방 준비 완료: ", Date.now());
+  debateClient.value.publish({
+    destination: `/pub/debate/room/${roomStore.room?.roomId}/join`,
+    body: JSON.stringify({
+      roomId: roomStore.room?.roomId,
+    }),
+  });
 });
 
 // 컴포넌트 언마운트 시 STOMP 연결 해제 및 정리
@@ -2889,12 +3216,18 @@ onUnmounted(() => {
 
   // 토론 상태 초기화 (방을 나갈 때는 resetAll 사용)
   debateStore.resetDebateState();
+
+  // STOMP 연결 해제 및 정리
+  if (debateClient.value) {
+    debateClient.value.deactivate();
+    debateClient.value = null;
+  }
 });
 </script>
 
 <style scoped>
 /* 발언 중인 참가자의 프로필 이미지 초록색 빛남 효과 */
-.speaking-glow {
+:deep(.speaking-glow) {
   position: relative;
 }
 
@@ -2909,50 +3242,18 @@ onUnmounted(() => {
   }
 }
 
-.speaking-glow::before {
+:deep(.speaking-glow)::after {
   content: "";
   position: absolute;
-  top: -6px;
-  left: -6px;
-  right: -6px;
-  bottom: -6px;
-  border-radius: 50%;
-  background: radial-gradient(
-    closest-side,
-    rgba(16, 185, 129, 0.6),
-    rgba(16, 185, 129, 0.15),
-    transparent
-  );
-  animation: green-pulse 1.6s ease-in-out infinite;
-  z-index: -1;
-  filter: blur(2px);
-}
-
-.speaking-glow::after {
-  content: "";
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
   border-radius: 50%;
   box-shadow:
     0 0 12px 3px rgba(16, 185, 129, 0.8),
     0 0 24px 6px rgba(16, 185, 129, 0.45);
   animation: green-breathe 2.2s ease-in-out infinite;
-  z-index: -1;
-}
-
-@keyframes green-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.05);
-    opacity: 1;
-  }
 }
 
 @keyframes green-breathe {
