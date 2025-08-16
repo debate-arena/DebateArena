@@ -12,6 +12,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Service;
 
+import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,10 +24,10 @@ public class MediasoupPublishService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final RoomManageService roomManager;
 
-    public void createRouter(SimpMessageHeaderAccessor headerAccessor, CreateRouterRequest req) {
+    public void createRouter(Principal principal, SimpMessageHeaderAccessor headerAccessor, CreateRouterRequest req) {
         // RoomId를 세션에 저장
         setAttribute(headerAccessor, "roomId", req.getRoomId());
-
+        setAttribute(headerAccessor, "userEmail", principal.getName());
         req.setUserEmail(getAttribute(headerAccessor, "userEmail", String.class));
 
         roomManager.addRoom(req);
@@ -35,7 +36,7 @@ public class MediasoupPublishService {
         log.info("[라우터 생성 요청] roomId: {}, userEmail: {}", req.getRoomId(), req.getUserEmail());
     }
 
-    public void createTransport(SimpMessageHeaderAccessor headerAccessor, CreatedTransportRequestDto req) {
+    public void createTransport(Principal principal,SimpMessageHeaderAccessor headerAccessor, CreatedTransportRequestDto req) {
         req.setUserEmail(getAttribute(headerAccessor, "userEmail", String.class));
         req.setRoomId(getAttribute(headerAccessor, "roomId", Long.class));
 //        req.setSessionId(getSessionId(headerAccessor));
@@ -45,7 +46,7 @@ public class MediasoupPublishService {
     }
 
 
-    public void connectTransport(SimpMessageHeaderAccessor headerAccessor, ConnectTransportRequestDto req) {
+    public void connectTransport(Principal principal,SimpMessageHeaderAccessor headerAccessor, ConnectTransportRequestDto req) {
         req.setUserEmail(getAttribute(headerAccessor, "userEmail", String.class));
         req.setRoomId(getAttribute(headerAccessor, "roomId", Long.class));
 
@@ -53,7 +54,7 @@ public class MediasoupPublishService {
         log.info("[Transport 연결 요청] roomId: {}, userEmail: {}", req.getRoomId(), req.getUserEmail());
     }
 
-    public void createProducer(SimpMessageHeaderAccessor headerAccessor, CreateProducerRequestDto req) {
+    public void createProducer(Principal principal,SimpMessageHeaderAccessor headerAccessor, CreateProducerRequestDto req) {
         req.setUserEmail(getAttribute(headerAccessor, "userEmail", String.class));
         req.setRoomId(getAttribute(headerAccessor, "roomId", Long.class));
 
@@ -61,7 +62,7 @@ public class MediasoupPublishService {
         log.info("[Producer 생성 요청] roomId: {}, userEmail: {}", req.getRoomId(), req.getUserEmail());
     }
 
-    public void createConsumer(SimpMessageHeaderAccessor headerAccessor, CreateConsumerRequestDto req) {
+    public void createConsumer(Principal principal,SimpMessageHeaderAccessor headerAccessor, CreateConsumerRequestDto req) {
         req.setUserEmail(getAttribute(headerAccessor, "userEmail", String.class));
         req.setRoomId(getAttribute(headerAccessor, "roomId", Long.class));
 
@@ -69,7 +70,7 @@ public class MediasoupPublishService {
         log.info("[Consumer 생성 요청] roomId: {}, userEmail: {}", req.getRoomId(), req.getUserEmail());
     }
 
-    public void resume(SimpMessageHeaderAccessor headerAccessor, JsonNode messageNode){
+    public void resume(Principal principal,SimpMessageHeaderAccessor headerAccessor, JsonNode messageNode){
         String consumerId = messageNode.get("consumerId").asText();
 
         Map<String, Object> request = new HashMap<>();

@@ -11,6 +11,8 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
+import java.security.Principal;
+
 @Slf4j
 @Controller
 @RequiredArgsConstructor
@@ -20,12 +22,12 @@ public class SignalingController {
     private final RoomManageService roomManageService;
 
     @MessageMapping("/join")
-    public void join(@Payload CreateRouterRequest req, SimpMessageHeaderAccessor headerAccessor) {
+    public void join(@Payload CreateRouterRequest req, Principal principal, SimpMessageHeaderAccessor headerAccessor) {
         try {
             if(!roomManageService.isRoomValid(req.getRoomId())){
                 throw new IllegalArgumentException("해당 방이 존재하지 않음");
             }
-            mediasoupPublishService.createRouter(headerAccessor, req);
+            mediasoupPublishService.createRouter(principal,headerAccessor, req);
         } catch (Exception e) {
             log.debug("해당 방이 없습니다.");
             log.error("Error processing join request: {}", e.getMessage(), e);
@@ -33,45 +35,45 @@ public class SignalingController {
     }
 
     @MessageMapping("/createTransport")
-    public void createTransport(@Payload CreatedTransportRequestDto req , SimpMessageHeaderAccessor headerAccessor) {
+    public void createTransport(@Payload CreatedTransportRequestDto req ,Principal principal, SimpMessageHeaderAccessor headerAccessor) {
         try {
-            mediasoupPublishService.createTransport(headerAccessor, req);
+            mediasoupPublishService.createTransport(principal,headerAccessor, req);
         } catch (Exception e) {
             log.error("Error processing create transport request: {}", e.getMessage(), e);
         }
     }
 
     @MessageMapping("/connectTransport")
-    public void connectTransport(@Payload ConnectTransportRequestDto req, SimpMessageHeaderAccessor headerAccessor) {
+    public void connectTransport(@Payload ConnectTransportRequestDto req,Principal principal, SimpMessageHeaderAccessor headerAccessor) {
         try {
-            mediasoupPublishService.connectTransport(headerAccessor, req);
+            mediasoupPublishService.connectTransport(principal,headerAccessor, req);
         } catch (Exception e) {
             log.error("Error processing connect transport request: {}", e.getMessage(), e);
         }
     }
 
     @MessageMapping("/createProducer")
-    public void createProducer(@Payload CreateProducerRequestDto req, SimpMessageHeaderAccessor headerAccessor) {
+    public void createProducer(@Payload CreateProducerRequestDto req,Principal principal, SimpMessageHeaderAccessor headerAccessor) {
         try {
-            mediasoupPublishService.createProducer(headerAccessor, req);
+            mediasoupPublishService.createProducer(principal,headerAccessor, req);
         } catch (Exception e) {
             log.error("Error processing create producer request: {}", e.getMessage(), e);
         }
     }
 
     @MessageMapping("/createConsumer")
-    public void createConsumer(@Payload CreateConsumerRequestDto req, SimpMessageHeaderAccessor headerAccessor) {
+    public void createConsumer(@Payload CreateConsumerRequestDto req,Principal principal, SimpMessageHeaderAccessor headerAccessor) {
         try {
-            mediasoupPublishService.createConsumer(headerAccessor, req);
+            mediasoupPublishService.createConsumer(principal,headerAccessor, req);
         } catch (Exception e) {
             log.error("Error processing create consumer request: {}", e.getMessage(), e);
         }
     }
 
     @MessageMapping("/resume")
-    public void resume(@Payload JsonNode message, SimpMessageHeaderAccessor headerAccessor) {
+    public void resume(@Payload JsonNode message,Principal principal, SimpMessageHeaderAccessor headerAccessor) {
         try {
-            mediasoupPublishService.resume(headerAccessor, message);
+            mediasoupPublishService.resume(principal,headerAccessor, message);
         } catch (Exception e) {
             log.error("Error processing resume request: {}", e.getMessage(), e);
         }

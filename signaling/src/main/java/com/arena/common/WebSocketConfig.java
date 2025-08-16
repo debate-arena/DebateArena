@@ -43,6 +43,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   @Override
   public void configureClientInboundChannel(ChannelRegistration registration) {
     // JWT 인증을 위한 ChannelInterceptor 등록
-    registration.interceptors(jwtChannelInterceptor);
+//    registration.interceptors(jwtChannelInterceptor);
   }
 }
