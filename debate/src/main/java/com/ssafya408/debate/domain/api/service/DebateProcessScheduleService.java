@@ -34,10 +34,10 @@ import reactor.core.publisher.Mono;
 public class DebateProcessScheduleService {
 
     private static final int PREPARING_STAGE_TIME = 10;
-    private static final int OPINION_STAGE_TIME = 10;
+    private static final int OPINION_STAGE_TIME = 30;
     private static final int OPINION_TURN_OVER_TIME = 4;
     private static final int BATTLE_VOTE_TIME = 10;
-    private static final int BATTLE_STAGE_TIME = 10;
+    private static final int BATTLE_STAGE_TIME = 15;
     private static final int BATTLE_TURN_OVER_TIME = 4;
     private static final int VOTING_STAGE_TIME = 10;
     private static final int VOTE_RESULT_STAGE_TIME = 4;
