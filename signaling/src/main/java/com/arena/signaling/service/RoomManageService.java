@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 @Slf4j
@@ -32,6 +33,7 @@ public class RoomManageService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final RedisRepository redisRepository;
+    private final Map<Long, ReentrantLock> roomLocks = new ConcurrentHashMap<>();
 
     public boolean isUserInRoom(String userEmail) {
         return userEmailToRoom.containsKey(userEmail);
@@ -87,11 +89,45 @@ public class RoomManageService {
     }
 
     public List<Participant> getParticipants(Long roomId) {
-        List<Participant> participants = rooms.get(roomId);
-        return (participants == null) ? Collections.emptyList()
-                : participants.stream()
-                .filter(p -> !p.getProducerUserEmail().isEmpty())
-                .toList();
+        ReentrantLock lock = roomLocks.computeIfAbsent(roomId, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            List<Participant> participants = rooms.get(roomId);
+            List<Participant> filteredParticipants = participants.stream()
+                    .filter(p -> !p.getProducerId().isEmpty())
+                    .toList();
+            if (filteredParticipants.isEmpty()) {
+                return null;
+            }
+            return filteredParticipants;
+        }catch (Exception e){
+            log.error("Failed to get participants: {}", e.getMessage(), e);
+            return null;
+        }finally {
+            lock.unlock();
+        }
+
+    }
+
+    public List<Participant> getAllParticipants(Long roomId) {
+        ReentrantLock lock = roomLocks.computeIfAbsent(roomId, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            List<Participant> participants = rooms.get(roomId);
+            List<Participant> filteredParticipants = participants.stream()
+                    .filter(p -> !p.getProducerUserEmail().isEmpty())
+                    .toList();
+            if (filteredParticipants.isEmpty()) {
+                return null;
+            }
+            return filteredParticipants;
+        }catch (Exception e){
+            log.error("Failed to get participants: {}", e.getMessage(), e);
+            return null;
+        }finally {
+            lock.unlock();
+        }
+
     }
 
     public void removeParticipant(String userEmail) throws JsonProcessingException {
@@ -144,12 +180,12 @@ public class RoomManageService {
 
     public Long updateParticipantConnectionInfo(ClientConnectionEstablishedDto clientConnectionEstablishedDto) {
 
-        log.debug("[updateParticipantConnectionInfo] {}",clientConnectionEstablishedDto);
+        log.debug("[updateParticipantConnectionInfo] {}", clientConnectionEstablishedDto);
 
         Long roomId = clientConnectionEstablishedDto.getRoomId();
         if (roomId == null || !rooms.containsKey(roomId)) return -1L;
         List<Participant> participants = rooms.get(roomId);
-        if (participants==null) return -1L;
+        if (participants == null) return -1L;
 
         String consumerEmail = clientConnectionEstablishedDto.getConsumerUserEmail();
 
@@ -167,13 +203,13 @@ public class RoomManageService {
                     "/queue/producer-connected",
                     "producer-connected"
             );
-        }else {
+        } else {
             participant.setConsumerConnectedStatus(true);
-//            simpMessagingTemplate.convertAndSendToUser(
-//                    clientConnectionEstablishedDto.getConsumerUserEmail(),
-//                    "/queue/producer-connected",
-//                    clientConnectionEstablishedDto.getProducerUserEmail()
-//            );
+            //            simpMessagingTemplate.convertAndSendToUser(
+            //                    clientConnectionEstablishedDto.getConsumerUserEmail(),
+            //                    "/queue/producer-connected",
+            //                    clientConnectionEstablishedDto.getProducerUserEmail()
+            //            );
         }
 
         Long count = Optional.ofNullable(participants) // participants가 null일 경우 빈 리스트로 대체
@@ -217,14 +253,22 @@ public class RoomManageService {
     }
 
     public void updateProducerId(CreatedProducerDto createdProducerDto) {
-        List<Participant> participants = rooms.get(createdProducerDto.getRoomId());
 
-        Participant participant = participants.stream()
-                .filter(p -> createdProducerDto.getUserEmail().equals(p.getProducerUserEmail()))
-                .findFirst()
-                .orElse(null);
-        if(participant == null) return;
-        participant.setProducerId(createdProducerDto.getProducerId());
+        ReentrantLock lock = roomLocks.computeIfAbsent(createdProducerDto.getRoomId(), k -> new ReentrantLock());
+        lock.lock();
+        try {
+            List<Participant> participants = rooms.get(createdProducerDto.getRoomId());
+            Participant participant = participants.stream()
+                    .filter(p -> createdProducerDto.getUserEmail().equals(p.getProducerUserEmail()))
+                    .findFirst()
+                    .orElse(null);
+            if(participant == null) return;
+            participant.setProducerId(createdProducerDto.getProducerId());
+        }catch (Exception e){
+            log.error("Failed to update producer id: {}", e.getMessage(), e);
+        }finally {
+            lock.unlock();
+        }
     }
 
     public Boolean isRoomValid(Long roomId) {

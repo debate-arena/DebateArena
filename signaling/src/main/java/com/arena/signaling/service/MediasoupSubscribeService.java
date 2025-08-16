@@ -59,13 +59,10 @@ public class MediasoupSubscribeService {
         );
     }
 
-    public void createdProducer(CreatedProducerDto createdProducerDto) {
+    public synchronized void createdProducer(CreatedProducerDto createdProducerDto) {
+        log.info("[createdProducer] {}", createdProducerDto);
         roomManageService.updateProducerId(createdProducerDto);
-        messagingTemplate.convertAndSendToUser(
-                createdProducerDto.getUserEmail(),
-                "/queue/producer",
-                createdProducerDto
-        );
+        log.info("[createdProducer] 업데이트 완료");
 
         Long roomId = createdProducerDto.getRoomId();
         String userEmail = createdProducerDto.getUserEmail();
@@ -87,7 +84,7 @@ public class MediasoupSubscribeService {
 //        messagingTemplate.convertAndSend("/queue/new-producer/"+roomId
 //                ,newProducerResponseDto);
 
-        List<Participant> participants = roomManageService.getParticipants(roomId);
+        List<Participant> participants = roomManageService.getAllParticipants(roomId);
         if (participants != null) {
             participants.stream()
                     .filter(p -> !p.getProducerUserEmail().equals(userEmail))
@@ -98,6 +95,7 @@ public class MediasoupSubscribeService {
                                     "/queue/new-producer",
                                     newProducerResponseDto
                             );
+                            log.info("[createdProducer] 메시지 전송 완료 TO {}", p.getProducerUserEmail());
                         } catch (Exception e) {
                             log.error("Failed to send newProducer notification to session {}: {}",
                                     p.getProducerUserEmail(), e.getMessage(), e);
