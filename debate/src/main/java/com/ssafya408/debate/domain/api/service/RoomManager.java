@@ -251,7 +251,7 @@ public class RoomManager {
         roomId, stt.getUser(), stt.getText());
 
     ApiResponse<BroadcastResponse> res = ApiResponse.success(stt);
-    String destination = String.format("/debate/room/%s/stt", roomId);
+    String destination = String.format("/sub/debate/room/%s/stt", roomId);
 
     log.debug("첫 번째 팀에게 메시지 전송 - 팀원: {}", firstTeam);
     template.convertAndSend(destination,res);
