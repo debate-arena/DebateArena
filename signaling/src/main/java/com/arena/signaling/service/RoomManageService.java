@@ -229,11 +229,7 @@ public class RoomManageService {
 
     public Boolean isRoomValid(Long roomId) {
         Map<String, Object> entries = redisRepository.getRoom(roomId);
-        if(entries.isEmpty()) {
-            return false;
-        }else{
-            return true;
-        }
+        return !entries.isEmpty();
     }
 //    public void updateParticipantProducerInfo(CreatedProducerDto createdProducerDto) {
 //
