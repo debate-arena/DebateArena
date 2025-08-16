@@ -24,6 +24,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.relational.core.sql.In;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Getter
 @Setter
@@ -44,7 +45,7 @@ public class RoomManager {
   private Map<String,String> attackTarget;
   private Map<String, Integer> voteTeam;
   private boolean isStart;
-
+  private List<String> waitingQueue;
   private Map<String, STTMessage> opinions; //각 사용자의 stt 텍스트가 저장됨
   // 공방전 데이터 어떻게?
   private List<STTAttackDefense> firstTeamAttack; //공방전 의견 {질문, 답변} 형식
@@ -73,7 +74,7 @@ public class RoomManager {
       secondTeamAttack.add(new STTAttackDefense(secondTeam.get(i))) ;
     }
     audiences=new ConcurrentSkipListSet<>();
-
+    waitingQueue=new CopyOnWriteArrayList<>();
 //    tempInitialize();
 
   }

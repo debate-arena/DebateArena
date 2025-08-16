@@ -50,7 +50,7 @@ public class DebateService {
   private Integer OPINION=0;
   private Integer BATTLE=1;
   // TODO : User Disconnected 시 리소스 해제 처리
-  private final Map<Long, Set<String>> beforeGameStartQueue = new ConcurrentHashMap<>();
+  private Map<Long, Set<String>> beforeGameStartQueue;
   private final DebateProcessScheduleService scheduleService;
   @Qualifier("taskScheduler")
   private final TaskScheduler taskScheduler;
@@ -63,6 +63,7 @@ public class DebateService {
     }
 
     roomInfos = new ConcurrentHashMap<>();
+    beforeGameStartQueue = new ConcurrentHashMap<>();
     debateUtil.initRoomInfos(roomInfos);
   }
 
@@ -229,12 +230,12 @@ public class DebateService {
     log.info("[userJoinMatch] 방 참가 요청 {} {}",user, roomId);
 
     RoomManager roomManager= roomInfos.get(roomId);
-    
+
     if(roomManager==null) {
       log.info("[userJoinMatch] 방이 존재하지 않습니다.");
       return;
     }
-    
+
     boolean isModerator =false;
 
     List<String> firstTeam = roomManager.getFirstTeam();
@@ -258,21 +259,23 @@ public class DebateService {
         break;
       }
     }
-    
+
     if(!isModerator) {
       log.info("[userJoinMatch] {}는 참가자가 아닙니다.",user);
       return;
     }
 
-    beforeGameStartQueue
-            .computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet())
-            .add(user);
-    
-    if(roomManager.getPlayerCount()==beforeGameStartQueue.get(roomId).size()){
-      if(roomManager.isStart()){
-        log.info("[userJoinMatch] 게임이 이미 시작되었습니다.");
-        return;
-      }
+    roomInfos.get(roomId).getWaitingQueue().add(user);
+
+    log.info("[userJoinMatch] {}가 방에 참가했습니다.",user);
+    log.info("{}",roomInfos.get(roomId).getWaitingQueue());
+    log.info("roomManager.getPlayerCount()={} {}",roomManager.getPlayerCount(),roomInfos.get(roomId).getWaitingQueue().size());
+
+    if(roomManager.getPlayerCount()==roomInfos.get(roomId).getWaitingQueue().size()){
+//      if(roomManager.isStart()){
+//        log.info("[userJoinMatch] 게임이 이미 시작되었습니다.");
+//        return;
+//      }
       roomManager.setStart(true);
 
       if(!debateRedisRepository.istWebRTCStatusConnect(roomManager.getRoomId())){
