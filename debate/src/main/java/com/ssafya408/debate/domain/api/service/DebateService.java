@@ -224,29 +224,66 @@ public class DebateService {
     }
   }
   public synchronized void userJoinMatch(String user, Long roomId) {
-    log.info("[userJoinMatch] 입장 {} {}",user, roomId);
-    // TODO : 입장 전 권한 체크하는 로직 (Redis) 구현 필요
-    beforeGameStartQueue
-            .computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet())
-            .add(user);
-    RoomManager roomManager= roomInfos.get(roomId);
+    log.info("[userJoinMatch] 방 참가 요청 {} {}",user, roomId);
 
+    RoomManager roomManager= roomInfos.get(roomId);
+    
     if(roomManager==null) {
+      log.info("[userJoinMatch] 방이 존재하지 않습니다.");
+      return;
+    }
+    
+    boolean isModerator =false;
+
+    List<String> firstTeam = roomManager.getFirstTeam();
+    List<String> secondTeam = roomManager.getSecondTeam();
+
+    if(firstTeam==null || secondTeam==null) {
+      log.info("[userJoinMatch] 방정보오류");
       return;
     }
 
+    for (String s : firstTeam) {
+      if (s.equals(user)) {
+        isModerator = true;
+        break;
+      }
+    }
+
+    for (String s : secondTeam) {
+      if (s.equals(user)) {
+        isModerator = true;
+        break;
+      }
+    }
+    
+    if(!isModerator) {
+      log.info("[userJoinMatch] {}는 참가자가 아닙니다.",user);
+      return;
+    }
+
+    beforeGameStartQueue
+            .computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet())
+            .add(user);
+    
     if(roomManager.getPlayerCount()==beforeGameStartQueue.get(roomId).size()){
       if(roomManager.isStart()){
+        log.info("[userJoinMatch] 게임이 이미 시작되었습니다.");
         return;
       }
       roomManager.setStart(true);
-      log.info("[토론 시작]");
-      // TODO : Redis에서 WebRTCStatue 확인
+
+      if(!debateRedisRepository.istWebRTCStatusConnect(roomManager.getRoomId())){
+        log.info("[userJoinMatch] 웹RTC 상태가 CONNECTING이 아닙니다.");
+        return;
+      }
+
+      log.info("!!!게임이 시작됩니다!!!", user, roomId);
       beforeGameStartQueue.get(roomId);
       scheduleService.gameStart(roomManager);
     }
 
-    log.info("사용자 {}가 방 {}에 참여했습니다.", user, roomId);
+    beforeGameStartQueue.remove(roomId);
 
   }
 
@@ -652,5 +689,14 @@ public class DebateService {
     String url = "/sub/debate/room/"+chatRequestDto.getRoomId()+"/chat";
 
     template.convertAndSend(url, responseDto);
+  }
+
+  public void deleteRoomInInMemory(Long roomId) {
+    RoomManager roomManager = roomInfos.get(roomId);
+    if(roomManager == null) {
+      return;
+    }
+    roomInfos.remove(roomId);
+    log.info("방 삭제 완료 - 방ID: {}", roomId);
   }
 }

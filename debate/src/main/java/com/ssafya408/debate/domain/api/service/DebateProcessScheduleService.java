@@ -65,6 +65,7 @@ public class DebateProcessScheduleService {
     private final DebateRedisRepository debateRedisRepository;
     private final AiService aiService;
     private final SummaryRedisRepository summaryRedisRepository;
+    private final DebateService debateService;
 
     public void gameStart(RoomManager roomManager) {
         if (roomManager == null) return;
@@ -377,7 +378,14 @@ public class DebateProcessScheduleService {
 
     private void endGame(RoomManager roomManager) {
         log.info("[게임 종료] {} ",roomManager.getStatus());
+        if(roomManager.getStatus()!=RoomStatus.FINISH){
+            log.info("[정상적으로 게임이 종료되지 않음.] {}",roomManager.getStatus());
+            return;
+        }
+        debateService.deleteRoomInInMemory(roomManager.getRoomId());
+        debateRedisRepository.delete(roomManager.getRoomId().toString());
         log.info("[GAME ENDED]");
+
     }
 
     public Mono<Void> summarizeBattle(RoomManager roomManager) {

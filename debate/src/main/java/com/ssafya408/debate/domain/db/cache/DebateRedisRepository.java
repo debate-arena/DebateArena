@@ -164,4 +164,25 @@ public class DebateRedisRepository {
       log.error("필드 업데이트 실패 - roomId: {}, field: {}, error: {}", roomId, field, e.getMessage(), e);
     }
   }
+
+
+  public boolean istWebRTCStatusConnect(Long roomId) {
+    try {
+      String redisKey = KEY_PREFIX + ":" + roomId;
+      Map<String, Object> entries = hashOps.entries(redisKey);
+
+      if (entries.isEmpty()) {
+        log.warn("Redis에서 토론방 정보를 찾을 수 없음 - roomId: {}", roomId);
+        return false;
+      }
+      WebRTCStatus webRTCStatus = WebRTCStatus.valueOf(entries.get("webRTCStatus").toString());
+      if (webRTCStatus == WebRTCStatus.CONNECTED) {
+        log.debug("WebRTC 상태 확인 완료 - roomId: {}, status: {}", roomId, WebRTCStatus.CONNECTED);
+        return true;
+      }
+    } catch (Exception e) {
+      log.error("WebRTC 상태 업데이트 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+    }
+      return false;
+  }
 }
