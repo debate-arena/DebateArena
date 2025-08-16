@@ -44,6 +44,7 @@ public class DebateService {
   private final SummaryRedisRepository summaryRedisRepository;
   private final TopicRepository topicRepository;
   private final RestClient.Builder builder;
+  private final DebateUtil debateUtil;
   private Map<Long, RoomManager> roomInfos;
   private final SimpMessagingTemplate template;
   private Integer OPINION=0;
@@ -62,6 +63,7 @@ public class DebateService {
     }
 
     roomInfos = new ConcurrentHashMap<>();
+    debateUtil.initRoomInfos(roomInfos);
   }
 
   private void createTestTopics() {
@@ -691,12 +693,5 @@ public class DebateService {
     template.convertAndSend(url, responseDto);
   }
 
-  public void deleteRoomInInMemory(Long roomId) {
-    RoomManager roomManager = roomInfos.get(roomId);
-    if(roomManager == null) {
-      return;
-    }
-    roomInfos.remove(roomId);
-    log.info("방 삭제 완료 - 방ID: {}", roomId);
-  }
+
 }
