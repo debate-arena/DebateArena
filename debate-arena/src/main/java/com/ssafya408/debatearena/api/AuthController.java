@@ -189,7 +189,7 @@ public class AuthController {
             cookie.setMaxAge(0); // 즉시 만료
             cookie.setPath("/");
             cookie.setHttpOnly(true);
-            cookie.setSecure(false); // 개발환경에서는 false, 프로덕션에서는 true
+            // cookie.setSecure(false); // 개발환경에서는 false, 프로덕션에서는 true
             response.addCookie(cookie);
 
             // SecurityContext 클리어

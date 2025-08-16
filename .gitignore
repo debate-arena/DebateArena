@@ -263,3 +263,5 @@ out/
 *.yml
 docker-compose.*.yml
 *.DS_Store
+
+*.sh

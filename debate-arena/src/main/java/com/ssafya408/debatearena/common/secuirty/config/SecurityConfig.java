@@ -26,7 +26,7 @@ public class SecurityConfig {
   private final CustomOAuth2SuccessHandler successHandler;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-  @Value("${cors.allowed-origins:http://localhost:3000}")
+  @Value("${cors.allowed-origins:http://i13a408.p.ssafy.io}")
   private List<String> allowedOrigins;
 
   @Bean
