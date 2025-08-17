@@ -35,7 +35,7 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
     // 헤더에 담는 것은 js 조작으로 인해 보안상 문제가 될 수 있음
     Cookie cookie = new Cookie("access_token", token);
     cookie.setHttpOnly(true);
-    cookie.setSecure(true); // 임지 주석
+    // cookie.setSecure(true); // 임지 주석
     cookie.setPath("/"); // 모든 경로에 자동 퐇마
     cookie.setMaxAge(60*60*24); // 1일
     response.addCookie(cookie);
