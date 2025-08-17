@@ -4,6 +4,7 @@ import com.ssafya408.matching.common.dto.ApiResponse;
 import com.ssafya408.matching.common.topic.dto.TopicDto;
 import com.ssafya408.matching.common.topic.dto.TopicList;
 import com.ssafya408.matching.common.topic.service.TopicService;
+import com.ssafya408.matching.util.MatchUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,13 +18,14 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/topics")
+@RequestMapping("api/topics")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Topic Management", description = "토픽 관리 API")
 public class TopicController {
     
     private final TopicService topicService;
+    private final MatchService matchService;
     
     @Operation(summary = "현재 토픽 목록 조회", description = "Redis에서 현재 활성화된 토픽 목록을 가져옵니다.")
     @ApiResponses(value = {
@@ -37,6 +39,7 @@ public class TopicController {
             log.info("[API] 현재 토픽 목록 조회 요청");
             
             TopicList topicList = topicService.getTopics();
+            matchService.getCurrentTopicsFromRedis();
             
             if (topicList == null || topicList.getCurrentTopics() == null) {
                 log.warn("[API] Redis에서 토픽 데이터를 찾을 수 없습니다");

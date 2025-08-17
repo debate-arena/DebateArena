@@ -85,14 +85,6 @@ public class MatchService {
 
         //현재 토픽 정보 가져오기
 
-        CompletableFuture.runAsync(() -> {
-            try {
-                Thread.sleep(20000); // 10초 대기
-                getCurrentTopicsFromRedis();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
 
         alreadyMatched = new HashSet<>();
         matchUtil.setMatchUtil(matchQueue, matchInfos, activeDebateMatch,
@@ -121,7 +113,7 @@ public class MatchService {
         matchUtil.printMatchQueueStatus(matchQueue);
     }
 
-    private void getCurrentTopicsFromRedis() {
+    public void getCurrentTopicsFromRedis() {
         //데이터 초기화
         topicIdxToId.clear();
         topicIdToIdx.clear();
