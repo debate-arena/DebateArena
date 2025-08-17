@@ -84,7 +84,7 @@ public class MatchService {
         topicIdxToId = new ArrayList<>();
 
         //현재 토픽 정보 가져오기
-
+        getCurrentTopicsFromRedis();
 
         alreadyMatched = new HashSet<>();
         matchUtil.setMatchUtil(matchQueue, matchInfos, activeDebateMatch,

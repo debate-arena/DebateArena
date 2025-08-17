@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("api/topics")
+@RequestMapping("/api/topics")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Topic Management", description = "토픽 관리 API")
