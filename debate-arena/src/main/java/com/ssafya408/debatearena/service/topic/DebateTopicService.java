@@ -125,6 +125,36 @@ public class DebateTopicService extends TopicServiceImpl {
         currentTopics.size(), nextTopics.size());
   }
 
+  /**
+   * ID 기준 오름차순으로 상위 10개의 토픽을 조회합니다
+   * @return 상위 10개의 토픽 리스트 (ID 오름차순)
+   */
+  public List<Topic> getTop10TopicsOrderById() {
+    log.info("[DebateTopicService] ID 기준 상위 10개 토픽 조회 시작");
+    
+    try {
+      List<Topic> allTopics = topicRepository.findAll();
+      
+      if (allTopics.isEmpty()) {
+        log.warn("[DebateTopicService] 데이터베이스에 토픽이 없습니다.");
+        return new ArrayList<>();
+      }
+      
+      // ID 기준 오름차순 정렬 후 상위 10개 선택
+      List<Topic> top10Topics = allTopics.stream()
+          .sorted((t1, t2) -> Long.compare(t1.getId(), t2.getId()))
+          .limit(10)
+          .collect(Collectors.toList());
+      
+      log.info("[DebateTopicService] ID 기준 상위 10개 토픽 조회 완료: {} 개", top10Topics.size());
+      return top10Topics;
+      
+    } catch (Exception e) {
+      log.error("[DebateTopicService] ID 기준 상위 10개 토픽 조회 중 오류 발생: {}", e.getMessage(), e);
+      return new ArrayList<>();
+    }
+  }
+
   private List<Topic> getRandomTopics(int pickCount) {
     List<Topic> totalTopics = topicRepository.findAll();
 
