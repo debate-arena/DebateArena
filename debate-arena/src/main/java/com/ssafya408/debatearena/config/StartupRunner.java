@@ -12,6 +12,9 @@ public class StartupRunner {
   private final DebateTopicService debateTopicService;
   @EventListener(ApplicationReadyEvent.class)
   public void runAfterStartUp() {
-    debateTopicService.initiateTopics();
+//    debateTopicService.initiateTopics();
+    
+    //데모 시연을 위한 토픽 리스트 설정
+    debateTopicService.setDemoTopicList();
   }
 }

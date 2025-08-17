@@ -5,6 +5,7 @@ import com.ssafya408.debatearena.common.topic.dto.TopicList;
 import com.ssafya408.debatearena.common.topic.service.TopicServiceImpl;
 import com.ssafya408.debatearena.service.topic.db.Topic;
 import com.ssafya408.debatearena.service.topic.db.TopicRepository;
+import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,9 +32,18 @@ public class DebateTopicService extends TopicServiceImpl {
 
   @Value("${debate.redis.topic-key}")
   private String CURRENT_TOPICS = "currentTopics";
+
+
+
+
   public DebateTopicService(RedisTemplate<String, Object> redisTemplate, TopicRepository topicRepository) {
     super(redisTemplate);
     this.topicRepository = topicRepository;
+  }
+
+  public void setDemoTopicList() {
+    TopicList topicList = getTop10TopicsOrderById();
+    put(CURRENT_TOPICS, topicList);
   }
 
   public void initiateTopics(){
@@ -72,7 +82,7 @@ public class DebateTopicService extends TopicServiceImpl {
   }
 
   //주기적으로 주제를 변경
-  @Scheduled(cron = "0 0 * * * *")
+//  @Scheduled(cron = "0 0 * * * *")
   public void modifyTopics(){
     log.info("[DebateTopicService] modifyTopics 시작");
 
@@ -126,10 +136,11 @@ public class DebateTopicService extends TopicServiceImpl {
   }
 
   /**
-   * ID 기준 오름차순으로 상위 10개의 토픽을 조회합니다
-   * @return 상위 10개의 토픽 리스트 (ID 오름차순)
+   * ID 기준 오름차순으로 상위 10개의 토픽을 조회하여 TopicList로 반환합니다
+   * 앞의 5개는 currentTopics, 뒤의 5개는 nextTopics로 설정됩니다
+   * @return TopicList (앞 5개: currentTopics, 뒤 5개: nextTopics)
    */
-  public List<Topic> getTop10TopicsOrderById() {
+  public TopicList getTop10TopicsOrderById() {
     log.info("[DebateTopicService] ID 기준 상위 10개 토픽 조회 시작");
     
     try {
@@ -137,7 +148,10 @@ public class DebateTopicService extends TopicServiceImpl {
       
       if (allTopics.isEmpty()) {
         log.warn("[DebateTopicService] 데이터베이스에 토픽이 없습니다.");
-        return new ArrayList<>();
+        return TopicList.builder()
+            .currentTopics(new ArrayList<>())
+            .nextTopics(new ArrayList<>())
+            .build();
       }
       
       // ID 기준 오름차순 정렬 후 상위 10개 선택
@@ -146,12 +160,34 @@ public class DebateTopicService extends TopicServiceImpl {
           .limit(10)
           .collect(Collectors.toList());
       
-      log.info("[DebateTopicService] ID 기준 상위 10개 토픽 조회 완료: {} 개", top10Topics.size());
-      return top10Topics;
+      // 앞의 5개를 currentTopics로, 뒤의 5개를 nextTopics로 분할
+      List<TopicDto> currentTopics = new ArrayList<>();
+      List<TopicDto> nextTopics = new ArrayList<>();
+      
+      for (int i = 0; i < top10Topics.size(); i++) {
+        TopicDto topicDto = TopicDto.fromEntity(top10Topics.get(i));
+        if (i < 5) {
+          currentTopics.add(topicDto);
+        } else {
+          nextTopics.add(topicDto);
+        }
+      }
+      
+      TopicList topicList = TopicList.builder()
+          .currentTopics(currentTopics)
+          .nextTopics(nextTopics)
+          .build();
+      
+      log.info("[DebateTopicService] ID 기준 상위 10개 토픽 조회 완료 - 현재: {} 개, 다음: {} 개", 
+          currentTopics.size(), nextTopics.size());
+      return topicList;
       
     } catch (Exception e) {
       log.error("[DebateTopicService] ID 기준 상위 10개 토픽 조회 중 오류 발생: {}", e.getMessage(), e);
-      return new ArrayList<>();
+      return TopicList.builder()
+          .currentTopics(new ArrayList<>())
+          .nextTopics(new ArrayList<>())
+          .build();
     }
   }
 
