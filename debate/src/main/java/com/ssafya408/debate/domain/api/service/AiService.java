@@ -39,9 +39,9 @@ public class AiService {
 //        try {
 //            String requestJson = objectMapper.writeValueAsString(request);
             
-//            log.debug("의견 요약 요청 JSON: {}", requestJson);
+           log.debug("[summary req text]>>> {}", request.getText());
             
-             return webClient.post()
+            return webClient.post()
                 .uri(aiServerBaseUrl+"/summaries/opinion")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(request)
@@ -76,6 +76,9 @@ public class AiService {
         log.info("AI 서버 공방전 요약 요청 - topic: {}", request.getTopic());
       String attackPosition = request.getKey().getAttack().getPosition();
       String defensePosition = request.getKey().getDefense().getPosition();
+
+      log.debug("[battle summary req text]>>> {}", request.getKey().getAttack().getText());
+      log.debug("[battle summary req text]>>> {}", request.getKey().getDefense().getText());
       return webClient.post()
             .uri(aiServerBaseUrl+"/summaries/seigedefense")
             .contentType(MediaType.APPLICATION_JSON)

@@ -140,12 +140,12 @@ public class DebateProcessScheduleService {
 
     // 발언 종료 이후 3초 대기
     private void endOpinionTurn(RoomManager roomManager,MediaControlInfo mediaControlInfo) {
-//        summarizeOpinion(roomManager)
-//            .subscribe(
-//                null,                                // next 없음
-//                e -> log.error("pipeline error", e), // 에러 소비자 필수
-//                () -> log.info("broadcast done")     // 완료 콜백
-//            );
+       summarizeOpinion(roomManager)
+           .subscribe(
+               null,                                // next 없음
+               e -> log.error("pipeline error", e), // 에러 소비자 필수
+               () -> log.info("broadcast done")     // 완료 콜백
+           );
 
         log.info("[1페이즈 발언 종료] {}",mediaControlInfo.getSpeaker() );
 
@@ -202,7 +202,7 @@ public class DebateProcessScheduleService {
             startBattleTurn(roomManager);
             return;
         }
-        log.info("[공방전 시작 전 대기] room:{}",roomManager.getRoomId() );
+        log.info("[공방전 시작 전 대기 및 투표] room:{}",roomManager.getRoomId() );
 
         // 공방 시작 30초 남음 BROADCAST
         BattleStartResponseDto dto = BattleStartResponseDto.builder()
@@ -211,7 +211,6 @@ public class DebateProcessScheduleService {
                 .build();
 
         broadcastToRoom(roomManager.getRoomId(), BATTLE_VOTE_START_SUFFIX, dto);
-
         // BATTLE_VOTE에서 BATTLE로 상태 전환
         log.info("[상태 전환] BATTLE_VOTE → BATTLE");
         roomManager.setStatus(RoomStatus.BATTLE);
@@ -229,8 +228,10 @@ public class DebateProcessScheduleService {
             }
             log.info("[2페이즈 종료 || 이미 지나간 단계] {}",roomManager.getStatus());
             startVote(roomManager);
+
             return;
         }
+        roomManager.setDefenseUsers();
 
         String speaker;
 
@@ -299,12 +300,12 @@ public class DebateProcessScheduleService {
             }, Instant.now().plusSeconds(BATTLE_TURN_OVER_TIME));
         }else{
             roomManager.setTurn(DebateTurn.ATTACK);
-//            summarizeBattle(roomManager)
-//                    .subscribe(
-//                            null,                                // next 없음
-//                            e -> log.error("pipeline error", e), // 에러 소비자 필수
-//                            () -> log.info("broadcast done")     // 완료 콜백
-//                    );
+           summarizeBattle(roomManager)
+                   .subscribe(
+                           null,                                // next 없음
+                           e -> log.error("pipeline error", e), // 에러 소비자 필수
+                           () -> log.info("broadcast done")     // 완료 콜백
+                   );
             roomManager.advanceTurn();
             String nextSpeaker ;
             if(roomManager.getStatus()!=RoomStatus.BATTLE){
@@ -341,7 +342,7 @@ public class DebateProcessScheduleService {
     }
 
     private void endVote(RoomManager roomManager) {
-        log.info("[투표 종료] roomId: {}, 현재 상태: {}", roomManager.getRoomId(), roomManager.getStatus());
+        log.info("[최종 투표 종료] roomId: {}, 현재 상태: {}", roomManager.getRoomId(), roomManager.getStatus());
         
         if(roomManager.getStatus()!=RoomStatus.VOTE_RESULT){
             log.info("[이미 지나간 단계입니다.] {}",roomManager.getStatus());
@@ -510,5 +511,16 @@ public class DebateProcessScheduleService {
         String s = ROOM_TOPIC_PREFIX+roomId+suffix;
         log.info("[broadcast] : {}",s);
         simpMessagingTemplate.convertAndSend(s, message);
+        
+        ChatResponseDto responseDto = ChatResponseDto.builder()
+            .message(LocalDateTime.now().toString())
+            .nickname("server")
+            .build();
+
+        String url = "/sub/debate/room/"+roomId+"/chat";
+
+        simpMessagingTemplate.convertAndSend(url, responseDto);
     }
+
+    
 }

@@ -86,14 +86,34 @@ public class RoomManager {
     attackTarget.put("testuser1@example.com", "testuser@example.com");
 
   }
-
-  public void setDefenseUsers(Map<String,String> partners) {
+public void setDefenseUsers() {
     for (int i = 0; i < teamSize; i++) {
       String firstAttacker = firstTeam.get(i);
-      String secondAttacker = secondTeam.get(i);
+      String firstDefense = attackTarget.get(firstAttacker);
 
-      firstTeamAttack.get(i).setDefenseUser(partners.get(firstAttacker));
-      secondTeamAttack.get(i).setDefenseUser(partners.get(secondAttacker));
+      String secondAttacker = secondTeam.get(i);
+      String secondDefense= attackTarget.get(secondAttacker);
+      
+
+      log.info("[set defense users] >>> firstAttacker: {}, firstDefense: {}, secondAttacker: {}, secondDefense: {}",
+        firstAttacker, firstDefense, secondAttacker, secondDefense);
+      firstTeamAttack.get(i).setDefenseUser(firstDefense);
+      secondTeamAttack.get(i).setDefenseUser(secondDefense);
+    }
+  }
+  public void setDefenseUsers(Map<String,String> attackTarget) {
+    for (int i = 0; i < teamSize; i++) {
+      String firstAttacker = firstTeam.get(i);
+      String firstDefense = attackTarget.get(firstAttacker);
+
+      String secondAttacker = secondTeam.get(i);
+      String secondDefense= attackTarget.get(secondAttacker);
+      
+
+      log.info("[set defense users] >>> firstAttacker: {}, firstDefense: {}, secondAttacker: {}, secondDefense: {}",
+        firstAttacker, firstDefense, secondAttacker, secondDefense);
+      firstTeamAttack.get(i).setDefenseUser(firstDefense);
+      secondTeamAttack.get(i).setDefenseUser(secondDefense);
     }
   }
 
@@ -248,16 +268,12 @@ public class RoomManager {
   }
 
   public void broadcastSTTMessageAtRoom(SimpMessagingTemplate template, BroadcastResponse stt, Long roomId) {
-    log.info("STT 메시지 브로드캐스트 시작 - roomId: {}, 발신자: {}, 텍스트: {}", 
-        roomId, stt.getUser(), stt.getText());
 
     ApiResponse<BroadcastResponse> res = ApiResponse.success(stt);
     String destination = String.format("/sub/debate/room/%s/stt", roomId);
 
-    log.debug("첫 번째 팀에게 메시지 전송 - 팀원: {}", firstTeam);
     template.convertAndSend(destination,res);
 
-    log.info("STT 메시지 브로드캐스트 완료 - 총 {}명에게 전송", playerCount);
   }
 
   public void saveOpinionText(String user,STTRequest request) {
@@ -275,27 +291,32 @@ public class RoomManager {
   public void saveBattleText(STTRequest request) {
     int teamIdx = getTeamIdx();
     int orderInTeam = getOrderInTeam();
+    if(getCurrentIndex()>=playerCount){
+      log.info("[battle text save over] >>> 토론 완료");
+      return;
+    }
     
-    log.info("배틀 텍스트 저장 - roomId: {}, 텍스트: {}", roomId, request.getText());
+    log.info("[saveBattleText] >>> teamIdx: {}, orderInTeam: {}, 텍스트: {}",
+    teamIdx, orderInTeam , request.getText());
 
     STTAttackDefense sttAttackDefense = null;
     if (teamIdx == 0) {
       sttAttackDefense = firstTeamAttack.get(orderInTeam);
-      log.debug("첫 번째 팀 배틀 텍스트 - orderInTeam: {}", orderInTeam);
+      log.debug("[first Team Attack] >>> teamIdx: {}, orderInTeam: {}", teamIdx, orderInTeam);
     } else {
       sttAttackDefense = secondTeamAttack.get(orderInTeam);
-      log.debug("두 번째 팀 배틀 텍스트 - orderInTeam: {}", orderInTeam);
+      log.debug("[second Team Attack] >>> teamIdx: {}, orderInTeam: {}", teamIdx, orderInTeam);
     }
 
     if (turn.equals(DebateTurn.ATTACK)) {
-      log.debug("공격 텍스트 저장");
+      log.debug("[save attack text] >>> teamIdx: {}, orderInTeam: {}", teamIdx, orderInTeam);
       sttAttackDefense.addSTTTextAtAttack(request);
     } else {
-      log.debug("방어 텍스트 저장");
+      log.debug("[save defense text] >>> teamIdx: {}, orderInTeam: {}", teamIdx, orderInTeam);
       sttAttackDefense.addSTTTextAtDefense(request);
     }
     
-    log.info("배틀 텍스트 저장 완료");
+    log.info("[save battle text] >>> teamIdx: {}, orderInTeam: {}", teamIdx, orderInTeam);
   }
   public String getSpeakerTotalOpinion(String user) {
     return opinions.get(user)!=null? opinions.get(user).getJoinedText():"";
@@ -303,6 +324,18 @@ public class RoomManager {
   public String getCurrentSpeaker() {
     int teamIdx = this.getTeamIdx();
     int orderInTeam = this.getOrderInTeam();
+
+    String user= (teamIdx==0)?
+        this.firstTeam.get(orderInTeam)
+        :this.secondTeam.get(orderInTeam);
+
+    return user;
+  }
+
+  public String getNextSpeaker() {
+    int nextIndex = this.getCurrentIndex()+1;
+    int teamIdx = (nextIndex%2);
+    int orderInTeam =(nextIndex/2);
 
     String user= (teamIdx==0)?
         this.firstTeam.get(orderInTeam)

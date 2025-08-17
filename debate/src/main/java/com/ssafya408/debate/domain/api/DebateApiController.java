@@ -50,17 +50,17 @@ public class DebateApiController {
   public void receiveBattleSTTMessage(Principal principal, @DestinationVariable Long roomId,
       STTRequest request) {
     String user = principal.getName();
-    log.info("=== 배틀 STT 메시지 수신 시작 ===");
+    log.info("=== [battle message receive start] ===");
     log.info("사용자: {}, 방ID: {}, 텍스트: {}",
         user, roomId, request.getText());
     try {
-      log.info("배틀 STT 메시지 브로드캐스트 시작 - 방ID: {}", roomId);
+      log.info("[broadcast battle stt start]");
       debateService.broadcastSTTMessage(user, roomId, request);
-      log.info("배틀 STT 메시지 브로드캐스트 완료");
+      log.info("[broadcast battle stt finish]");
 
-      log.info("배틀 STT 메시지 처리 시작 - 사용자: {}", user);
+      log.info("[save battle stt start]");
       debateService.processBattleSTTMessage(user,roomId,request);
-      log.info("배틀 STT 메시지 처리 완료");
+      log.info("[save battle stt finish]");
       
     } catch (Exception e) {
       log.error("배틀 STT 메시지 처리 중 오류 발생 - 사용자: {}, 방ID: {}, 오류: {}", 

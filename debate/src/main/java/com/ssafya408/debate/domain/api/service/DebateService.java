@@ -94,9 +94,9 @@ public class DebateService {
     String text=req.getText();
     RoomManager roomManager = roomInfos.get(roomId);
 
-    log.info("STT 메시지 브로드캐스트 시작 - 사용자: {}, 방ID: {}, 텍스트: {}", user, roomId, text);
-    log.debug("현재 메모리에 있는 방 개수: {}", roomInfos.size());
-    log.debug("요청된 방ID {}에 대한 RoomManager 존재 여부: {}", roomId, roomManager != null);
+    // log.info("STT 메시지 브로드캐스broadcastSTTMessage트 시작 - 사용자: {}, 방ID: {}, 텍스트: {}", user, roomId, text);
+    // log.debug("현재 메모리에 있는 방 개수: {}", roomInfos.size());
+    // log.debug("요청된 방ID {}에 대한 RoomManager 존재 여부: {}", roomId, roomManager != null);
     
     if (roomManager == null) {
       log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
@@ -106,10 +106,9 @@ public class DebateService {
 
     //모든 사용자들에게 STT 내용을 broadcast 한다
     BroadcastResponse broadcastResponse = BroadcastResponse.builder().user(user).text(req.getText()).build();
-    log.info("브로드캐스트할 메시지 생성 완료 - 사용자: {}, 텍스트: {}", user, text);
+    log.info("[broad cast message] >>> 사용자: {}, 텍스트: {}", user, text);
     
     roomManager.broadcastSTTMessageAtRoom(template, broadcastResponse,roomId);
-    log.info("STT 메시지 브로드캐스트 완료 - 방ID: {}", roomId);
   }
 
   public void processOpinionSTTMessage(String user, Long roomId, OpinionSTTRequest req) {
@@ -138,7 +137,7 @@ public class DebateService {
   public void processBattleSTTMessage(String user, Long roomId, STTRequest request) {
     RoomManager roomManager = roomInfos.get(roomId);
     
-    log.info("배틀 STT 메시지 처리 시작 - 사용자: {}, 방ID: {}, 텍스트: {}", user, roomId, request.getText());
+    log.info("[processBattleSTTMessage] - 사용자: {}, 방ID: {}, 텍스트: {}", user, roomId, request.getText());
 
     if (roomManager == null) {
       log.error("방 매니저를 찾을 수 없습니다 - 방ID: {}", roomId);
@@ -146,10 +145,8 @@ public class DebateService {
       return;
     }
     
-    log.info("배틀 텍스트 저장 시작 - 사용자: {}", user);
     //텍스트를 현재 사람에 저장한다
     roomManager.saveBattleText(request);
-    log.info("배틀 텍스트 저장 완료 - 사용자: {}", user);
 
   }
 
