@@ -15,6 +15,6 @@ python process.py
 cd ..
 
 # Start server (equivalent to: uvicorn main:app --reload)
-exec uvicorn main:app --reload
+exec uvicorn main:app --reload --root-path /api/ai
 
 
