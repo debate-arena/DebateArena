@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -83,7 +84,15 @@ public class MatchService {
         topicIdxToId = new ArrayList<>();
 
         //현재 토픽 정보 가져오기
-        getCurrentTopicsFromRedis();
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(20000); // 10초 대기
+                getCurrentTopicsFromRedis();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
 
         alreadyMatched = new HashSet<>();
         matchUtil.setMatchUtil(matchQueue, matchInfos, activeDebateMatch,

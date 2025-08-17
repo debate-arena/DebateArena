@@ -1,5 +1,8 @@
 FROM openjdk:21-jdk-slim
 
+# curl 설치 (헬스체크용)
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # 로컬에서 빌드된 Boot JAR을 와일드카드로 복사 (버전 변경 대비)
