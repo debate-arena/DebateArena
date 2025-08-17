@@ -162,7 +162,7 @@ async def summarize_result_text(input_data: LastInput):
                 {"role": "developer", "content": "한국어로 대답해주세요."},
                 {"role": "user", "content": prompt}
             ],
-            "max_tokens": 4000,
+            "max_tokens": 2000,
             "temperature": 0.1
         }
         
