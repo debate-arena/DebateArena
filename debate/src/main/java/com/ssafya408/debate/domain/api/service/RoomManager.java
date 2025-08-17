@@ -438,6 +438,8 @@ public void setDefenseUsers() {
     }
     else if(status == RoomStatus.VOTE_RESULT) {
       status=RoomStatus.AI_RESULT;
+    }else if(status == RoomStatus.AI_RESULT){
+      status=RoomStatus.FINISH;
     }
     else {
       log.error("알 수 없는 토론 상태: {}", status);
