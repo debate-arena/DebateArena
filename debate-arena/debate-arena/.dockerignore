@@ -1,0 +1,7 @@
+.git
+.gitignore
+.idea
+.gradle
+*.md
+!HELP.md
+# build 디렉토리는 제외하지 않음 (JAR 파일이 필요함) 
