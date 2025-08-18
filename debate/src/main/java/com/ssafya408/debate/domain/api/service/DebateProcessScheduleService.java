@@ -33,15 +33,15 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class DebateProcessScheduleService {
 
-    private static final int PREPARING_STAGE_TIME = 10;
-    private static final int OPINION_STAGE_TIME = 30;
+    private static final int PREPARING_STAGE_TIME = 15;
+    private static final int OPINION_STAGE_TIME = 15;
     private static final int OPINION_TURN_OVER_TIME = 4;
-    private static final int BATTLE_VOTE_TIME = 10;
+    private static final int BATTLE_VOTE_TIME = 15;
     private static final int BATTLE_STAGE_TIME = 15;
     private static final int BATTLE_TURN_OVER_TIME = 4;
-    private static final int VOTING_STAGE_TIME = 10;
-    private static final int VOTE_RESULT_STAGE_TIME = 4;
-    private static final int AI_RESULT_STAGE_TIME = 4;
+    private static final int VOTING_STAGE_TIME = 15;
+    private static final int VOTE_RESULT_STAGE_TIME = 1;
+    private static final int AI_RESULT_STAGE_TIME = 1;
 
     private static final String SIGNALING_MIC_ON_CHANNEL = "signaling:mic:on";
     private static final String SIGNALING_MIC_OFF_CHANNEL = "signaling:mic:off";
@@ -359,10 +359,13 @@ public class DebateProcessScheduleService {
         log.info("[투표 종료] 투표자:{} 승리팀:{}", roomManager.getVoteTeam(),roomManager.calculateWinner());
 
         broadcastToRoom(roomManager.getRoomId(), VOTE_END_SUFFIX, dto);
+
+        log.info("[AI 청중단의 판단]");
         roomManager.advanceTurn();
         taskScheduler.schedule(() -> {
             aiResult(roomManager);
         }, Instant.now().plusSeconds(VOTE_RESULT_STAGE_TIME));
+        
     }
 
     private void aiResult(RoomManager roomManager) {
@@ -372,6 +375,14 @@ public class DebateProcessScheduleService {
             return;
         }
 
+        summarizeTotalText(roomManager)
+                .subscribe(
+                        null,                                // next 없음
+                        e -> log.error("pipeline error", e), // 에러 소비자 필수
+                        () -> log.info("broadcast done")     // 완료 콜백
+                );
+
+        roomManager.advanceTurn();
         taskScheduler.schedule(() -> {
             endGame(roomManager);
         }, Instant.now().plusSeconds(AI_RESULT_STAGE_TIME));
@@ -418,7 +429,8 @@ public class DebateProcessScheduleService {
                         .build())
                 .build();
         
-        log.info("[battle summary req] >>> {}, idx >>> {}", request.toString()
+        log.info("[battle summary req] >>> attack msg: {}, defense msg: {}, idx >>> {}", currentTotalSTTBattle.getAttackTotalMessage(),
+            currentTotalSTTBattle.getDefenseTotalMessage()
             ,roomManager.getCurrentIndex());
         return aiService.requestSiegeDefenseSummary(roomManager.getRoomId(),
             roomManager.getCurrentIndex(),request);
@@ -511,15 +523,6 @@ public class DebateProcessScheduleService {
         String s = ROOM_TOPIC_PREFIX+roomId+suffix;
         log.info("[broadcast] : {}",s);
         simpMessagingTemplate.convertAndSend(s, message);
-        
-        ChatResponseDto responseDto = ChatResponseDto.builder()
-            .message(LocalDateTime.now().toString())
-            .nickname("server")
-            .build();
-
-        String url = "/sub/debate/room/"+roomId+"/chat";
-
-        simpMessagingTemplate.convertAndSend(url, responseDto);
     }
 
     
