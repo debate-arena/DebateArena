@@ -1,0 +1,570 @@
+package com.ssafya408.debate.domain.api;
+
+import com.ssafya408.debate.domain.api.dto.debate.SelectTargetRequestDto;
+import com.ssafya408.debate.domain.api.dto.debate.VoteRequestDto;
+import com.ssafya408.debate.domain.api.dto.room.DebateParticipantRequest;
+import com.ssafya408.debate.domain.api.dto.room.DebateRoomResponse;
+import com.ssafya408.debate.domain.api.dto.room.RoomStatus;
+import com.ssafya408.debate.domain.api.dto.room.WebRTCStatus;
+import com.ssafya408.debate.domain.api.dto.summary.DebateSummaryResponse;
+import com.ssafya408.debate.domain.api.dto.audience.AudienceJoinResponse;
+import com.ssafya408.debate.domain.api.service.DebateService;
+import com.ssafya408.debate.domain.common.dto.ApiResponse;
+import com.ssafya408.debate.domain.db.cache.DebateRedisInfo;
+import com.ssafya408.debate.domain.db.rdb.Topic;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/rooms")
+@Tag(name = "토론방 API", description = "토론방 생성 및 관리 관련 API")
+@Slf4j
+public class DebateRoomApiController {
+
+  private final DebateService debateService;
+
+  @GetMapping("/test")
+  @Operation(
+    summary = "CORS 테스트",
+    description = "CORS 설정이 올바르게 작동하는지 테스트합니다."
+  )
+  @ApiResponses(value = {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+      responseCode = "200",
+      description = "테스트 성공",
+      content = @Content(
+        mediaType = "application/json",
+        examples = @ExampleObject(
+          name = "성공 예시",
+          value = """
+            {
+              "status": "success",
+              "data": {
+                "message": "CORS 테스트 성공!",
+                "service": "debate",
+                "timestamp": "2024-01-01T12:00:00"
+              }
+            }
+            """
+        )
+      )
+    )
+  })
+  public ResponseEntity<ApiResponse<Map<String, String>>> testCors() {
+    log.info("[CORS 테스트] 요청 수신");
+    
+    Map<String, String> response = new HashMap<>();
+    response.put("message", "CORS 테스트 성공!");
+    response.put("service", "debate");
+    response.put("timestamp", java.time.LocalDateTime.now().toString());
+    
+    log.info("[CORS 테스트] 응답: {}", response);
+    return ResponseEntity.ok(ApiResponse.success(response));
+  }
+
+  @GetMapping("/topics")
+  @Operation(
+    summary = "사용 가능한 토론 주제 목록 조회",
+    description = "토론방 생성에 사용할 수 있는 주제 목록을 조회합니다."
+  )
+  @ApiResponses(value = {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+      responseCode = "200",
+      description = "주제 목록 조회 성공",
+      content = @Content(
+        mediaType = "application/json",
+        examples = @ExampleObject(
+          name = "성공 예시",
+          value = """
+            {
+              "status": "success",
+              "data": [
+                {
+                  "id": 1,
+                  "topicText": "인공지능의 윤리적 문제",
+                  "firstOption": "인공지능 개발을 제한해야 한다",
+                  "secondOption": "인공지능 개발을 적극적으로 지원해야 한다"
+                }
+              ]
+            }
+            """
+        )
+      )
+    )
+  })
+  public ResponseEntity<ApiResponse<List<Topic>>> getAvailableTopics() {
+    log.info("[토론 주제 목록 조회] 요청 수신");
+    
+    List<Topic> topics = debateService.getAvailableTopics();
+    
+    log.info("[토론 주제 목록 조회] 조회된 주제 개수: {}", topics.size());
+    topics.forEach(topic -> 
+      log.info("[토론 주제 목록 조회] 주제: ID={}, 제목={}", topic.getId(), topic.getTopicText())
+    );
+    
+    return ResponseEntity.ok(ApiResponse.success(topics));
+  }
+
+  @PostMapping("")
+  @Operation(
+    summary = "토론방 생성",
+    description = "새로운 토론방을 생성합니다."
+  )
+  @ApiResponses(value = {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+      responseCode = "200",
+      description = "토론방 생성 성공",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ApiResponse.class),
+        examples = @ExampleObject(
+          name = "성공 예시",
+          value = """
+            {
+              "status": "success",
+              "data": {
+                "roomId": "123"
+              }
+            }
+            """
+        )
+      )
+    )
+  })
+  public ResponseEntity<ApiResponse<DebateRoomResponse>> createDebateRoom(
+      @RequestBody @Schema(description = "토론방 생성 요청", implementation = DebateParticipantRequest.class)
+      DebateParticipantRequest req
+  ) {
+    log.info("[토론방 생성] 요청 수신");
+    log.info("[토론방 생성] 요청 데이터: matchId={}, topicId={}, matchType={}", 
+        req.getMatchId(), req.getTopicId(), req.getMatchType());
+    log.info("[토론방 생성] 첫 번째 팀: {}", req.getFirstTeam());
+    log.info("[토론방 생성] 두 번째 팀: {}", req.getSecondTeam());
+
+    try {
+      Long roomId = debateService.generateDebateRoom(req);
+
+      
+      log.info("[토론방 생성] 성공 - 생성된 방 ID: {}", roomId);
+      return ResponseEntity.ok(ApiResponse.success(DebateRoomResponse.builder().roomId(roomId).build()));
+      
+    } catch (Exception e) {
+      log.error("[토론방 생성] 실패 - 오류: {}", e.getMessage(), e);
+      Map<String, String> errorRes = new HashMap<>();
+      errorRes.put("error", "토론방 생성에 실패했습니다: " + e.getMessage());
+      return ResponseEntity.ok(ApiResponse.error("토론방 생성에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+  @GetMapping("/{roomId}/info")
+  @Operation(
+    summary = "토론방 정보 조회",
+    description = "Redis에서 특정 토론방의 상세 정보를 조회합니다."
+  )
+  public ResponseEntity<ApiResponse<DebateRedisInfo>> getRoomInfo(@PathVariable Long roomId) {
+    log.info("[토론방 정보 조회] 요청 수신 - roomId: {}", roomId);
+    
+    try {
+      DebateRedisInfo roomInfo = debateService.getDebateRoomInfo(roomId);
+      
+      if (roomInfo == null) {
+        log.warn("[토론방 정보 조회] 방을 찾을 수 없음 - roomId: {}", roomId);
+        return ResponseEntity.ok(ApiResponse.error("토론방을 찾을 수 없습니다"));
+      }
+      
+      log.info("[토론방 정보 조회] 성공 - roomId: {}, status: {}", roomId, roomInfo.getStatus());
+      return ResponseEntity.ok(ApiResponse.success(roomInfo));
+      
+    } catch (Exception e) {
+      log.error("[토론방 정보 조회] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("토론방 정보 조회에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+  @GetMapping("/{roomId}/exists")
+  @Operation(
+    summary = "토론방 존재 여부 확인",
+    description = "Redis에서 토론방의 존재 여부를 확인합니다."
+  )
+  public ResponseEntity<ApiResponse<Map<String, Object>>> checkRoomExists(@PathVariable Long roomId) {
+    log.info("[토론방 존재 여부 확인] 요청 수신 - roomId: {}", roomId);
+    
+    try {
+      boolean exists = debateService.isRoomExists(roomId);
+      
+      Map<String, Object> response = new HashMap<>();
+      response.put("roomId", roomId);
+      response.put("exists", exists);
+      response.put("timestamp", java.time.LocalDateTime.now().toString());
+      
+      log.info("[토론방 존재 여부 확인] 성공 - roomId: {}, exists: {}", roomId, exists);
+      return ResponseEntity.ok(ApiResponse.success(response));
+      
+    } catch (Exception e) {
+      log.error("[토론방 존재 여부 확인] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("존재 여부 확인에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+  @PutMapping("/{roomId}/status")
+  @Operation(
+    summary = "토론방 상태 업데이트",
+    description = "토론방의 상태를 업데이트합니다."
+  )
+  public ResponseEntity<ApiResponse<Map<String, Object>>> updateRoomStatus(
+      @PathVariable Long roomId,
+      @RequestParam RoomStatus status
+  ) {
+    log.info("[토론방 상태 업데이트] 요청 수신 - roomId: {}, status: {}", roomId, status);
+    
+    try {
+      debateService.updateRoomStatus(roomId, status);
+      
+      Map<String, Object> response = new HashMap<>();
+      response.put("roomId", roomId);
+      response.put("status", status);
+      response.put("timestamp", java.time.LocalDateTime.now().toString());
+      
+      log.info("[토론방 상태 업데이트] 성공 - roomId: {}, status: {}", roomId, status);
+      return ResponseEntity.ok(ApiResponse.success(response));
+      
+    } catch (Exception e) {
+      log.error("[토론방 상태 업데이트] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("상태 업데이트에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+  @PutMapping("/{roomId}/webrtc-status")
+  @Operation(
+    summary = "WebRTC 상태 업데이트",
+    description = "토론방의 WebRTC 상태를 업데이트합니다."
+  )
+  public ResponseEntity<ApiResponse<Map<String, Object>>> updateWebRTCStatus(
+      @PathVariable Long roomId,
+      @RequestParam WebRTCStatus status
+  ) {
+    log.info("[WebRTC 상태 업데이트] 요청 수신 - roomId: {}, status: {}", roomId, status);
+    
+    try {
+      debateService.updateWebRTCStatus(roomId, status);
+      
+      Map<String, Object> response = new HashMap<>();
+      response.put("roomId", roomId);
+      response.put("webRTCStatus", status);
+      response.put("timestamp", java.time.LocalDateTime.now().toString());
+      
+      log.info("[WebRTC 상태 업데이트] 성공 - roomId: {}, status: {}", roomId, status);
+      return ResponseEntity.ok(ApiResponse.success(response));
+      
+    } catch (Exception e) {
+      log.error("[WebRTC 상태 업데이트] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("WebRTC 상태 업데이트에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+  @PostMapping("/{roomId}/extend-ttl")
+  @Operation(
+    summary = "토론방 TTL 연장",
+    description = "진행 중인 토론방의 TTL을 연장합니다."
+  )
+  public ResponseEntity<ApiResponse<Map<String, Object>>> extendRoomTTL(@PathVariable Long roomId) {
+    log.info("[토론방 TTL 연장] 요청 수신 - roomId: {}", roomId);
+    
+    try {
+      debateService.extendRoomTTL(roomId);
+      
+      Map<String, Object> response = new HashMap<>();
+      response.put("roomId", roomId);
+      response.put("message", "TTL이 2시간 연장되었습니다");
+      response.put("timestamp", java.time.LocalDateTime.now().toString());
+      
+      log.info("[토론방 TTL 연장] 성공 - roomId: {}", roomId);
+      return ResponseEntity.ok(ApiResponse.success(response));
+      
+    } catch (Exception e) {
+      log.error("[토론방 TTL 연장] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("TTL 연장에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+  @PostMapping("/{roomId}/close")
+  @Operation(
+    summary = "토론방 종료",
+    description = "토론방을 종료하고 정리 작업을 수행합니다."
+  )
+  public ResponseEntity<ApiResponse<Map<String, Object>>> closeRoom(@PathVariable Long roomId) {
+    log.info("[토론방 종료] 요청 수신 - roomId: {}", roomId);
+
+    try {
+      debateService.closeDebateRoom(roomId);
+
+      Map<String, Object> response = new HashMap<>();
+      response.put("roomId", roomId);
+      response.put("message", "토론방이 종료되었습니다");
+      response.put("timestamp", java.time.LocalDateTime.now().toString());
+
+      log.info("[토론방 종료] 성공 - roomId: {}", roomId);
+      return ResponseEntity.ok(ApiResponse.success(response));
+
+    } catch (Exception e) {
+      log.error("[토론방 종료] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("토론방 종료에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+
+  @PostMapping("/{roomId}/advance-turn")
+  @Operation(
+    summary = "토론 턴 진행",
+    description = "토론방의 현재 턴(currentOpinionIndex 또는 currentBattleIndex)을 다음 순서로 진행시킵니다."
+  )
+  @ApiResponses(value = {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+      responseCode = "200",
+      description = "턴 진행 성공",
+      content = @Content(
+        mediaType = "application/json",
+        examples = @ExampleObject(
+          name = "성공 예시",
+          value = """
+            {
+              "status": "success",
+              "data": {
+                "roomId": 1,
+                "currentStatus": "opinion",
+                "currentIndex": 2,
+                "isFinished": false,
+                "message": "턴이 성공적으로 진행되었습니다"
+              }
+            }
+            """
+        )
+      )
+    )
+  })
+  public ResponseEntity<ApiResponse<Map<String, Object>>> advanceTurn(@PathVariable Long roomId) {
+    log.info("[토론 턴 진행] 요청 수신 - roomId: {}", roomId);
+    
+    try {
+      Map<String, Object> result = debateService.advanceDebateTurn(roomId);
+      
+      log.info("[토론 턴 진행] 성공 - roomId: {}, result: {}", roomId, result);
+      return ResponseEntity.ok(ApiResponse.success(result));
+      
+    } catch (Exception e) {
+      log.error("[토론 턴 진행] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("턴 진행에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+  @PostMapping("/{roomId}/reset-turn")
+  @Operation(
+      summary = "토론 턴 초기화 (테스트용)",
+      description = "토론 진행 턴을 초기 상태로 리셋합니다. 상태를 OPINION으로 설정하고 opinion/battle 인덱스를 0으로 초기화합니다."
+  )
+  @ApiResponses(value = {
+      @io.swagger.v3.oas.annotations.responses.ApiResponse(
+          responseCode = "200",
+          description = "턴 초기화 성공",
+          content = @Content(
+              mediaType = "application/json",
+              examples = @ExampleObject(
+                  name = "성공 예시",
+                  value = """
+                    {
+                      "status": "success",
+                      "data": {
+                        "roomId": 1,
+                        "currentStatus": "OPINION",
+                        "currentOpinionIndex": 0,
+                        "currentBattleIndex": 0,
+                        "message": "턴이 초기화되었습니다"
+                      }
+                    }
+                  """
+              )
+          )
+      )
+  })
+  public ResponseEntity<ApiResponse<Map<String, Object>>> resetTurn(@PathVariable Long roomId) {
+    log.info("[토론 턴 초기화] 요청 수신 - roomId: {}", roomId);
+
+    try {
+      Map<String, Object> result = debateService.resetDebateTurn(roomId);
+      log.info("[토론 턴 초기화] 성공 - roomId: {}, result: {}", roomId, result);
+      return ResponseEntity.ok(ApiResponse.success(result));
+    } catch (Exception e) {
+      log.error("[토론 턴 초기화] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("턴 초기화에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+  @GetMapping("/createDebate")
+  @Operation(
+          summary = "토론 시작",
+          description = "토론을 시작합니다."
+  )
+  public void createDebateRoom(@RequestParam String userEmail, @RequestParam Long roomId) {
+    try {
+      log.info("[토론자 생성] 요청" );
+      debateService.userJoinMatch(userEmail, roomId);
+      log.info("[토론자 생성] 성공 ");
+
+    } catch (Exception e) {
+      log.error("[토론자 생성] 실패 - 오류: {}", e.getMessage(), e);
+    }
+  }
+
+  // 테스트용
+  @PostMapping("/attack")
+  @Operation(
+          summary = "공격자 선택",
+          description = "공격자를 선택합니다."
+  )
+  public void createAttacker(@RequestParam String userEmail, @RequestBody SelectTargetRequestDto req) {
+    try {
+      log.info("[공격자 생성] 요청" );
+      debateService.selectAttackTarget(userEmail, req);
+      log.info("[공격자 생성] 성공" );
+    } catch (Exception e) {
+      log.error("[공격자 생성] 실패 - 오류: {}", e.getMessage(), e);
+    }
+  }
+
+  @PostMapping("/{roomId}/vote")
+  @Operation(
+          summary = "투표",
+          description = "투표를 진행합니다."
+  )
+  public ResponseEntity<ApiResponse<String>> postVoting(@PathVariable Long roomId,@RequestBody VoteRequestDto req) {
+    try {
+      log.info("[투표] 요청" );
+      debateService.voteWinnerTeam(roomId,req);
+      log.info("[투표] 성공" );
+      return ResponseEntity.ok(ApiResponse.success("투표 성공"));
+    } catch (Exception e) {
+      log.error("[투표] 실패 - 오류: {}", e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("투표 실패" + e.getMessage()));
+    }
+  }
+
+  @PostMapping("/{roomId}/audience/join")
+  @Operation(
+    summary = "시청자 토론방 입장",
+    description = "시청자가 토론방에 입장하여 현재까지의 요약 정보를 받습니다."
+  )
+  @ApiResponses(value = {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+      responseCode = "200",
+      description = "시청자 입장 성공",
+      content = @Content(
+        mediaType = "application/json",
+        examples = @ExampleObject(
+          name = "성공 예시",
+          value = """
+            {
+              "status": "success",
+              "data": {
+                "roomId": 1,
+                "opinion": [
+                  {
+                    "phase": "opinion",
+                    "round": 1,
+                    "user_id": "user123",
+                    "text": "의견 요약 내용",
+                    "team": "first",
+                    "timestamp": "2024-01-01T12:00:00"
+                  }
+                ],
+                "battle": [
+                  {
+                    "phase": "battle",
+                    "round": 1,
+                    "attack_id": "user123",
+                    "defense_id": "user456",
+                    "text": "공방전 요약 내용",
+                    "rebuttal_score": 6,
+                    "attack_team": "first",
+                    "defense_team": "second",
+                    "timestamp": "2024-01-01T12:00:00"
+                  }
+                ],
+                "final_summary": [
+                  {
+                    "phase": "final",
+                    "round": 1,
+                    "winner": "first",
+                    "votes": {
+                      "num1": 3,
+                      "num2": 2,
+                      "none": 0
+                    },
+                    "soft_scores": {
+                      "num1": 8.5,
+                      "num2": 7.2
+                    },
+                    "juror_explain": "심사위원 설명",
+                    "full_summarize": {
+                      "num1": "첫 번째 팀 요약",
+                      "num2": "두 번째 팀 요약"
+                    },
+                    "timestamp": "2024-01-01T12:00:00"
+                  }
+                ],
+                "current_phase": "battle",
+                "current_round": 2,
+                "timestamp": "2024-01-01T12:00:00"
+              }
+            }
+            """
+        )
+      )
+    )
+  })
+  public ResponseEntity<ApiResponse<AudienceJoinResponse>> joinAsAudience(Principal user,@PathVariable Long roomId) {
+    log.info("[시청자 입장] 요청 수신 - roomId: {}", roomId);
+    
+    try {
+      AudienceJoinResponse response = debateService.joinAsAudience(user.getName(),roomId);
+      
+      log.info("[시청자 입장] 성공 - roomId: {}, 의견 요약: {}개, 공방전 요약: {}개, 최종 요약: {}개, 1팀 의견: {}개, 2팀 의견: {}개, 1팀 공방전: {}개, 2팀 공방전: {}개",
+          roomId, 
+          response.getSummaryData().getOpinion().size(),
+          response.getSummaryData().getBattle().size(), 
+          response.getSummaryData().getFinal_summary().size(),
+          response.getOpinionData().getFirstTeamOpinion().size(),
+          response.getOpinionData().getSecondTeamOpinion().size(),
+          response.getBattleData().getFirstTeamAttack().size(),
+          response.getBattleData().getSecondTeamAttack().size());
+      
+      return ResponseEntity.ok(ApiResponse.success(response));
+      
+    } catch (Exception e) {
+      log.error("[시청자 입장] 실패 - roomId: {}, error: {}", roomId, e.getMessage(), e);
+      return ResponseEntity.ok(ApiResponse.error("시청자 입장에 실패했습니다: " + e.getMessage()));
+    }
+  }
+
+}

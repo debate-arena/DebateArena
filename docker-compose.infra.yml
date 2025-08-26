@@ -6,13 +6,13 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ssafy
       MYSQL_DATABASE: debate_arena
-      MYSQL_USER: debate_user
-      MYSQL_PASSWORD: debate_pass
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ssafy
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - debate-network
     healthcheck:
@@ -44,4 +44,4 @@ volumes:
 
 networks:
   debate-network:
-    driver: bridge
+    external: true

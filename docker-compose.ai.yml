@@ -1,0 +1,36 @@
+# services:
+#   # AI Server (FastAPI)
+#   ai-server:
+#     build:
+#       context: ./AI/AI_server
+#       dockerfile: Dockerfile
+#     container_name: ai-server
+#     ports:
+#       - "8000:8000"
+#     env_file:
+#       - ./AI/AI_server/.env
+#     volumes:
+#       - ai-chroma:/app/data/chroma_jurors
+#     networks:
+#       - debate-network
+#     restart: unless-stopped
+services:
+  ai-server:
+    build: ./AI/AI_server
+    container_name: ai-server
+    env_file:
+      - ./AI/AI_server/.env
+    environment:
+      ROOT_PATH: /api/ai
+      UVICORN_PORT: 8000
+      UVICORN_HOST: 0.0.0.0
+    expose:
+      - "8000"     # reverse-proxy 컨테이너에서만 접근하면 expose로 충분
+    networks:
+      - debate-network
+networks:
+  debate-network:
+    external: true
+
+volumes:
+  ai-chroma:

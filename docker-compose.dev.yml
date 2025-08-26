@@ -1,0 +1,148 @@
+services:
+  # Debate Arena (OAuth2, JWT)
+  debate-arena:
+    build:
+      context: ./debate-arena/debate-arena
+      dockerfile: Dockerfile
+    container_name: debate-arena
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://debate-mysql:3306/debate_arena?allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ssafy
+      SPRING_REDIS_HOST: debate-redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: redispass
+      SPRING_PROFILES_ACTIVE: docker
+      SWAGGER_SERVER_URL: http://i13a408.p.ssafy.io/api/arena
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 60s
+    networks:
+      - debate-network
+    restart: unless-stopped
+
+  # # Matching (WebSocket)
+  matching:
+    build:
+      context: ./matching/matching
+      dockerfile: Dockerfile
+    container_name: matching
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://debate-mysql:3306/debate_arena?allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ssafy
+      SPRING_REDIS_HOST: debate-redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: redispass
+      DEBATE_SERVER_URL: https://i13a408.p.ssafy.io/api/debate
+      SPRING_PROFILES_ACTIVE: docker
+      SWAGGER_SERVER_URL: http://i13a408.p.ssafy.io/api/matching
+    depends_on:
+      - debate-arena
+    networks:
+      - debate-network
+
+  # # Debate (토론방 관리)
+  debate:
+    build:
+      context: ./debate/debate
+      dockerfile: Dockerfile
+    container_name: debate
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://debate-mysql:3306/debate_arena?allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ssafy
+      SPRING_REDIS_HOST: debate-redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: redispass
+      SPRING_PROFILES_ACTIVE: docker
+      AI_SERVER_BASE_URL: https://i13a408.p.ssafy.io/api/ai
+      SWAGGER_SERVER_URL: http://i13a408.p.ssafy.io/api/debate
+    depends_on:
+      - debate-arena
+      # AI_SERVER_BASE_URL: http://ai-server:8000
+    networks:
+      - debate-network
+  # # Signaling (WebSocket/WSS)
+  signaling:
+    container_name: signaling
+    build:
+      context: ./signaling/signaling
+      dockerfile: Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://debate-mysql:3306/debate_arena?allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ssafy
+      SPRING_REDIS_HOST: debate-redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: redispass
+      SPRING_PROFILES_ACTIVE: docker
+      SWAGGER_SERVER_URL: http://i13a408.p.ssafy.io/api/arena
+    
+    expose:
+      - "8083"
+    networks:
+      - debate-network
+    depends_on:
+      - debate-arena
+  # # mediasoup (RTP/RTCP UDP 포트 직접 노출)
+  mediasoup:
+    container_name: mediasoup
+    build:
+      context: ./mediasoup/mediasoup
+      dockerfile: Dockerfile
+    ports:
+      - "40000-40100:40000-40100/udp"
+    environment:
+      REDIS_HOST: debate-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redispass
+      MEDIASOUP_ANNOUNCED_IP: 3.34.95.4
+      MEDIASOUP_LISTEN_IP: 0.0.0.0
+      MEDIASOUP_PORT_RANGE_MIN: 40000
+      MEDIASOUP_PORT_RANGE_MAX: 40100
+    depends_on:
+      - debate-arena
+    networks:
+      - debate-network
+
+  # Reverse proxy + 정적 프런트엔드 (Vue build 결과를 Nginx로 서비스)
+  reverse-proxy:
+    build:
+      context: .
+      dockerfile: reverse-proxy/Dockerfile
+      args:
+        VITE_MAIN_API_URL: "/api/arena"
+        VITE_AUTH_API_URL: "/api/arena"
+        VITE_API_BASE_URL: "/api/arena"
+        VITE_MATCH_API_URL: "/api/matching"
+        VITE_MATCH_WS_URL: "/api/matching"  # empty -> frontend falls back to ws(s)://<host>/ws
+        VITE_STT_API_URL: "/api/debate"
+        VITE_STT_WS_URL: "/api/debate"
+        VITE_WS_BASE_URL: "/api/debate"  # Nginx listens on 80; browser will use ws(s)://<host>
+        VITE_DEBATE_WS_URL: "/api/debate"
+    container_name: reverse-proxy
+    ports:
+      - "80:80"
+      - "8080:80"
+      - "443:443"   # HTTPS 포트 추가
+    volumes:
+      - /home/ubuntu/code2/nginx/ssl/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
+      - /home/ubuntu/code2/nginx/ssl/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
+    depends_on:
+      - debate-arena
+      # - matching
+      # - debate
+      # - signaling
+      # - mediasoup
+    networks:
+      - debate-network
+
+networks:
+  debate-network:
+    external: true
+
+
