@@ -34,7 +34,7 @@
 
 ## 🧬 System Archetacture
 
-<img width="875" height="616" alt="diagram-export-2026 -2 -24 -오후-8_27_38" src="https://github.com/user-attachments/assets/f688893a-4313-47e8-94ab-e74677298e98" />
+<img width="674" height="733" alt="diagram-export-2026 -4 -15 -오전-1_19_10" src="https://github.com/user-attachments/assets/80c25da2-6d25-44da-8a13-b42601dd90b3" />
 
 ### 시스템 아키텍처 및 기술 구현
 
@@ -45,6 +45,7 @@
 | `debate-arena` | 8080              | OAuth2 + JWT 인증, 토픽 관리               |
 | `matching`     | 8081              | WebSocket 기반 매칭 서비스                 |
 | `debate`       | 8082              | 토론방 관리, STT 처리                      |
+| `signaling`    | 8083              | RTC Signaling                      |
 | `mediasoup`    | 40000-49999 | 미디어 스트리밍 SFU 서버                   |
 | `frontend`     | 3000              | Vue                       |
 
